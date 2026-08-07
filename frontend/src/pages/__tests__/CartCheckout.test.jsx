@@ -1,0 +1,107 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import Cart from '../Cart.jsx'
+
+/**
+ * Sheet: FE-Components — L1-FCMP-03, L1-FCMP-05 (trang Giỏ hàng).
+ *
+ * ⚠ L1-FCMP-04 (banner "giá đã thay đổi" khi giỏ hết hạn giá) BỊ BLOCKED:
+ *    Không tồn tại khái niệm isPriceExpired / banner cảnh báo giá trong toàn bộ FE
+ *    (grep 'priceExpired' không có kết quả) — chưa có gì để unit test.
+ * ⚠ L1-FCMP-06 (đếm ngược 15 phút của màn QR SePay) BỊ BLOCKED:
+ *    Màn QR ở Checkout.jsx KHÔNG có bộ đếm ngược hạn giữ tồn; biến `countdown` hiện có là
+ *    đếm 5 giây tự chuyển về trang chủ SAU KHI thanh toán thành công, không phải hạn 15 phút.
+ *    Cả hai đều là tính năng CHƯA ĐƯỢC HIỆN THỰC. Xem DOC_MISMATCHES.md.
+ */
+
+const mockUseCart = vi.fn()
+const mockUseAuth = vi.fn()
+
+vi.mock('../../context/CartContext.jsx', () => ({ useCart: () => mockUseCart() }))
+vi.mock('../../context/AuthContext.jsx', () => ({ useAuth: () => mockUseAuth() }))
+vi.mock('../../components/Header.jsx', () => ({ default: () => <header /> }))
+vi.mock('../../components/Footer.jsx', () => ({ default: () => <footer /> }))
+vi.mock('../../services/quotationService.js', () => ({
+  getQuotations: vi.fn().mockResolvedValue([]),
+  getQuotationById: vi.fn().mockResolvedValue(null),
+  createQuotation: vi.fn().mockResolvedValue({}),
+}))
+
+// useCart() phơi ra items/totalItems/totalPrice ở CẤP CAO NHẤT (không phải bên trong cart) —
+// bám đúng shape thật của CartContext.value.
+function renderCart(cart) {
+  mockUseAuth.mockReturnValue({
+    user: { id: 'U1', role: 'Customer' },
+    isAuthenticated: true,
+    loading: false,
+  })
+  mockUseCart.mockReturnValue({
+    cart,
+    loading: false,
+    error: null,
+    items: cart?.items ?? [],
+    totalItems: cart?.totalItems ?? 0,
+    totalPrice: cart?.totalPrice ?? 0,
+    fetchCart: vi.fn(),
+    addToCart: vi.fn(),
+    updateQuantity: vi.fn(),
+    removeFromCart: vi.fn(),
+    clearCart: vi.fn(),
+  })
+  return render(<MemoryRouter><Cart /></MemoryRouter>)
+}
+
+const item = (overrides = {}) => ({
+  id: 'CI1',
+  productId: 'P1',
+  productName: 'Ống PVC D21',
+  quantity: 1,
+  unitPrice: 50_000,
+  imageUrl: 'https://cdn/p1.png',
+  ...overrides,
+})
+
+describe('L1-FCMP · trang Giỏ hàng', () => {
+  // L1-FCMP-03 | BC-TRUE | Giỏ rỗng -> không có lối đi tiếp sang thanh toán
+  it('L1-FCMP-03 giỏ hàng rỗng thì chặn đường sang thanh toán', async () => {
+    renderCart({ id: 'C1', items: [], totalItems: 0, totalPrice: 0 })
+
+    expect(await screen.findByText('Giỏ hàng trống')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /đặt hàng|thanh toán/i })).not.toBeInTheDocument()
+  })
+
+  // L1-FCMP-05 | Guard-FALSE | Tổng >= 100 triệu chưa có giá thoả thuận -> ẩn thanh toán, hiện yêu cầu báo giá
+  //
+  // 🔴 SPEC GAP v2.2: Cart.jsx CÓ hiện khối "Yêu cầu báo giá đặc biệt" khi subtotal >= 100 triệu,
+  // nhưng VẪN GIỮ nút "Đặt Hàng & Xem Hóa Đơn" bên cạnh -> khách vẫn bấm đặt hàng thẳng được.
+  // SRS v2 (FT-02 AC-03; BR-026) yêu cầu đơn >= 100 triệu PHẢI qua báo giá được duyệt.
+  // Test ĐỎ cho tới khi ẩn/khoá lối đặt hàng trực tiếp ở ngưỡng này.
+  it('L1-FCMP-05 đơn từ 100 triệu chưa có giá thoả thuận thì phải đi luồng báo giá', async () => {
+    renderCart({
+      id: 'C1',
+      items: [item({ quantity: 3, unitPrice: 40_000_000 })], // 120 triệu
+      totalItems: 3,
+      totalPrice: 120_000_000,
+    })
+
+    await waitFor(() =>
+      expect(screen.getByText(/yêu cầu báo giá đặc biệt/i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /gửi yêu cầu báo giá/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /đặt hàng & xem hóa đơn/i })).not.toBeInTheDocument()
+  })
+
+  // Nhánh đối chứng: dưới ngưỡng báo giá thì nút đặt hàng vẫn hiển thị bình thường
+  it('L1-FCMP-05 đơn dưới ngưỡng báo giá vẫn cho đặt hàng bình thường', async () => {
+    renderCart({
+      id: 'C1',
+      items: [item({ quantity: 2, unitPrice: 5_000_000 })], // 10 triệu
+      totalItems: 2,
+      totalPrice: 10_000_000,
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /đặt hàng & xem hóa đơn/i })).toBeInTheDocument())
+    expect(screen.queryByText(/yêu cầu báo giá đặc biệt/i)).not.toBeInTheDocument()
+  })
+})

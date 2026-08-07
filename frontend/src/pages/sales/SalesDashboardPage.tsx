@@ -8,6 +8,7 @@ import {
   Tooltip, ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { getSalesStaffDashboard } from '../../services/dashboardService.js';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY  = '#1F3B64';
@@ -150,6 +151,18 @@ export default function SalesDashboard() {
     fetchStats();
   }, []);
 
+  // KPI theo business.md §5 (Revenue/DeliverySuccess/ProcessingSpeed/ReturningCustomer) — fetch riêng,
+  // độc lập với dashboard vận hành phía trên: nếu API mới lỗi/chậm thì không ảnh hưởng phần đã có sẵn.
+  const [kpiSnapshot, setKpiSnapshot] = useState<any>(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+
+  useEffect(() => {
+    getSalesStaffDashboard()
+      .then(setKpiSnapshot)
+      .catch(() => {})
+      .finally(() => setKpiLoading(false));
+  }, []);
+
   const last7DaysRevenue = stats?.last7DaysRevenue || [];
   const topProductsMock = stats?.topProducts || [];
 
@@ -215,6 +228,36 @@ export default function SalesDashboard() {
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-3">
+        {/* KPI hiệu suất cá nhân (30 ngày gần nhất) */}
+        {!kpiLoading && kpiSnapshot?.kpi && (
+          <div className="grid grid-cols-4 gap-2">
+            <KpiRow
+              label="Doanh thu (30 ngày)"
+              value={formatPrice(kpiSnapshot.kpi.revenue) + ' đ'}
+              sub={`${kpiSnapshot.kpi.completedOrderCount} đơn hoàn thành`}
+              icon={<TrendingUp className="w-4 h-4" />}
+            />
+            <KpiRow
+              label="Tỷ lệ giao thành công"
+              value={`${Math.round((kpiSnapshot.kpi.deliverySuccessRate ?? 0) * 100)}%`}
+              sub={`${kpiSnapshot.kpi.deliveryAttemptedOrderCount} lượt giao`}
+              icon={<Truck className="w-4 h-4" />}
+            />
+            <KpiRow
+              label="Tốc độ xử lý TB"
+              value={kpiSnapshot.kpi.processingSpeedAvgHours != null ? `${kpiSnapshot.kpi.processingSpeedAvgHours.toFixed(1)}h` : '—'}
+              sub="Từ lúc tạo đến xác nhận"
+              icon={<Clock className="w-4 h-4" />}
+            />
+            <KpiRow
+              label="Khách quay lại"
+              value={`${Math.round((kpiSnapshot.kpi.returningCustomerRate ?? 0) * 100)}%`}
+              sub={`${kpiSnapshot.kpi.customersInScopeCount} khách trong kỳ`}
+              icon={<CheckCircle className="w-4 h-4" />}
+            />
+          </div>
+        )}
+
         {/* KPI row */}
         <div className="grid grid-cols-6 gap-2">
           <KpiRow label="Đơn mới hôm nay"     value={String(stats?.kpi?.newOrdersCount ?? 0)}       sub="Cần xử lý ngay"          icon={<ShoppingCart className="w-4 h-4" />} />

@@ -6,6 +6,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../../components/sales-ui/dropdown-menu';
 import {
+  Archive, CheckCircle,
   LayoutDashboard, Package, ClipboardList, Layers, ArrowDownToLine, ArrowUpFromLine,
   History, ShoppingBag, BarChart3, AlertCircle, TrendingDown, FileBarChart,
   Bell, LogOut, ChevronDown, Search, Settings, Truck, GitMerge,
@@ -44,6 +45,7 @@ import WarehouseStockAdjustment from './WarehouseStockAdjustment';
 import WarehouseProductionIssue from './WarehouseProductionIssue';
 import WarehouseGoodsIssue from './WarehouseGoodsIssue';
 import WarehouseManagement from './WarehouseManagement';
+import WarehousePickupReceiving from './WarehousePickupReceiving';
 
 interface NavItem {
   id: string; label: string; icon: ReactNode; path: string;
@@ -87,27 +89,26 @@ const buildNavItems = (): NavItem[] => [
     ],
   },
   {
+    id: 'returns', label: 'Đổi trả hàng', icon: <ArrowRightLeft className="w-4 h-4" />, path: '/warehouse/returns',
+    children: [
+      { id: 'pickup-receiving', label: 'Tiếp nhận xe hoàn', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/pickup-receiving' },
+    ],
+  },
+  {
     id: 'management', label: 'Cấu hình Hệ thống', icon: <Settings className="w-4 h-4" />, path: '/warehouse/management',
     children: [
       { id: 'warehouse-list', label: 'Quản lý Kho (CEO)', icon: <Building className="w-3.5 h-3.5" />, path: '/warehouse/management/warehouses' },
     ]
   },
   {
-    id: 'production', label: 'Sản xuất', icon: <Factory className="w-4 h-4" />, path: '/warehouse/production',
+    id: 'materials', label: 'Nguyên vật liệu SX', icon: <Layers className="w-4 h-4" />, path: '/warehouse/materials',
     children: [
-      { id: 'production-issue', label: 'Xuất NVL sản xuất', icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, path: '/warehouse/production/issue' },
+      { id: 'mat-list',          label: 'Danh sách NVL',        icon: <Layers className="w-3.5 h-3.5" />, path: '/warehouse/materials' },
+      { id: 'production-issue',  label: 'Xuất NVL sản xuất',    icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, path: '/warehouse/production/issue' },
+      { id: 'mat-history',       label: 'Lịch sử nhập xuất',    icon: <History className="w-3.5 h-3.5" />, path: '/warehouse/materials/history' },
     ],
   },
   { id: 'shift-inventory', label: 'Tồn kho theo ca', icon: <ClipboardList className="w-4 h-4" />, path: '/warehouse/shift-inventory' },
-  {
-    id: 'materials', label: 'Nguyên vật liệu SX', icon: <Layers className="w-4 h-4" />, path: '/warehouse/materials',
-    children: [
-      { id: 'mat-list',    label: 'Danh sách NVL',    icon: <Layers className="w-3.5 h-3.5" />, path: '/warehouse/materials' },
-      { id: 'mat-receive', label: 'Nhập nguyên liệu', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/materials/receive' },
-      { id: 'mat-issue',   label: 'Xuất nguyên liệu', icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, path: '/warehouse/materials/issue' },
-      { id: 'mat-history', label: 'Lịch sử nhập xuất',icon: <History className="w-3.5 h-3.5" />, path: '/warehouse/materials/history' },
-    ],
-  },
   {
     id: 'goods', label: 'Hàng thương mại', icon: <ShoppingBag className="w-4 h-4" />, path: '/warehouse/goods',
     children: [
@@ -271,39 +272,44 @@ export default function WarehousePortal() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="dashboard"                              element={<WarehouseDashboard />} />
-            <Route path="fulfillment/orders"                     element={<WarehouseFulfillmentOrders />} />
-            <Route path="fulfillment/pick-packing"               element={<WarehousePickPacking />} />
-            <Route path="fulfillment/consolidation"              element={<WarehouseConsolidation />} />
-            <Route path="fulfillment/handover"                   element={<WarehouseHandover />} />
-            <Route path="fulfillment/goods-issue"                element={<WarehouseGoodsIssue />} />
-            <Route path="purchase/orders"                        element={<WarehousePurchaseOrders />} />
-            <Route path="purchase/goods-receipt"                 element={<WarehouseGoodsReceipt />} />
-            <Route path="purchase/receiving-comparison"          element={<WarehouseReceivingComparison />} />
-            <Route path="purchase/quality-inspection"            element={<WarehouseQualityInspection />} />
-            <Route path="transfer/stock-transfer"                element={<WarehouseStockTransfer />} />
-            <Route path="inv-management/quarantine"              element={<WarehouseQuarantine />} />
-            <Route path="inv-management/inventory-count"         element={<WarehouseInventoryCount />} />
-            <Route path="inv-management/stock-adjustment"        element={<WarehouseStockAdjustment />} />
-            <Route path="management/warehouses"                  element={<WarehouseManagement />} />
-            <Route path="production/issue"                       element={<WarehouseProductionIssue />} />
-            <Route path="shift-inventory"                        element={<WarehouseShiftInventory />} />
-            <Route path="materials"                              element={<WarehouseMaterials />} />
-            <Route path="materials/receive"                      element={<WarehouseMaterialReceiving />} />
-            <Route path="materials/issue"                        element={<WarehouseMaterialIssue />} />
-            <Route path="materials/history"                      element={<WarehouseMaterialHistory />} />
-            <Route path="goods"                                  element={<WarehouseGoods />} />
-            <Route path="goods/receive"                          element={<WarehouseGoodsReceive />} />
-            <Route path="goods/history"                          element={<WarehouseGoodsHistory />} />
-            <Route path="inventory/low-stock"                    element={<WarehouseLowStock />} />
-            <Route path="inventory/slow-moving"                  element={<WarehouseSlowMoving />} />
-            <Route path="inventory/report"                       element={<WarehouseReport />} />
-            <Route path="audit-log"                              element={<WarehouseAuditLog />} />
-            <Route path="notifications"                          element={<NotificationsPage />} />
-            <Route path="*"                                      element={<WarehouseDashboard />} />
-          </Routes>
+        <main className="flex-1 overflow-auto bg-gray-50/30">
+          <div className="hallmark-container min-h-full py-2 flex flex-col">
+            <Routes>
+              <Route path="dashboard"                              element={<WarehouseDashboard />} />
+              <Route path="fulfillment/orders"                     element={<WarehouseFulfillmentOrders />} />
+              <Route path="fulfillment/pick-packing"               element={<WarehousePickPacking />} />
+              <Route path="fulfillment/consolidation"              element={<WarehouseConsolidation />} />
+              <Route path="fulfillment/handover"                   element={<WarehouseHandover />} />
+              <Route path="fulfillment/goods-issue"                element={<WarehouseGoodsIssue />} />
+              <Route path="purchase/orders"                        element={<WarehousePurchaseOrders />} />
+              <Route path="purchase/goods-receipt"                 element={<WarehouseGoodsReceipt />} />
+              <Route path="purchase/receiving-comparison"          element={<WarehouseReceivingComparison />} />
+              <Route path="purchase/quality-inspection"            element={<WarehouseQualityInspection />} />
+              <Route path="quarantine"                             element={<WarehouseQuarantine />} />
+              <Route path="pickup-receiving"                       element={<WarehousePickupReceiving />} />
+              <Route path="quality-inspection"                     element={<WarehouseQualityInspection />} />
+              <Route path="transfer/stock-transfer"                element={<WarehouseStockTransfer />} />
+              <Route path="inv-management/quarantine"              element={<WarehouseQuarantine />} />
+              <Route path="inv-management/inventory-count"         element={<WarehouseInventoryCount />} />
+              <Route path="inv-management/stock-adjustment"        element={<WarehouseStockAdjustment />} />
+              <Route path="management/warehouses"                  element={<WarehouseManagement />} />
+              <Route path="production/issue"                       element={<WarehouseProductionIssue />} />
+              <Route path="shift-inventory"                        element={<WarehouseShiftInventory />} />
+              <Route path="materials"                              element={<WarehouseMaterials />} />
+              <Route path="materials/receive"                      element={<WarehouseMaterialReceiving />} />
+              <Route path="materials/issue"                        element={<WarehouseMaterialIssue />} />
+              <Route path="materials/history"                      element={<WarehouseMaterialHistory />} />
+              <Route path="goods"                                  element={<WarehouseGoods />} />
+              <Route path="goods/receive"                          element={<WarehouseGoodsReceive />} />
+              <Route path="goods/history"                          element={<WarehouseGoodsHistory />} />
+              <Route path="inventory/low-stock"                    element={<WarehouseLowStock />} />
+              <Route path="inventory/slow-moving"                  element={<WarehouseSlowMoving />} />
+              <Route path="inventory/report"                       element={<WarehouseReport />} />
+              <Route path="audit-log"                              element={<WarehouseAuditLog />} />
+              <Route path="notifications"                          element={<NotificationsPage />} />
+              <Route path="*"                                      element={<WarehouseDashboard />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>

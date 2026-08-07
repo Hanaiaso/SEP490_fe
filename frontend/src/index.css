@@ -55,6 +55,31 @@
 }
 
 @layer utilities {
+  /* Hallmark Layout Container Foundation */
+  .hallmark-container {
+    width: 95%;
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Fluid Typography Scale Tokens */
+  .text-fluid-xs {
+    font-size: clamp(11px, 0.7vw, 12px);
+  }
+
+  .text-fluid-body {
+    font-size: clamp(13px, 0.8vw, 15px);
+  }
+
+  .text-fluid-title {
+    font-size: clamp(15px, 1.0vw, 18px);
+  }
+
+  .text-fluid-heading {
+    font-size: clamp(18px, 1.3vw, 24px);
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

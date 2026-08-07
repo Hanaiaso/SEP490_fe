@@ -1,5 +1,5 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
-import { API_BASE_URL as API_BASE } from '../config/api'
+const API_BASE = '/api'  // Vite proxy → backend ASP.NET Core
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')
@@ -68,4 +68,75 @@ export async function removeItem(cartItemId) {
  */
 export async function clearCart() {
   return request('DELETE', '/cart')
+}
+
+// ─── Giỏ hàng tạm cho khách chưa đăng nhập (localStorage) ────────────────────
+const GUEST_CART_KEY = 'guestCart'
+
+export function getGuestCartItems() {
+  try {
+    const raw = localStorage.getItem(GUEST_CART_KEY)
+    const items = raw ? JSON.parse(raw) : []
+    return Array.isArray(items) ? items : []
+  } catch {
+    return []
+  }
+}
+
+function saveGuestCartItems(items) {
+  localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items))
+  return items
+}
+
+/**
+ * Thêm sản phẩm vào giỏ hàng tạm.
+ * @param {{ id: string, name: string, imageUrl?: string, price: number }} product
+ * @param {number} quantity
+ */
+export function addGuestCartItem(product, quantity) {
+  const items = getGuestCartItems()
+  const existing = items.find((i) => i.productId === product.id)
+  if (existing) {
+    existing.quantity += quantity
+  } else {
+    items.push({
+      id: product.id,
+      productId: product.id,
+      productName: product.name,
+      imageUrl: product.imageUrl,
+      quantity,
+      unitPrice: product.price,
+    })
+  }
+  return saveGuestCartItems(items)
+}
+
+export function updateGuestCartItem(productId, quantity) {
+  const items = getGuestCartItems()
+  const existing = items.find((i) => i.productId === productId)
+  if (existing) existing.quantity = quantity
+  return saveGuestCartItems(items)
+}
+
+export function removeGuestCartItem(productId) {
+  const items = getGuestCartItems().filter((i) => i.productId !== productId)
+  return saveGuestCartItems(items)
+}
+
+export function clearGuestCartItems() {
+  localStorage.removeItem(GUEST_CART_KEY)
+  return []
+}
+
+/**
+ * Dựng object giống CartDto từ backend để CartContext/Cart.jsx dùng chung logic.
+ * @param {Array} items
+ */
+export function buildGuestCartDto(items) {
+  return {
+    items,
+    totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
+    totalPrice: items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
+    updatedAt: new Date().toISOString(),
+  }
 }

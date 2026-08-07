@@ -28,7 +28,7 @@ import {
   UserCog,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Area,
   AreaChart,
@@ -54,6 +54,7 @@ import { getTrackingSteps, isVatExpired, orders as mockOrders, shippingStatusMet
 import {
   getOrderDetail,
   getOrderHistory,
+  getOrderTimeline,
   getSpendingStats,
   requestVatInvoice,
   downloadInvoicePdf,
@@ -1651,16 +1652,58 @@ function QuotationRequestsTab() {
 }
 
 function OrderTrackingTab() {
-  const trackableOrders = useMemo(
-    () => mockOrders.filter((order) => order.shipStatus === 'shipping' || order.shipStatus === 'pending' || order.shipStatus === 'delivered'),
-    [],
-  )
-  const defaultOrderId = trackableOrders.find((order) => order.trackingStatus === 'shipping')?.id ?? trackableOrders[0]?.id ?? ''
-  const [selectedOrderId, setSelectedOrderId] = useState(defaultOrderId)
+  const navigate = useNavigate()
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedOrderId, setSelectedOrderId] = useState('')
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null)
 
-  const selectedOrder = trackableOrders.find((order) => order.id === selectedOrderId) ?? trackableOrders[0]
+  useEffect(() => {
+    async function fetchOrders() {
+      try {
+        setLoading(true)
+        const res = await getOrderHistory({ pageSize: 50 })
+        const list = res.items || []
+        setOrders(list)
+        if (list.length > 0) {
+          setSelectedOrderId(list[0].id)
+        }
+      } catch (err) {
+        console.error("Lỗi tải danh sách đơn hàng:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchOrders()
+  }, [])
 
-  if (!selectedOrder) {
+  useEffect(() => {
+    if (!selectedOrderId) {
+      setSelectedOrderDetail(null)
+      return
+    }
+    async function fetchDetail() {
+      try {
+        const detail = await getOrderDetail(selectedOrderId)
+        setSelectedOrderDetail(detail)
+      } catch (err) {
+        console.error("Lỗi tải chi tiết đơn hàng:", err)
+        setSelectedOrderDetail(null)
+      }
+    }
+    fetchDetail()
+  }, [selectedOrderId])
+
+  if (loading) {
+    return (
+      <section className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400">
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-900 border-t-transparent mb-2" />
+        Đang tải dữ liệu theo dõi đơn hàng...
+      </section>
+    )
+  }
+
+  if (orders.length === 0) {
     return (
       <section className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400">
         Chưa có đơn hàng nào để theo dõi.
@@ -1668,102 +1711,113 @@ function OrderTrackingTab() {
     )
   }
 
-  const trackingSteps = getTrackingSteps(selectedOrder)
-  const activeStepIndex = trackingSteps.findIndex((step) => step.key === selectedOrder.trackingStatus)
+  const selectedOrder = selectedOrderDetail || orders.find((o) => o.id === selectedOrderId) || orders[0]
+  const timeline = getOrderTimeline(selectedOrder?.orderStatus, selectedOrder?.deliveryStatus)
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-100 bg-white p-6">
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="mb-1 text-xs text-gray-500">Mã đơn hàng</p>
-            <p className="font-mono text-lg font-bold text-gray-900">{selectedOrder.id}</p>
+            <p className="font-mono text-lg font-bold text-gray-900">{selectedOrder?.orderCode || selectedOrder?.id}</p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Badge
-              className={`${shippingStatusMeta[selectedOrder.shipStatus].badgeClass} px-3 py-1.5 text-xs font-medium hover:opacity-100`}
-            >
-              {shippingStatusMeta[selectedOrder.shipStatus].label}
-            </Badge>
+            {selectedOrder?.orderStatus && (
+              <Badge className={`${(orderStatusMeta[selectedOrder.orderStatus] || {}).badgeClass || 'bg-gray-100 text-gray-700'} px-3 py-1.5 text-xs font-medium hover:opacity-100`}>
+                {(orderStatusMeta[selectedOrder.orderStatus] || {}).label || selectedOrder.orderStatus}
+              </Badge>
+            )}
             <select
               value={selectedOrderId}
-              onChange={(event) => setSelectedOrderId(event.target.value)}
-              className="h-11 min-w-[240px] rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
+              onChange={(e) => setSelectedOrderId(e.target.value)}
+              className="h-11 min-w-[240px] rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 font-mono"
             >
-              {trackableOrders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  {order.id} - {order.product}
+              {orders.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.orderCode} - {formatPrice(o.finalPayment)}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="flex items-start gap-0 overflow-x-auto pb-2">
-          {trackingSteps.map((step, index) => {
-            const isActive = index === activeStepIndex
-            const isDone = index < activeStepIndex || (selectedOrder.trackingStatus === 'delivered' && step.key === 'delivered')
-
-            return (
-              <div key={step.key} className="flex min-w-[220px] flex-1 items-start">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                      isDone
-                        ? 'bg-gray-900 text-white'
-                        : isActive
-                          ? 'bg-orange-500 text-white ring-4 ring-orange-100'
-                          : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    {isDone ? <Check className="h-5 w-5" /> : <span className="text-sm font-bold">{index + 1}</span>}
-                  </div>
-                  <p
-                    className={`mt-2 max-w-[120px] text-center text-[10px] font-semibold leading-tight ${
-                      isActive ? 'text-orange-600' : isDone ? 'text-gray-700' : 'text-gray-400'
-                    }`}
-                  >
-                    {step.label}
-                  </p>
-                  <p className="mt-1 hidden max-w-[120px] text-center text-[10px] leading-tight text-gray-400 lg:block">{step.desc}</p>
+        {/* Tiến trình Stepper 5 bước */}
+        <div className="flex items-start gap-0 overflow-x-auto pb-4 pt-2">
+          {timeline.map((step, index) => (
+            <div key={step.key} className="flex min-w-[160px] flex-1 items-start">
+              <div className="flex flex-col items-center text-center">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                    step.done
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {step.done ? <Check className="h-5 w-5" /> : <span className="text-sm font-bold">{index + 1}</span>}
                 </div>
-                {index < trackingSteps.length - 1 && (
-                  <div className={`mx-3 mt-5 h-[2px] flex-1 ${index < activeStepIndex ? 'bg-gray-900' : 'bg-gray-200'}`} />
-                )}
+                <p className={`mt-2 max-w-[120px] text-center text-xs font-semibold leading-tight ${step.done ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {step.title}
+                </p>
               </div>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-gray-100 bg-white p-6">
-        <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
-          <Truck className="h-4 w-4" />
-          Thông tin vận chuyển
-        </h4>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {[
-            { label: 'Mã xe', value: selectedOrder.vehicle.code },
-            { label: 'Tài xế / NV giao hàng', value: selectedOrder.vehicle.driver },
-            { label: 'Ca vận chuyển', value: selectedOrder.vehicle.shift },
-            { label: 'Thời gian dự kiến giao', value: selectedOrder.vehicle.eta },
-          ].map((item) => (
-            <div key={item.label}>
-              <p className="mb-0.5 text-xs text-gray-500">{item.label}</p>
-              <p className="text-sm font-medium text-gray-900">{item.value}</p>
+              {index < timeline.length - 1 && (
+                <div className={`mx-2 mt-5 h-[2px] flex-1 ${step.done ? 'bg-gray-900' : 'bg-gray-200'}`} />
+              )}
             </div>
           ))}
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-6">
-        <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
-          <Package className="h-4 w-4" />
-          Sản phẩm
+      {/* Thông tin vận chuyển */}
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
+        <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <Truck className="h-4 w-4 text-gray-700" />
+          Thông tin vận chuyển
         </h4>
-        <p className="text-sm text-gray-600">{selectedOrder.product}</p>
-        <p className="mt-2 text-sm font-bold text-gray-900">{formatPrice(selectedOrder.total)}</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 text-xs">
+          <div>
+            <p className="mb-0.5 text-gray-500">Người nhận</p>
+            <p className="text-sm font-medium text-gray-900">{selectedOrder?.customerName || '—'}</p>
+          </div>
+          <div>
+            <p className="mb-0.5 text-gray-500">Số điện thoại</p>
+            <p className="text-sm font-medium text-gray-900">{selectedOrder?.customerPhone || '—'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="mb-0.5 text-gray-500">Địa chỉ giao hàng</p>
+            <p className="text-sm font-medium text-gray-900">{selectedOrder?.shippingAddress || '—'}</p>
+          </div>
+          {selectedOrder?.deliveryShift && (
+            <div>
+              <p className="mb-0.5 text-gray-500">Ca vận chuyển</p>
+              <p className="text-sm font-medium text-gray-900">{selectedOrder.deliveryShift}</p>
+            </div>
+          )}
+          {selectedOrder?.scheduledDeliveryDate && (
+            <div>
+              <p className="mb-0.5 text-gray-500">Thời gian dự kiến giao</p>
+              <p className="text-sm font-medium text-gray-900">{new Date(selectedOrder.scheduledDeliveryDate).toLocaleDateString('vi-VN')}</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Sản phẩm & Chi tiết */}
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs flex items-center justify-between">
+        <div>
+          <h4 className="mb-1 flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Package className="h-4 w-4 text-gray-700" />
+            Tổng giá trị đơn hàng
+          </h4>
+          <p className="text-lg font-bold text-gray-900">{formatPrice(selectedOrder?.finalPayment)}</p>
+        </div>
+        <button
+          onClick={() => navigate(`/profile/orders/${selectedOrder.id}`)}
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl transition"
+        >
+          Xem chi tiết đơn hàng
+        </button>
       </section>
     </div>
   )
@@ -1778,11 +1832,10 @@ function CreditHistoryTab() {
     async function loadData() {
       try {
         setLoading(true)
-        // Lấy profile để hiển thị số dư hiện tại
+        // Lấy profile để hiển thị số dư hiện tại trực tiếp từ DB
         const profileRes = await getCustomerProfile()
-        if (profileRes?.data) {
-          setBalance(profileRes.data.availableCredit || 0)
-        }
+        const directBalance = profileRes?.availableCredit ?? profileRes?.data?.availableCredit ?? 0
+        setBalance(directBalance)
 
         const res = await fetch('/api/customer-profile/credit-history', {
           headers: {

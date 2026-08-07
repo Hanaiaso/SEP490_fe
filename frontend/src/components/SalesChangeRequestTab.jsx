@@ -19,7 +19,6 @@ import {
   getSalesOptions,
   submitAdditionalInfo,
 } from '../services/salesChangeRequestService.js'
-import { HUB_BASE_URL } from '../config/api'
 
 const statusBadge = {
   Pending: 'bg-yellow-100 text-yellow-700',
@@ -102,7 +101,7 @@ export default function SalesChangeRequestTab({ onSuccess }) {
     if (!accessToken) return
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${HUB_BASE_URL}/sales`, { accessTokenFactory: () => accessToken })
+      .withUrl('/hubs/sales', { accessTokenFactory: () => accessToken })
       .withAutomaticReconnect()
       .build()
 

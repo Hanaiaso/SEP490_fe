@@ -1,5 +1,10 @@
 import { fetchWithToken } from './authService';
 
+/**
+ * @param {number} [pageNumber]
+ * @param {number} [pageSize]
+ * @param {boolean|null} [isRead]
+ */
 export async function getNotifications(pageNumber = 1, pageSize = 20, isRead = null) {
   let url = `/notifications?pageNumber=${pageNumber}&pageSize=${pageSize}`;
   if (isRead !== null) {

@@ -1,5 +1,5 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
-import { API_BASE_URL as API_BASE } from '../config/api'
+const API_BASE = '/api'  // Vite proxy → http://localhost:5112
 
 export async function fetchWithToken(method, url, body) {
   const accessToken = localStorage.getItem('accessToken');
@@ -105,17 +105,10 @@ export async function verifyPhoneOtp(otpCode, phoneNumber) {
 }
 
 /**
- * Gửi lại OTP (thực hiện bằng cách re-register với cùng email — tuỳ backend).
- * Ở đây ta gọi lại verify-otp với otpCode rỗng sẽ fail, nên ta cần một
- * endpoint riêng. Hiện tại dùng giải pháp gọi lại register để server gửi lại OTP.
- * Nếu email đã tồn tại, server trả lỗi — ta bắt và hiển thị thông báo "Đã gửi lại".
+ * Gửi lại OTP.
  */
 export async function resendOtp(email) {
-  try {
-    await request('POST', '/auth/register', { email, _resend: true })
-  } catch {
-    // Bỏ qua lỗi "email đã tồn tại" — server vẫn gửi OTP nếu chưa verified
-  }
+  return request('POST', '/auth/resend-otp', { email })
 }
 
 /**

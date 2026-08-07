@@ -1,7 +1,7 @@
 import { fetchWithToken, fetchFormDataWithToken } from './authService.js';
 
 export async function getPurchaseOrders(status) {
-  const url = status ? `/purchase-orders?status=${status}` : '/purchase-orders';
+  const url = status && status !== 'all' ? `/purchase-orders?status=${status}` : '/purchase-orders';
   return fetchWithToken('GET', url);
 }
 
@@ -59,8 +59,19 @@ export async function getGoodsReceipts(poId) {
   return fetchWithToken('GET', `/purchase-orders/${poId}/receipts`);
 }
 
+export async function getAllGoodsReceipts(status) {
+  const url = status && status !== 'all' ? `/purchase-orders/receipts/all?status=${status}` : '/purchase-orders/receipts/all';
+  return fetchWithToken('GET', url);
+}
+
 export async function createGoodsReceipt(poId, payload) {
   return fetchWithToken('POST', `/purchase-orders/${poId}/receipts`, payload);
+}
+
+export async function uploadGoodsReceiptProof(poId, receiptId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return fetchFormDataWithToken('POST', `/purchase-orders/${poId}/receipts/${receiptId}/upload-proof`, formData);
 }
 
 export async function postGoodsReceipt(poId, receiptId) {

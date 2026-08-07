@@ -3,6 +3,8 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, Printer, CheckCircle, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import { getAllGoodsReceipts } from '../../services/purchaseOrderService.js';
+import { useEffect } from 'react';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -27,43 +29,19 @@ interface ReceiptItem {
 
 interface GoodsReceipt {
   id: string; poNo: string; supplier: string; warehouse: string;
-  receivingDate: string; receiver: string;
-  status: 'draft' | 'receiving' | 'completed' | 'discrepancy';
+  receivingDate: string; receiver: string; code: string;
+  status: string;
   items: ReceiptItem[];
 }
 
-const DATA: GoodsReceipt[] = [
-  {
-    id: 'GR-2406-0089', poNo: 'PO-2406-0233', supplier: 'NCC Vải Phong Phú',
-    warehouse: 'Kho HCM', receivingDate: '06/07/2026 08:00', receiver: 'Trần Văn Bình',
-    status: 'receiving',
-    items: [
-      { sku: 'VT-SM-012', name: 'Sơ mi nam slim fit', orderedQty: 400, actualQty: 180, acceptedQty: 175, rejectedQty: 5, damagedQty: 0, warehouseLocation: 'B-02-11', batchNo: 'B2407-SM-001', lotNo: 'L2407-001', expirationDate: 'N/A', storageLocation: 'Kệ B Tầng 2' },
-      { sku: 'VT-QT-007', name: 'Quần tây slim fit',  orderedQty: 200, actualQty: 90,  acceptedQty: 90,  rejectedQty: 0, damagedQty: 0, warehouseLocation: 'B-03-05', batchNo: 'B2407-QT-001', lotNo: 'L2407-001', expirationDate: 'N/A', storageLocation: 'Kệ B Tầng 3' },
-    ],
-  },
-  {
-    id: 'GR-2406-0088', poNo: 'PO-2406-0232', supplier: 'Dệt May Hòa Bình',
-    warehouse: 'Kho Hà Nội', receivingDate: '05/07/2026 10:00', receiver: 'Nguyễn Văn Thành',
-    status: 'completed',
-    items: [],
-  },
-  {
-    id: 'GR-2406-0087', poNo: 'PO-2406-0231', supplier: 'Import Asia Textile',
-    warehouse: 'Kho Hà Nội', receivingDate: '06/07/2026 14:00', receiver: 'Lê Văn Dũng',
-    status: 'draft',
-    items: [],
-  },
-  {
-    id: 'GR-2406-0086', poNo: 'PO-2406-0230', supplier: 'Cty Dệt Thái Bình',
-    warehouse: 'Kho HCM', receivingDate: '04/07/2026 09:00', receiver: 'Trần Văn Bình',
-    status: 'discrepancy',
-    items: [],
-  },
-];
+
 
 function Badge({ status }: { status: string }) {
-  const c = STATUS_CFG[status] || { label: status, bg: NEUTRAL };
+  let mappedStatus = status;
+  if (status === 'Draft') mappedStatus = 'draft';
+  if (status === 'Posted') mappedStatus = 'completed';
+
+  const c = STATUS_CFG[mappedStatus] || { label: status, bg: NEUTRAL };
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
 }
 
@@ -76,6 +54,46 @@ export default function WarehouseGoodsReceipt() {
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<GoodsReceipt | null>(null);
   const [editItems, setEditItems] = useState<ReceiptItem[]>([]);
+  const [DATA, setDATA] = useState<GoodsReceipt[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const receipts = await getAllGoodsReceipts('');
+      const mapped = receipts.map((r: any) => ({
+        id: r.id,
+        code: r.code,
+        poNo: r.purchaseOrderId, // Would be better to have po code, but backend doesn't return it directly in DTO
+        supplier: 'NCC (Từ PO)', // We don't have supplier in GR Dto currently
+        warehouse: 'Kho Hệ Thống',
+        receivingDate: r.receivedDate,
+        receiver: r.receivedByUserName || r.receivedByUserId,
+        status: r.status,
+        items: (r.items || []).map((i: any) => ({
+          sku: i.itemSku,
+          name: i.itemName,
+          orderedQty: 0,
+          actualQty: i.acceptedQuantity + i.damagedQuantity + i.excessQuantity + i.wrongItemQuantity,
+          acceptedQty: i.acceptedQuantity,
+          rejectedQty: i.damagedQuantity + i.excessQuantity + i.shortQuantity + i.wrongItemQuantity,
+          damagedQty: i.damagedQuantity,
+          warehouseLocation: '-',
+          batchNo: i.batchNumber || '-',
+          lotNo: '-',
+          expirationDate: i.expiryDate || '-',
+          storageLocation: '-'
+        }))
+      }));
+      setDATA(mapped);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
@@ -164,8 +182,8 @@ export default function WarehouseGoodsReceipt() {
               {filtered.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''} ${selected.includes(d.id) ? 'bg-blue-50/50' : ''}`}>
                   <td className="px-3 py-2.5"><input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleSelect(d.id)} className="w-3.5 h-3.5" /></td>
-                  <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{d.id}</td>
-                  <td className="px-3 py-2.5 text-gray-600">{d.poNo}</td>
+                  <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{d.code}</td>
+                  <td className="px-3 py-2.5 text-gray-600">{d.poNo.substring(0, 8)}...</td>
                   <td className="px-3 py-2.5 font-medium text-gray-800">{d.supplier}</td>
                   <td className="px-3 py-2.5 text-gray-700">{d.warehouse}</td>
                   <td className="px-3 py-2.5 text-gray-500">{d.receivingDate}</td>
@@ -197,7 +215,7 @@ export default function WarehouseGoodsReceipt() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">
                   <p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Thông tin phiếu</p>
-                  <div className="flex justify-between"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.id}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.code}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Mã PO:</span><span>{detail.poNo}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Ngày nhập:</span><span>{detail.receivingDate}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Người nhập:</span><span className="font-medium">{detail.receiver}</span></div>

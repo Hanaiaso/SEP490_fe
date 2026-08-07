@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Bao cao test coverage
+coverage/
+coverage-l1/

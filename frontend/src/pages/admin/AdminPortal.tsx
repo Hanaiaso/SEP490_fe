@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
+import AdminUsersPage from './AdminUsersPage';
+import AdminSystemConfigPage from './AdminSystemConfigPage';
+import AdminAuditLogPage from './AdminAuditLogPage';
+import AdminSystemHealthPage from './AdminSystemHealthPage';
+import AdminVehiclesPage from './AdminVehiclesPage';
+import AdminDiscountTiersPage from './AdminDiscountTiersPage';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, CheckSquare,
   Package, XCircle, AlertTriangle, Users, ShieldCheck,
-  LogOut, Bell, BarChart2, Sparkles, History, Settings,
-  CreditCard, Wallet
+  LogOut, BarChart2, Sparkles, History, Settings,
+  CreditCard, Wallet, ScrollText, Activity, Truck, Percent
 } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -27,31 +33,79 @@ function SidebarHeader() {
   );
 }
 
-interface NavItemProps {
-  icon: React.ReactNode;
+interface AdminNavItem {
+  id: string;
   label: string;
-  active?: boolean;
+  icon: ReactNode;
+  path: string;
   badge?: number;
-  onClick?: () => void;
+}
+interface AdminNavGroup {
+  title?: string;
+  items: AdminNavItem[];
 }
 
-function NavItem({ icon, label, active, badge, onClick }: NavItemProps) {
+// Đường dẫn là nguồn sự thật duy nhất (thay cho activeTab state cũ) — F5/Back/Forward/URL trực tiếp đều hoạt động đúng.
+const NAV_GROUPS: AdminNavGroup[] = [
+  { items: [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/admin/dashboard' },
+  ] },
+  { title: 'Quản lý & Duyệt giá', items: [
+    { id: 'bulk-price', label: 'Cập nhật giá hàng loạt', icon: <FileText className="w-4 h-4" />, path: '/admin/bulk-price' },
+    { id: 'approve-price', label: 'Duyệt giá đề xuất', icon: <CheckSquare className="w-4 h-4" />, path: '/admin/approve-price', badge: 2 },
+  ] },
+  { title: 'Quản lý Sản phẩm', items: [
+    { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
+    { id: 'discontinue', label: 'Duyệt ngừng kinh doanh', icon: <XCircle className="w-4 h-4" />, path: '/admin/discontinue', badge: 1 },
+    { id: 'material-alert', label: 'Cảnh báo nguyên liệu', icon: <AlertTriangle className="w-4 h-4" />, path: '/admin/material-alert', badge: 4 },
+  ] },
+  { title: 'Quản lý Nhân sự', items: [
+    { id: 'users', label: 'Danh sách người dùng', icon: <Users className="w-4 h-4" />, path: '/admin/users' },
+    { id: 'permissions', label: 'Phân quyền', icon: <ShieldCheck className="w-4 h-4" />, path: '/admin/permissions' },
+    { id: 'payroll', label: 'Duyệt bảng lương', icon: <Wallet className="w-4 h-4" />, path: '/admin/payroll', badge: 1 },
+  ] },
+  { title: 'Thống kê tổng hợp', items: [
+    { id: 'report-customer', label: 'Báo cáo Khách hàng', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-customer' },
+    { id: 'report-staff', label: 'Báo cáo Nhân viên', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-staff' },
+    { id: 'report-product', label: 'Báo cáo Sản phẩm', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-product' },
+    { id: 'report-revenue', label: 'Báo cáo Doanh thu', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-revenue' },
+  ] },
+  { title: 'Trợ lý AI Marketing', items: [
+    { id: 'ai-marketing', label: 'Tạo nội dung Facebook', icon: <Sparkles className="w-4 h-4" />, path: '/admin/ai-marketing' },
+    { id: 'marketing-history', label: 'Lịch sử Marketing', icon: <History className="w-4 h-4" />, path: '/admin/marketing-history' },
+  ] },
+  { title: 'Cấu hình hệ thống', items: [
+    { id: 'settings', label: 'Thiết lập SePay & Ngưỡng giá', icon: <Settings className="w-4 h-4" />, path: '/admin/settings' },
+    { id: 'audit-log', label: 'Nhật ký kiểm toán', icon: <ScrollText className="w-4 h-4" />, path: '/admin/audit-log' },
+    { id: 'system-health', label: 'Giám sát hệ thống', icon: <Activity className="w-4 h-4" />, path: '/admin/system-health' },
+    { id: 'payment-confirm', label: 'Xác nhận thanh toán', icon: <CreditCard className="w-4 h-4" />, path: '/admin/payment-confirm', badge: 2 },
+  ] },
+  { title: 'Dữ liệu chủ', items: [
+    { id: 'vehicles', label: 'Xe giao hàng', icon: <Truck className="w-4 h-4" />, path: '/admin/vehicles' },
+    { id: 'discount-tiers', label: 'Khung chiết khấu', icon: <Percent className="w-4 h-4" />, path: '/admin/discount-tiers' },
+  ] },
+];
+
+// Các nav id đã có trang thật — phần còn lại vẫn hiển thị ComingSoon như trước (chưa có API backend).
+const WIRED_IDS = new Set(['dashboard', 'users', 'settings', 'audit-log', 'system-health', 'vehicles', 'discount-tiers']);
+
+function NavItemButton({ item, onNavigate }: { item: AdminNavItem; onNavigate: (path: string) => void }) {
+  const location = useLocation();
+  const active = location.pathname.startsWith(item.path);
   return (
     <div
       className={`rounded-[4px] w-full cursor-pointer transition-colors ${active ? 'bg-[rgba(255,255,255,0.15)]' : 'hover:bg-[rgba(255,255,255,0.08)]'}`}
-      onClick={onClick}
+      onClick={() => onNavigate(item.path)}
     >
       <div className="flex gap-[8px] items-center px-[10px] py-[6px]">
-        <span style={{ color: active ? 'white' : 'rgba(255,255,255,0.45)' }}>
-          {icon}
-        </span>
+        <span style={{ color: active ? 'white' : 'rgba(255,255,255,0.45)' }}>{item.icon}</span>
         <span className={`flex-1 text-[12px] font-medium whitespace-nowrap ${active ? 'text-white' : ''}`}
           style={!active ? { color: 'rgba(255,255,255,0.55)' } : {}}>
-          {label}
+          {item.label}
         </span>
-        {badge && (
+        {!!item.badge && (
           <span className="bg-[#fb2c36] min-w-[17px] h-[16px] rounded-[4px] text-[9px] font-semibold text-white text-center leading-[16px] px-1">
-            {badge}
+            {item.badge}
           </span>
         )}
       </div>
@@ -59,77 +113,28 @@ function NavItem({ icon, label, active, badge, onClick }: NavItemProps) {
   );
 }
 
-function NavGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col pt-[4px]">
-      <div className="px-[10px] py-[4px]">
-        <p className="text-[10px] font-semibold tracking-[0.25px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
-          {title}
-        </p>
-      </div>
-      <div className="flex flex-col gap-[2px]">{children}</div>
-    </div>
-  );
-}
-
 // ─── Full Sidebar ─────────────────────────────────────────────────────────────
-function AdminSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+function AdminSidebar({ onNavigate }: { onNavigate: (path: string) => void }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto flex-shrink-0" style={{ backgroundColor: '#1f3b64', width: 213 }}>
       <SidebarHeader />
       <div className="flex flex-col gap-[8px] px-[10px] py-[12px] flex-1">
-        <NavItem icon={<LayoutDashboard className="w-4 h-4" />} label="Dashboard"
-          active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-
-        <NavGroup title="Quản lý & Duyệt giá">
-          <NavItem icon={<FileText className="w-4 h-4" />} label="Cập nhật giá hàng loạt"
-            active={activeTab === 'bulk-price'} onClick={() => setActiveTab('bulk-price')} />
-          <NavItem icon={<CheckSquare className="w-4 h-4" />} label="Duyệt giá đề xuất"
-            active={activeTab === 'approve-price'} onClick={() => setActiveTab('approve-price')} badge={2} />
-        </NavGroup>
-
-        <NavGroup title="Quản lý Sản phẩm">
-          <NavItem icon={<Package className="w-4 h-4" />} label="Danh mục sản phẩm"
-            active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
-          <NavItem icon={<XCircle className="w-4 h-4" />} label="Duyệt ngừng kinh doanh"
-            active={activeTab === 'discontinue'} onClick={() => setActiveTab('discontinue')} badge={1} />
-          <NavItem icon={<AlertTriangle className="w-4 h-4" />} label="Cảnh báo nguyên liệu"
-            active={activeTab === 'material-alert'} onClick={() => setActiveTab('material-alert')} badge={4} />
-        </NavGroup>
-
-        <NavGroup title="Quản lý Nhân sự">
-          <NavItem icon={<Users className="w-4 h-4" />} label="Danh sách người dùng"
-            active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-          <NavItem icon={<ShieldCheck className="w-4 h-4" />} label="Phân quyền"
-            active={activeTab === 'permissions'} onClick={() => setActiveTab('permissions')} />
-          <NavItem icon={<Wallet className="w-4 h-4" />} label="Duyệt bảng lương"
-            active={activeTab === 'payroll'} onClick={() => setActiveTab('payroll')} badge={1} />
-        </NavGroup>
-
-        <NavGroup title="Thống kê tổng hợp">
-          <NavItem icon={<BarChart2 className="w-4 h-4" />} label="Báo cáo Khách hàng"
-            active={activeTab === 'report-customer'} onClick={() => setActiveTab('report-customer')} />
-          <NavItem icon={<BarChart2 className="w-4 h-4" />} label="Báo cáo Nhân viên"
-            active={activeTab === 'report-staff'} onClick={() => setActiveTab('report-staff')} />
-          <NavItem icon={<BarChart2 className="w-4 h-4" />} label="Báo cáo Sản phẩm"
-            active={activeTab === 'report-product'} onClick={() => setActiveTab('report-product')} />
-          <NavItem icon={<BarChart2 className="w-4 h-4" />} label="Báo cáo Doanh thu"
-            active={activeTab === 'report-revenue'} onClick={() => setActiveTab('report-revenue')} />
-        </NavGroup>
-
-        <NavGroup title="Trợ lý AI Marketing">
-          <NavItem icon={<Sparkles className="w-4 h-4" />} label="Tạo nội dung Facebook"
-            active={activeTab === 'ai-marketing'} onClick={() => setActiveTab('ai-marketing')} />
-          <NavItem icon={<History className="w-4 h-4" />} label="Lịch sử Marketing"
-            active={activeTab === 'marketing-history'} onClick={() => setActiveTab('marketing-history')} />
-        </NavGroup>
-
-        <NavGroup title="Cấu hình hệ thống">
-          <NavItem icon={<Settings className="w-4 h-4" />} label="Thiết lập SePay & Ngưỡng giá"
-            active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
-          <NavItem icon={<CreditCard className="w-4 h-4" />} label="Xác nhận thanh toán"
-            active={activeTab === 'payment-confirm'} onClick={() => setActiveTab('payment-confirm')} badge={2} />
-        </NavGroup>
+        {NAV_GROUPS.map((group, gi) => group.title ? (
+          <div className="flex flex-col pt-[4px]" key={gi}>
+            <div className="px-[10px] py-[4px]">
+              <p className="text-[10px] font-semibold tracking-[0.25px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                {group.title}
+              </p>
+            </div>
+            <div className="flex flex-col gap-[2px]">
+              {group.items.map(item => <NavItemButton key={item.id} item={item} onNavigate={onNavigate} />)}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[2px]" key={gi}>
+            {group.items.map(item => <NavItemButton key={item.id} item={item} onNavigate={onNavigate} />)}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -147,7 +152,6 @@ function ComingSoon({ label }: { label: string }) {
 
 // ─── Admin Portal ─────────────────────────────────────────────────────────────
 export default function AdminPortal() {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const { user, logout } = useAuth() as any;
   const navigate = useNavigate();
 
@@ -159,24 +163,18 @@ export default function AdminPortal() {
   const userName = (user as any)?.fullName || (user as any)?.email || 'Admin';
   const initials = userName.split(' ').slice(-2).map((n: string) => n[0]).join('').toUpperCase() || 'AD';
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <AdminDashboard />;
-      case 'notifications': return <NotificationsPage />;
-      default: return <ComingSoon label={activeTab} />;
-    }
-  };
+  const stubItems = NAV_GROUPS.flatMap(g => g.items).filter(item => !WIRED_IDS.has(item.id));
 
   return (
     <div className="flex h-screen bg-[#f5f7fa] overflow-hidden">
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <AdminSidebar onNavigate={navigate} />
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
         <header className="h-11 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <div className="flex-1" />
-          <NotificationBell role={user?.role || ''} onViewAll={() => setActiveTab('notifications')} />
+          <NotificationBell role={user?.role || ''} onViewAll={() => navigate('/admin/notifications')} />
           <div className="w-px h-5 bg-gray-200" />
           <div className="flex items-center gap-2 px-2">
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold text-white flex-shrink-0"
@@ -192,7 +190,20 @@ export default function AdminPortal() {
 
         {/* Page content */}
         <main className="flex-1 overflow-auto">
-          {renderContent()}
+          <Routes>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="settings" element={<AdminSystemConfigPage />} />
+            <Route path="audit-log" element={<AdminAuditLogPage />} />
+            <Route path="system-health" element={<AdminSystemHealthPage />} />
+            <Route path="vehicles" element={<AdminVehiclesPage />} />
+            <Route path="discount-tiers" element={<AdminDiscountTiersPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            {stubItems.map(item => (
+              <Route key={item.id} path={item.id} element={<ComingSoon label={item.label} />} />
+            ))}
+            <Route path="*" element={<AdminDashboard />} />
+          </Routes>
         </main>
       </div>
     </div>

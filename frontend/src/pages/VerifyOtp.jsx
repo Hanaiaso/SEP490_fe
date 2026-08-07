@@ -1,5 +1,5 @@
 import { ArrowLeft, MailCheck } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthCardLayout from '../components/AuthCardLayout.jsx'
 import { Button } from '../components/ui/Button.jsx'
@@ -15,10 +15,27 @@ export default function VerifyOtp() {
   const location = useLocation()
   const { verifyOtp, loading } = useAuth()
   const email = location.state?.email ?? 'you@example.com'
+  const autoResend = location.state?.autoResend ?? false
   const [otp, setOtp] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [resending, setResending] = useState(false)
+  const [countdown, setCountdown] = useState(60)
+  const hasAutoResent = useRef(false)
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [countdown])
+
+  useEffect(() => {
+    if (autoResend && !hasAutoResent.current) {
+      hasAutoResent.current = true
+      handleResend(true)
+    }
+  }, [autoResend])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -31,7 +48,9 @@ export default function VerifyOtp() {
     }
   }
 
-  const handleResend = async () => {
+  const handleResend = async (ignoreCountdown = false) => {
+    if (!ignoreCountdown && countdown > 0) return
+
     setResending(true)
     setErrorMsg('')
     setSuccessMsg('')
@@ -39,6 +58,7 @@ export default function VerifyOtp() {
       await authService.resendOtp(email)
       setSuccessMsg('Đã gửi lại mã OTP. Vui lòng kiểm tra email.')
       setOtp('')
+      setCountdown(60) // Reset countdown
     } catch (err) {
       setErrorMsg(err.message || 'Không thể gửi lại OTP. Vui lòng thử lại.')
     } finally {
@@ -122,9 +142,13 @@ export default function VerifyOtp() {
           type="button"
           className="w-full text-center text-base text-slate-600 transition hover:text-slate-950 disabled:opacity-50"
           onClick={handleResend}
-          disabled={resending || loading}
+          disabled={resending || loading || countdown > 0}
         >
-          {resending ? 'Đang gửi lại...' : 'Gửi lại mã OTP'}
+          {resending 
+            ? 'Đang gửi lại...' 
+            : countdown > 0 
+              ? `Gửi lại mã OTP sau ${countdown}s` 
+              : 'Gửi lại mã OTP'}
         </button>
       </form>
     </AuthCardLayout>

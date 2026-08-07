@@ -33,7 +33,12 @@ export default function ProductDetail() {
     const qty = Number(quantity) || 1
     setAddingToCart(true)
     try {
-      await addToCart(product.id, qty)
+      await addToCart({
+        id: product.id,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        price: product.standardListedPrice ?? product.price,
+      }, qty)
       alert('Đã thêm sản phẩm vào giỏ hàng thành công!')
     } catch (err) {
       alert(err.message || 'Không thể thêm vào giỏ hàng')

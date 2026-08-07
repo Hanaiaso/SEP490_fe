@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
 import { getWarehouseOrders } from '../../services/warehouseService';
 import { PackageSearch, Clock, ChevronRight } from 'lucide-react';
-import { HUB_BASE_URL } from '../../config/api';
 
 const TABS = [
   { id: 'OnlinePending', label: 'Đơn hàng trực tuyến' },
@@ -40,7 +39,7 @@ export default function WarehouseOrdersPage() {
     if (!token) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${HUB_BASE_URL}/warehouse`, {
+      .withUrl('/api/hubs/warehouse', {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()

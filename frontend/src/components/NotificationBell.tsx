@@ -6,7 +6,6 @@ import {
 import * as signalR from '@microsoft/signalr';
 import { useNavigate } from 'react-router-dom';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '../services/notificationService';
-import { HUB_BASE_URL } from '../config/api';
 
 const PRIMARY = '#1f3b64';
 
@@ -92,7 +91,7 @@ export default function NotificationBell({ role, onViewAll }: { role: string; on
     fetchUnreadCount();
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${HUB_BASE_URL}/notifications`, { accessTokenFactory: () => accessToken })
+      .withUrl('/hubs/notifications', { accessTokenFactory: () => accessToken })
       .withAutomaticReconnect()
       .build();
 

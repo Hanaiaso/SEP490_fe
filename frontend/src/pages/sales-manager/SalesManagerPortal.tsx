@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   UserCog,
 } from 'lucide-react';
-import SalesDashboardPage from '../sales/SalesDashboardPage';
+import SalesManagerDashboardPage from './SalesManagerDashboardPage';
 import SalesManagerRoundRobinPage from './SalesManagerRoundRobinPage';
 import SalesManagerSePayExceptionPage from './SalesManagerSePayExceptionPage';
 import SalesManagerPriceNegotiation from './SalesManagerPriceNegotiation';
@@ -20,10 +20,11 @@ import SalesManagerOrdersPage from './SalesManagerOrdersPage';
 import SalesManagerOrderDetailPage from './SalesManagerOrderDetailPage';
 import SalesManagerChangeRequestsPage from './SalesManagerChangeRequestsPage';
 import SalesManagerChangeRequestDetailPage from './SalesManagerChangeRequestDetailPage';
+import SalesManagerMarketingApproval from './SalesManagerMarketingApproval';
 import DirectPurchasePage from '../sales/DirectPurchasePage';
 import { useAuth } from '../../context/AuthContext';
 import { getQuotations } from '../../services/quotationService.js';
-import { FileText } from 'lucide-react';
+import { FileText, Sparkles } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
 
@@ -71,6 +72,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Duyệt yêu cầu đổi Sale',
     icon: <UserCog className="w-4 h-4" />,
     path: '/sales-manager/change-requests',
+  },
+  {
+    id: 'ai-marketing-approval',
+    label: 'Duyệt AI Marketing',
+    icon: <Sparkles className="w-4 h-4" />,
+    path: '/sales-manager/ai-marketing-approval',
   }
 ];
 
@@ -87,11 +94,10 @@ function NavItemRow({
   return (
     <button
       onClick={() => onNavigate(item.path)}
-      className={`group flex w-full items-center justify-between rounded px-2 py-1.5 text-[12px] font-medium transition-colors ${
-        isActive
+      className={`group flex w-full items-center justify-between rounded px-2 py-1.5 text-[12px] font-medium transition-colors ${isActive
           ? 'bg-[rgba(255,255,255,0.15)] text-white'
           : 'text-white/60 hover:bg-[rgba(255,255,255,0.08)] hover:text-white'
-      }`}
+        }`}
     >
       <div className="flex items-center gap-2">
         <span className={isActive ? 'text-white' : 'text-white/40 group-hover:text-white/80'}>
@@ -198,7 +204,7 @@ export default function SalesManagerPortal() {
 
         <main className="flex-1 overflow-auto">
           <Routes>
-            <Route path="dashboard" element={<SalesDashboardPage />} />
+            <Route path="dashboard" element={<SalesManagerDashboardPage />} />
             <Route path="round-robin" element={<SalesManagerRoundRobinPage />} />
             <Route path="manager-negotiation" element={<SalesManagerPriceNegotiation />} />
             <Route path="manager-negotiation/:id" element={<SalesManagerPriceNegotiationDetail />} />
@@ -208,8 +214,9 @@ export default function SalesManagerPortal() {
             <Route path="sepay-exceptions" element={<SalesManagerSePayExceptionPage />} />
             <Route path="change-requests" element={<SalesManagerChangeRequestsPage />} />
             <Route path="change-requests/:id" element={<SalesManagerChangeRequestDetailPage />} />
+            <Route path="ai-marketing-approval" element={<SalesManagerMarketingApproval />} />
             <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="*" element={<SalesDashboardPage />} />
+            <Route path="*" element={<SalesManagerDashboardPage />} />
           </Routes>
         </main>
       </div>

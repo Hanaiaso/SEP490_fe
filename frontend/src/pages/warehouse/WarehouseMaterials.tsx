@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, ArrowDownToLine, ArrowUpFromLine, History, AlertCircle, Download } from 'lucide-react';
+import { Search, ArrowDownToLine, ArrowUpFromLine, History, AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getMaterials } from '../../services/materialService';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -15,16 +16,7 @@ interface Material {
   stock: number; minThreshold: number; status: 'ok' | 'low' | 'critical';
 }
 
-const MATERIALS: Material[] = [
-  { id: 'NL-001', name: 'Jumbo (cuộn giấy lớn)',  unit: 'cuộn', stock: 840,  minThreshold: 200, status: 'ok'       },
-  { id: 'NL-002', name: 'Lõi giấy',               unit: 'cuộn', stock: 180,  minThreshold: 300, status: 'critical' },
-  { id: 'NL-003', name: 'Màng co',                unit: 'kg',   stock: 620,  minThreshold: 150, status: 'ok'       },
-  { id: 'NL-004', name: 'Chỉ khâu công nghiệp',   unit: 'kg',   stock: 45,   minThreshold: 30,  status: 'low'      },
-  { id: 'NL-005', name: 'Keo dán nhãn',           unit: 'lít',  stock: 12,   minThreshold: 20,  status: 'critical' },
-  { id: 'NL-006', name: 'Thùng carton 40x30',     unit: 'cái',  stock: 1200, minThreshold: 500, status: 'ok'       },
-  { id: 'NL-007', name: 'Băng dán đóng gói',      unit: 'cuộn', stock: 380,  minThreshold: 100, status: 'ok'       },
-  { id: 'NL-008', name: 'Túi PE đóng gói',        unit: 'cái',  stock: 4500, minThreshold: 1000,status: 'ok'       },
-];
+
 
 const STATUS_CFG = {
   ok:       { label: 'Đủ hàng',  bg: SUCCESS },
@@ -35,8 +27,34 @@ const STATUS_CFG = {
 export default function WarehouseMaterials() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [items, setItems] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = MATERIALS.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await getMaterials();
+      const mapped: Material[] = data.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        unit: m.unit,
+        stock: m.currentStock || 0,
+        minThreshold: m.safetyThreshold || 0,
+        status: (m.currentStock || 0) < (m.safetyThreshold || 0) ? 'critical' : 'ok'
+      }));
+      setItems(mapped);
+    } catch (err: any) {
+      alert('Lỗi lấy danh sách nguyên liệu: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const filtered = items.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
 
   return (
     <div className="flex flex-col h-full">
@@ -44,17 +62,14 @@ export default function WarehouseMaterials() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Nguyên vật liệu sản xuất</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{MATERIALS.length} loại · {MATERIALS.filter(m => m.status !== 'ok').length} cần chú ý</p>
+            <p className="text-xs text-gray-500 mt-0.5">{items.length} loại · {items.filter(m => m.status !== 'ok').length} cần chú ý</p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => navigate('/warehouse/materials/history')}>
-              <History className="w-3.5 h-3.5" /> Lịch sử
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={loadData} disabled={loading}>
+              <RefreshCw className="w-3.5 h-3.5" /> Làm mới
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" style={{ backgroundColor: NEUTRAL }} onClick={() => navigate('/warehouse/materials/issue')}>
-              <ArrowUpFromLine className="w-3.5 h-3.5" /> Xuất nguyên liệu
-            </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => navigate('/warehouse/materials/receive')}>
-              <ArrowDownToLine className="w-3.5 h-3.5" /> Nhập nguyên liệu
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" style={{ color: PRIMARY, borderColor: PRIMARY }} onClick={() => navigate('/warehouse/materials/history')}>
+              <History className="w-3.5 h-3.5" /> Lịch sử nhập xuất
             </Button>
           </div>
         </div>

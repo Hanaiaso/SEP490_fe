@@ -49,7 +49,12 @@ export default function Login() {
     if (result.success) {
       handleRedirect(result.user)
     } else {
-      setErrorMsg(result.message)
+      // Nếu lỗi do chưa xác minh email, tự động chuyển hướng sang trang OTP
+      if (result.message?.toLowerCase().includes('chưa được xác minh')) {
+        navigate('/verify-otp', { state: { email, autoResend: true } })
+      } else {
+        setErrorMsg(result.message)
+      }
     }
   }
 

@@ -185,6 +185,21 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // ─── Resend OTP ─────────────────────────────────────────────────────────────
+  const resendOtp = useCallback(async (email) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await authService.resendOtp(email)
+      return { success: true }
+    } catch (err) {
+      setError(err.message)
+      return { success: false, message: err.message }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   // ─── Forgot Password ────────────────────────────────────────────────────────
   const forgotPassword = useCallback(async (email) => {
     setLoading(true)
@@ -255,6 +270,7 @@ export function AuthProvider({ children }) {
     logout,
     register,
     verifyOtp,
+    resendOtp,
     requestPhoneOtp,
     verifyPhoneOtp,
     forgotPassword,
@@ -262,7 +278,7 @@ export function AuthProvider({ children }) {
     completeProfile,
     updateUser,
     refreshProfileStatus,
-  }), [user, loading, error, login, loginWithGoogle, logout, register, verifyOtp, requestPhoneOtp, verifyPhoneOtp, forgotPassword, resetPassword, completeProfile, updateUser, refreshProfileStatus])
+  }), [user, loading, error, login, loginWithGoogle, logout, register, verifyOtp, resendOtp, requestPhoneOtp, verifyPhoneOtp, forgotPassword, resetPassword, completeProfile, updateUser, refreshProfileStatus])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

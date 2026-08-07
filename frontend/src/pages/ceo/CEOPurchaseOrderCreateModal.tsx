@@ -79,7 +79,10 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: any)
     newItems[index].itemId = itemId;
     if (selectedItem) {
       newItems[index].itemName = selectedItem.name;
-      newItems[index].unitPrice = selectedItem.standardListedPrice || 0;
+      newItems[index].unitPrice = selectedItem.standardListedPrice || selectedItem.price || 0;
+      if (selectedItem.unit) {
+        newItems[index].unit = selectedItem.unit;
+      }
     }
     setItems(newItems);
   };

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
-import { HUB_BASE_URL } from '../../config/api';
 import { Avatar, AvatarFallback } from '../../components/sales-ui/avatar';
 import {
   DropdownMenu,
@@ -10,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/sales-ui/dropdown-menu';
 import {
+  Archive,
   Bell,
   ChevronDown,
   DollarSign,
@@ -26,6 +26,7 @@ import {
   Users,
   X,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import SalesDashboardPage from './SalesDashboardPage';
 import SalesNegotiationPage from './SalesNegotiationPage';
@@ -36,9 +37,11 @@ import SalesDeliveryPage from './SalesDeliveryPage';
 import SalesWarehouseCoordPage from './SalesWarehouseCoordPage';
 import SalesWarehouseHandoverPage from './SalesWarehouseHandoverPage';
 import SalesDeliveryArrangementPage from './SalesDeliveryArrangementPage';
+import SalesPickupArrangementPage from './SalesPickupArrangementPage';
 import SalesDeliveryCollectionPage from './SalesDeliveryCollectionPage';
 import SalesMyCustomersPage from './SalesMyCustomersPage';
 import SalesChangeRequestExplainPage from './SalesChangeRequestExplainPage';
+import SalesAiContentStudio from './SalesAiContentStudio';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -59,6 +62,13 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Dashboard',
     icon: <LayoutDashboard className="w-4 h-4" />,
     path: '/sales/dashboard',
+  },
+  {
+    id: 'ai-content-studio',
+    label: 'AI Content Studio',
+    icon: <Sparkles className="w-4 h-4" />,
+    path: '/sales/ai-content-studio',
+    roles: ['SalesStaff', 'Admin'],
   },
   {
     id: 'my-customers',
@@ -120,6 +130,12 @@ const NAV_ITEMS: NavItem[] = [
         label: 'Sắp xếp vận chuyển',
         icon: <Truck className="w-3.5 h-3.5" />,
         path: '/sales/delivery/arrangement',
+      },
+      {
+        id: 'pickup-arrangement',
+        label: 'Điều xe Thu hồi',
+        icon: <Archive className="w-3.5 h-3.5" />,
+        path: '/sales/pickup-arrangement',
       },
       {
         id: 'delivery-collection',
@@ -245,7 +261,7 @@ export default function SalesPortal() {
     if (!accessToken) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${HUB_BASE_URL}/sales`, { accessTokenFactory: () => accessToken })
+      .withUrl('/hubs/sales', { accessTokenFactory: () => accessToken })
       .withAutomaticReconnect()
       .build();
 
@@ -391,6 +407,7 @@ export default function SalesPortal() {
           <Routes>
             <Route path="dashboard" element={<SalesDashboardPage />} />
             <Route path="my-customers" element={<SalesMyCustomersPage />} />
+            <Route path="ai-content-studio" element={<SalesAiContentStudio />} />
             <Route path="change-requests" element={<SalesChangeRequestExplainPage />} />
             <Route path="orders" element={<SalesOrdersPage />} />
             <Route path="orders/:id" element={<SalesOrderDetailPage />} />
@@ -400,6 +417,7 @@ export default function SalesPortal() {
             <Route path="delivery/handover" element={<SalesWarehouseHandoverPage />} />
             <Route path="delivery/warehouse" element={<SalesWarehouseCoordPage />} />
             <Route path="delivery/arrangement" element={<SalesDeliveryArrangementPage />} />
+            <Route path="pickup-arrangement" element={<SalesPickupArrangementPage />} />
             <Route path="delivery/collection" element={<SalesDeliveryCollectionPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="*" element={<SalesDashboardPage />} />

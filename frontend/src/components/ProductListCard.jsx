@@ -25,7 +25,7 @@ export default function ProductListCard({ product }) {
     e.stopPropagation()
     setAdding(true)
     try {
-      await addToCart(productId, 1)
+      await addToCart({ id: productId, name: product.name, imageUrl, price }, 1)
       alert(`Đã thêm "${product.name}" vào giỏ hàng!`)
     } catch (err) {
       alert(err.message || 'Không thể thêm sản phẩm vào giỏ hàng')

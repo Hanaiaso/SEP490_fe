@@ -27,9 +27,12 @@ import {
   paymentStatusMeta,
   redInvoiceStatusMeta,
   requestVatInvoice,
-  requestCancelOrder
+  requestCancelOrder,
+  createExchangeRequest
 } from '../services/orderService.js'
 import { exportInvoiceToPdf } from '../utils/exportPdf.js'
+import ExchangeRequestModal from './sales/ExchangeRequestModal.tsx'
+import { ReturnExchangeRequestDetailModal } from '../components/ReturnExchangeRequests'
 
 function InfoRow({ icon: Icon, label, value }) {
   return (
@@ -75,6 +78,8 @@ export default function OrderDetail() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [showExchangeModal, setShowExchangeModal] = useState(false)
+  const [selectedReturnRequest, setSelectedReturnRequest] = useState(null)
 
   const fetchOrder = async () => {
     try {
@@ -135,6 +140,17 @@ export default function OrderDetail() {
     }
   }
 
+  const handleExchangeRequest = async (payload) => {
+    try {
+      await createExchangeRequest(order.id, payload)
+      alert('Đã gửi yêu cầu đổi/trả hàng thành công!')
+      setShowExchangeModal(false)
+      fetchOrder()
+    } catch (err) {
+      alert(err.message || 'Lỗi khi tạo yêu cầu.')
+    }
+  }
+
   // ─── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -179,7 +195,7 @@ export default function OrderDetail() {
   const payMeta   = paymentStatusMeta[order.paymentStatus]   || { label: order.paymentStatus,   badgeClass: 'bg-gray-100 text-gray-500' }
   const orderMeta = orderStatusMeta[order.orderStatus]       || { label: order.orderStatus,     badgeClass: 'bg-gray-100 text-gray-500' }
   const vatMeta   = redInvoiceStatusMeta[order.redInvoiceStatus] || redInvoiceStatusMeta.None
-  const timeline  = getOrderTimeline(order.orderStatus)
+  const timeline  = getOrderTimeline(order.orderStatus, order.deliveryStatus)
 
   const vatDeadlineStr = order.vatDeadline
     ? new Date(order.vatDeadline).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -263,6 +279,20 @@ export default function OrderDetail() {
                 >
                   <AlertCircle className="h-4 w-4" />
                   Yêu cầu hủy đơn
+                </Button>
+              )}
+
+              {/* Nút yêu cầu đổi/trả */}
+              {order.orderStatus !== 'Returned' && 
+               !(order.returnExchangeRequests && order.returnExchangeRequests.length > 0) &&
+               (order.orderStatus === 'Completed' || ['Delivered', 'PartiallyDelivered'].includes(order.deliveryStatus)) && (
+                <Button
+                  variant="outline"
+                  className="rounded-full text-sm text-orange-600 hover:bg-orange-50 hover:text-orange-700 gap-2"
+                  onClick={() => setShowExchangeModal(true)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Yêu cầu đổi/trả
                 </Button>
               )}
 
@@ -433,6 +463,46 @@ export default function OrderDetail() {
                 </div>
               </section>
 
+              {/* Lịch sử yêu cầu đổi/trả */}
+              {order.returnExchangeRequests && order.returnExchangeRequests.length > 0 && (
+                <section className="rounded-[1.75rem] border border-gray-100 bg-white p-6">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Đổi/Trả</p>
+                      <h2 className="mt-2 text-xl font-semibold text-gray-900">Lịch sử Yêu cầu Đổi/Trả</h2>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {order.returnExchangeRequests.map((req, idx) => (
+                      <div key={req.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-5 flex justify-between items-center transition-colors hover:bg-gray-100">
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="font-semibold text-gray-900">Yêu cầu #{idx + 1}</h3>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              req.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                              req.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                              req.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-200 text-gray-700'
+                            }`}>
+                              {req.status === 'Pending' ? 'Đang xử lý' :
+                               req.status === 'Approved' ? 'Đã duyệt' :
+                               req.status === 'Rejected' ? 'Từ chối' : req.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-md">Lý do: {req.reason}</p>
+                        </div>
+                        <button
+                          onClick={() => setSelectedReturnRequest(req)}
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-white border border-gray-200 px-4 py-2 rounded-xl shadow-sm hover:border-gray-300 transition-colors"
+                        >
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Timeline */}
               <section className="rounded-[1.75rem] border border-gray-100 bg-white p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Tiến trình</p>
@@ -526,6 +596,8 @@ export default function OrderDetail() {
                       </div>
                     </div>
                   )}
+
+
                 </div>
               </section>
 
@@ -579,6 +651,21 @@ export default function OrderDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {showExchangeModal && (
+        <ExchangeRequestModal
+          order={order}
+          onClose={() => setShowExchangeModal(false)}
+          onSubmit={handleExchangeRequest}
+        />
+      )}
+
+      {selectedReturnRequest && (
+        <ReturnExchangeRequestDetailModal
+          request={selectedReturnRequest}
+          onClose={() => setSelectedReturnRequest(null)}
+        />
       )}
     </div>
   )

@@ -1,12 +1,44 @@
 import { ArrowLeft, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthCardLayout from '../components/AuthCardLayout.jsx'
 import { Button } from '../components/ui/Button.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function ForgotPasswordSent() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { forgotPassword, loading } = useAuth()
   const email = location.state?.email ?? 'minhtan050804@gmail.com'
+  const [countdown, setCountdown] = useState(60)
+  const [resending, setResending] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [countdown])
+
+  const handleResend = async () => {
+    if (countdown > 0) return
+
+    setResending(true)
+    setErrorMsg('')
+    try {
+      const result = await forgotPassword(email)
+      if (result.success) {
+        setCountdown(60)
+      } else {
+        setErrorMsg(result.message || 'Có lỗi xảy ra khi gửi lại email.')
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Không thể gửi lại email. Vui lòng thử lại.')
+    } finally {
+      setResending(false)
+    }
+  }
 
   return (
     <AuthCardLayout>
@@ -31,14 +63,25 @@ export default function ForgotPasswordSent() {
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-center text-red-700">
+          {errorMsg}
+        </div>
+      )}
+
       <div className="mx-auto mt-10 max-w-xl space-y-5">
         <Button
           type="button"
           variant="outline"
-          className="h-14 w-full rounded-2xl border-slate-300 text-base !text-slate-950 hover:!bg-slate-50 hover:!text-slate-950"
-          onClick={() => navigate('/forgot-password/sent', { state: { email }, replace: true })}
+          className="h-14 w-full rounded-2xl border-slate-300 text-base !text-slate-950 hover:!bg-slate-50 hover:!text-slate-950 disabled:opacity-50"
+          onClick={handleResend}
+          disabled={resending || loading || countdown > 0}
         >
-          Gửi lại email
+          {resending 
+            ? 'Đang gửi lại...' 
+            : countdown > 0 
+              ? `Gửi lại email sau ${countdown}s` 
+              : 'Gửi lại email'}
         </Button>
 
         <Link to="/login" className="block text-center text-lg text-slate-700 transition hover:text-slate-950">

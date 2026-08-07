@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { ReturnExchangeRequestDetailModal, ReturnExchangeRequestsSection } from '../../components/ReturnExchangeRequests';
 import { useAuth } from '../../context/AuthContext';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
@@ -22,6 +23,7 @@ const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }>
   CancelRequested:     { label: 'Yêu cầu hủy',       color: '#991B1B', bg: '#FEE2E2' },
   CancelledReallocated:{ label: 'Đã hủy & chuyển',    color: '#991B1B', bg: '#FEE2E2' },
   PaidReviewRequired:  { label: 'Cần duyệt thanh toán', color: '#92400E', bg: '#FEF3C7' },
+  Returned:            { label: 'Đã đổi/trả',         color: '#9A3412', bg: '#FFEDD5' },
 };
 
 const FULFILLMENT_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -117,6 +119,8 @@ type SalesOrderDetail = {
   customerSignatureUrl?: string;
   deliveryPhotoUrl?: string;
   amountPaid?: number;
+  creditApplied: number;
+  returnExchangeRequests?: any[];
 };
 
 // ─── Timeline Steps ─────────────────────────────────────────────────────
@@ -135,22 +139,22 @@ function getTimelineSteps(order: SalesOrderDetail) {
     {
       label: order.paymentMethod === 'COD' ? 'Sales xác nhận COD' : 'Thanh toán thành công',
       icon: Wallet,
-      done: ['Confirmed', 'Processing', 'Completed'].includes(os),
+      done: ['Confirmed', 'Processing', 'Completed', 'Returned'].includes(os),
     },
     {
       label: 'Kho xử lý & đóng gói',
       icon: Box,
-      done: ['Picking', 'PartiallyReady', 'Ready', 'Consolidating', 'Consolidated', 'HandedOver', 'Fulfilled'].includes(fs),
+      done: ['Picking', 'PartiallyReady', 'Ready', 'Consolidating', 'Consolidated', 'HandedOver', 'Fulfilled'].includes(fs) || os === 'Returned' || os === 'Completed',
     },
     {
       label: 'Bàn giao vận chuyển',
       icon: Truck,
-      done: ['HandedOver', 'Fulfilled'].includes(fs),
+      done: ['HandedOver', 'Fulfilled'].includes(fs) || os === 'Returned' || os === 'Completed',
     },
     {
       label: 'Giao hàng thành công',
       icon: CheckCircle,
-      done: ds === 'Delivered' || os === 'Completed',
+      done: ds === 'Delivered' || os === 'Completed' || os === 'Returned',
     },
   ];
 
@@ -174,6 +178,10 @@ export default function SalesOrderDetailPage() {
   const [showDirectCancelModal, setShowDirectCancelModal] = useState(false);
   const [directCancelReason, setDirectCancelReason] = useState('');
   const [showDirectConfirmModal, setShowDirectConfirmModal] = useState(false);
+
+  const [selectedReturnRequest, setSelectedReturnRequest] = useState<any | null>(null);
+  const [showCreateReplacementModal, setShowCreateReplacementModal] = useState(false);
+  const [pendingReplacementRequestId, setPendingReplacementRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -234,6 +242,42 @@ export default function SalesOrderDetailPage() {
       alert(err.message || 'Lỗi không xác định.');
     } finally {
       setIsConfirming(false);
+    }
+  };
+
+  const [isCreatingReplacement, setIsCreatingReplacement] = useState(false);
+
+  const handleCreateExchangeReplacement = async (requestId: string) => {
+    if (isCreatingReplacement) return;
+    setIsCreatingReplacement(true);
+    try {
+      const response = await fetch(`/api/delivery/exchange/${requestId}/replacement`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) data = JSON.parse(text);
+      } catch (e) {
+        console.error("Parse error", e);
+      }
+      
+      if (!response.ok) throw new Error(data.message || `Lỗi từ server: ${response.status} ${response.statusText}`);
+
+      alert(data.message || 'Tạo đơn thay thế thành công!');
+      
+      const res = await fetch(`/api/orders/sales/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+      });
+      const orderData = await res.json();
+      setOrder(orderData);
+      setSelectedReturnRequest(null);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi không xác định.');
+    } finally {
+      setIsCreatingReplacement(false);
     }
   };
 
@@ -311,6 +355,8 @@ export default function SalesOrderDetailPage() {
   const deliveryMeta = DELIVERY_STATUS[order.deliveryStatus || ''] || { label: order.deliveryStatus || '--', color: '#6B7280', bg: '#F3F4F6' };
 
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+  const failedDeliveryCount = order.failedDeliveryCount ?? 0;
+  const amountPaid = order.amountPaid ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -619,12 +665,12 @@ export default function SalesOrderDetailPage() {
                   </div>
                 )}
 
-                {order.failedDeliveryCount > 0 && (
+                {failedDeliveryCount > 0 && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-700">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-red-400 font-semibold">Số lần giao thất bại</p>
-                      <p className="text-sm font-bold">{order.failedDeliveryCount} lần</p>
+                      <p className="text-sm font-bold">{failedDeliveryCount} lần</p>
                     </div>
                   </div>
                 )}
@@ -707,15 +753,15 @@ export default function SalesOrderDetailPage() {
                     {formatPrice(order.finalPayment)} ₫
                   </span>
                 </div>
-                {(order.amountPaid > 0 || order.paymentStatus === 'PartiallyPaid') && (
+                {(amountPaid > 0 || order.paymentStatus === 'PartiallyPaid') && (
                   <div className="border-t border-dashed border-slate-200 pt-3 space-y-2 text-xs">
                     <div className="flex justify-between text-slate-500">
                       <span>Đã thanh toán (Thực thu)</span>
-                      <span className="font-semibold text-emerald-600 tabular-nums">{formatPrice(order.amountPaid)} ₫</span>
+                      <span className="font-semibold text-emerald-600 tabular-nums">{formatPrice(amountPaid)} ₫</span>
                     </div>
                     <div className="flex justify-between text-slate-500">
                       <span>Còn thiếu (Công nợ)</span>
-                      <span className="font-semibold text-amber-600 tabular-nums">{formatPrice(Math.max(0, order.finalPayment - order.amountPaid))} ₫</span>
+                      <span className="font-semibold text-amber-600 tabular-nums">{formatPrice(Math.max(0, order.finalPayment - amountPaid))} ₫</span>
                     </div>
                   </div>
                 )}
@@ -838,9 +884,24 @@ export default function SalesOrderDetailPage() {
                 </p>
               </div>
             </div>
+
+            <ReturnExchangeRequestsSection
+              requests={order.returnExchangeRequests}
+              description="Lịch sử yêu cầu từ khách hàng"
+              onSelect={setSelectedReturnRequest}
+            />
           </div>
         </div>
       </div>
+
+      {/* Modal Chi tiết Yêu cầu Đổi/Trả */}
+      {selectedReturnRequest && (
+        <ReturnExchangeRequestDetailModal
+          request={selectedReturnRequest}
+          onClose={() => setSelectedReturnRequest(null)}
+        />
+      )}
+
       {/* Modals cho Yêu cầu hủy đơn */}
       <ConfirmModal
         isOpen={showAcceptConfirm}

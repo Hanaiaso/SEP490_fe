@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, AlertCircle, PackageSearch, ArrowLeftRight, Clock, User, Check } from 'lucide-react';
+import { Search, Filter, AlertCircle, PackageSearch, ArrowLeftRight, Clock, User, Check, Layers } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { getWarehouseInventory, adjustInventory, getWarehouses, addInventory } from '../../services/warehouseService';
 import { getProducts, getCategories, createProduct } from '../../services/productService';
+import { getMaterials } from '../../services/materialService';
 
 const PRIMARY = '#3b82f6';
 
@@ -15,6 +16,7 @@ export default function WarehouseInventoryCount() {
   
   // Filters
   const [search, setSearch] = useState('');
+  const [itemTypeFilter, setItemTypeFilter] = useState('all'); // all, Product, Material
   const [minQty, setMinQty] = useState('');
   const [maxQty, setMaxQty] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -31,12 +33,15 @@ export default function WarehouseInventoryCount() {
   const [adjustNote, setAdjustNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Add Product State
+  // Add Product / Material State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [targetType, setTargetType] = useState<'Product' | 'Material'>('Product');
   const [isNewProduct, setIsNewProduct] = useState(false);
   const [productsList, setProductsList] = useState<any[]>([]);
+  const [materialsList, setMaterialsList] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [initialQuantity, setInitialQuantity] = useState('0');
   
@@ -110,7 +115,7 @@ export default function WarehouseInventoryCount() {
   };
 
   const handleAdjustSubmit = async () => {
-    if (!newQuantity || isNaN(newQuantity) || parseInt(newQuantity) < 0) {
+    if (!newQuantity || isNaN(newQuantity as any) || parseInt(newQuantity) < 0) {
       alert('Số lượng mới không hợp lệ!');
       return;
     }
@@ -133,18 +138,21 @@ export default function WarehouseInventoryCount() {
   const openAddProductModal = async () => {
     try {
       setLoading(true);
-      const [res, cats]: any = await Promise.all([
-        getProducts({ page: 1, pageSize: 200 }),
-        getCategories()
+      const [resProd, resMat, cats]: any = await Promise.all([
+        getProducts({ page: 1, pageSize: 200 }).catch(() => ({ items: [] })),
+        getMaterials().catch(() => []),
+        getCategories().catch(() => [])
       ]);
-      setProductsList(res.items || []);
+      const loadedProds = resProd?.items || resProd || [];
+      const loadedMats = Array.isArray(resMat) ? resMat : (resMat?.items || []);
+
+      setProductsList(loadedProds);
+      setMaterialsList(loadedMats);
       setCategoriesList(cats || []);
-      if (res.items && res.items.length > 0) {
-        setSelectedProductId(res.items[0].id);
-      }
-      if (cats && cats.length > 0) {
-        setNewProductCategoryId(cats[0].id);
-      }
+
+      if (loadedProds.length > 0) setSelectedProductId(loadedProds[0].id);
+      if (loadedMats.length > 0) setSelectedMaterialId(loadedMats[0].id);
+      if (cats && cats.length > 0) setNewProductCategoryId(cats[0].id);
       
       const currWh = warehouses.find(w => w.id === warehouseId);
       if (currWh && currWh.locations && currWh.locations.length > 0) {
@@ -162,9 +170,10 @@ export default function WarehouseInventoryCount() {
       setNewProductSpecs('');
       setNewProductImageFile(null);
       setIsNewProduct(false);
+      setTargetType('Product');
       setShowAddModal(true);
     } catch (err: any) {
-      alert("Lỗi tải dữ liệu sản phẩm: " + err.message);
+      alert("Lỗi tải dữ liệu sản phẩm / nguyên liệu: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -173,20 +182,24 @@ export default function WarehouseInventoryCount() {
   const handleAddSubmit = async () => {
     let finalProductId = selectedProductId;
 
-    if (isNewProduct) {
-      if (!newProductName || !newProductSku || !newProductCategoryId || !newProductUnit) return alert("Vui lòng điền đủ Tên, Mã SKU, Đơn vị tính và Danh mục cho sản phẩm mới.");
-      if (isNaN(newProductPrice as any)) return alert("Giá sản phẩm không hợp lệ.");
+    if (targetType === 'Product') {
+      if (isNewProduct) {
+        if (!newProductName || !newProductSku || !newProductCategoryId || !newProductUnit) return alert("Vui lòng điền đủ Tên, Mã SKU, Đơn vị tính và Danh mục cho sản phẩm mới.");
+        if (isNaN(newProductPrice as any)) return alert("Giá sản phẩm không hợp lệ.");
+      } else {
+        if (!selectedProductId) return alert("Vui lòng chọn sản phẩm.");
+      }
     } else {
-      if (!selectedProductId) return alert("Vui lòng chọn sản phẩm.");
+      if (!selectedMaterialId) return alert("Vui lòng chọn nguyên vật liệu.");
     }
 
-    if (!selectedLocationId) return alert("Vui lòng chọn vị trí lưu trữ.");
+    if (!selectedLocationId) return alert("Vui lòng chọn vị trí lưu trữ trong kho.");
     if (!initialQuantity || isNaN(initialQuantity as any) || parseInt(initialQuantity) < 0) return alert("Số lượng không hợp lệ.");
 
     try {
       setSubmitting(true);
       
-      if (isNewProduct) {
+      if (targetType === 'Product' && isNewProduct) {
         const formData = new FormData();
         formData.append('Name', newProductName);
         formData.append('Sku', newProductSku);
@@ -202,11 +215,12 @@ export default function WarehouseInventoryCount() {
       }
 
       await addInventory({
-        productId: finalProductId,
+        productId: targetType === 'Product' ? finalProductId : null,
+        materialId: targetType === 'Material' ? selectedMaterialId : null,
         warehouseLocationId: selectedLocationId,
         initialQuantity: parseInt(initialQuantity)
       });
-      alert('Thêm sản phẩm vào kho thành công!');
+      alert(`Thêm ${targetType === 'Product' ? 'sản phẩm' : 'nguyên vật liệu'} vào kho thành công!`);
       setShowAddModal(false);
       fetchInventory();
     } catch (err: any) {
@@ -216,26 +230,38 @@ export default function WarehouseInventoryCount() {
     }
   };
 
+  const filteredItems = items.filter(item => {
+    if (itemTypeFilter === 'all') return true;
+    if (itemTypeFilter === 'Material') return item.itemType === 'Material' || item.materialId != null;
+    if (itemTypeFilter === 'Product') return item.itemType === 'Product' || (item.productId != null && item.materialId == null);
+    return true;
+  });
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 relative">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <PackageSearch className="w-6 h-6 text-blue-600" />
-            Quản lý tồn kho trực tiếp
+            Quản Lý Tồn Kho Trực Tiếp & Kiểm Kê
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Xem và cập nhật số lượng tồn kho vật lý tại kho</p>
+          <p className="text-xs text-gray-500 mt-1">Theo dõi tồn kho thực tế, tồn khả dụng sản phẩm & nguyên vật liệu tại các kho</p>
         </div>
-        
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button onClick={openAddProductModal} className="h-10 text-sm whitespace-nowrap" style={{ backgroundColor: PRIMARY }}>
-            + Thêm sản phẩm
+
+        <div className="flex items-center gap-3">
+          <Button onClick={openAddProductModal} className="gap-2 shadow-sm font-semibold text-xs" style={{ backgroundColor: PRIMARY }}>
+            + Thêm Hàng Vào Kho
           </Button>
+
+          {/* Warehouse Selector */}
           <select 
-            value={warehouseId} 
-            onChange={(e: any) => setWarehouseId(e.target.value)}
-            className="w-full sm:w-[250px] bg-white border border-gray-300 rounded text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-10 text-sm font-semibold border border-blue-200 rounded-lg px-3 bg-blue-50 text-blue-900 shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+            value={warehouseId}
+            onChange={(e) => {
+              setWarehouseId(e.target.value);
+              setPage(1);
+            }}
           >
             {warehouses.map(wh => (
               <option key={wh.id} value={wh.id}>{wh.name}</option>
@@ -251,7 +277,7 @@ export default function WarehouseInventoryCount() {
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <Input 
-              placeholder="Nhập mã hoặc tên sản phẩm..." 
+              placeholder="Nhập mã SKU hoặc tên mặt hàng..." 
               className="pl-9 h-9 text-sm w-full"
               value={search}
               onChange={(e: any) => setSearch(e.target.value)}
@@ -259,22 +285,27 @@ export default function WarehouseInventoryCount() {
             />
           </div>
         </div>
+
+        <div className="w-full md:w-36 space-y-1.5">
+          <label className="text-xs font-medium text-gray-600">Phân loại hàng</label>
+          <select 
+            className="h-9 text-xs border border-gray-200 rounded-md px-2.5 bg-white w-full"
+            value={itemTypeFilter}
+            onChange={e => setItemTypeFilter(e.target.value)}
+          >
+            <option value="all">Tất cả (SP & NVL)</option>
+            <option value="Product">Chỉ Sản phẩm</option>
+            <option value="Material">Chỉ Nguyên vật liệu</option>
+          </select>
+        </div>
         
-        <div className="w-full md:w-32 space-y-1.5">
+        <div className="w-full md:w-28 space-y-1.5">
           <label className="text-xs font-medium text-gray-600">Tồn kho Min</label>
           <Input type="number" placeholder="0" className="h-9 text-sm" value={minQty} onChange={(e: any) => setMinQty(e.target.value)} onKeyDown={(e: any) => e.key === 'Enter' && handleSearch()} />
         </div>
-        <div className="w-full md:w-32 space-y-1.5">
+        <div className="w-full md:w-28 space-y-1.5">
           <label className="text-xs font-medium text-gray-600">Tồn kho Max</label>
           <Input type="number" placeholder="1000" className="h-9 text-sm" value={maxQty} onChange={(e: any) => setMaxQty(e.target.value)} onKeyDown={(e: any) => e.key === 'Enter' && handleSearch()} />
-        </div>
-        <div className="w-full md:w-32 space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Cập nhật từ</label>
-          <Input type="date" className="h-9 text-sm" value={fromDate} onChange={(e: any) => setFromDate(e.target.value)} />
-        </div>
-        <div className="w-full md:w-32 space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Đến ngày</label>
-          <Input type="date" className="h-9 text-sm" value={toDate} onChange={(e: any) => setToDate(e.target.value)} />
         </div>
 
         <Button onClick={handleSearch} className="h-9 gap-2 w-full md:w-auto" style={{ backgroundColor: PRIMARY }}>
@@ -289,7 +320,8 @@ export default function WarehouseInventoryCount() {
             <thead>
               <tr className="bg-slate-50 border-b border-gray-200">
                 <th className="text-left px-4 py-3 font-semibold text-gray-700 w-32">Mã SKU</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Tên sản phẩm</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Tên sản phẩm / Nguyên vật liệu</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-700 w-28">Phân loại</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-700">Tồn vật lý</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-700">Tồn khả dụng</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-700">Cập nhật lần cuối</th>
@@ -299,83 +331,83 @@ export default function WarehouseInventoryCount() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-500">
+                  <td colSpan={7} className="text-center py-12 text-gray-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                     Đang tải dữ liệu...
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-500 flex flex-col items-center">
+                  <td colSpan={7} className="text-center py-12 text-gray-500 flex flex-col items-center">
                     <AlertCircle className="w-10 h-10 text-gray-300 mb-2" />
-                    Không tìm thấy sản phẩm nào trong kho này.
+                    Không tìm thấy sản phẩm hoặc nguyên vật liệu nào trong kho này.
                   </td>
                 </tr>
               ) : (
-                items.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-4 py-3 font-mono text-gray-500">{item.productSku}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{item.productName}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-sm border border-blue-100">
-                        {item.onHandQuantity}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600 font-medium">
-                      {item.availableQuantity}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1 text-[11px] text-gray-600"><User className="w-3 h-3" /> {item.lastUpdatedByUserName || 'System'}</span>
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400"><Clock className="w-3 h-3" /> {item.lastUpdatedAt ? new Date(item.lastUpdatedAt).toLocaleString('vi-VN') : 'N/A'}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => openAdjustDialog(item)}>
-                        Cập nhật
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                filteredItems.map((item: any) => {
+                  const isMaterial = item.itemType === 'Material' || item.materialId != null;
+                  return (
+                    <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="px-4 py-3 font-mono text-gray-500">{item.productSku || item.itemSku || item.sku || '-'}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{item.productName || item.itemName || item.name || 'N/A'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          isMaterial ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200'
+                        }`}>
+                          {isMaterial ? 'Nguyên vật liệu' : 'Sản phẩm'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-sm border border-blue-100">
+                          {item.onHandQuantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600 font-medium">
+                        {item.availableQuantity}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="flex items-center gap-1 text-[11px] text-gray-600"><User className="w-3 h-3" /> {item.lastUpdatedByUserName || 'System'}</span>
+                          <span className="flex items-center gap-1 text-[11px] text-gray-400"><Clock className="w-3 h-3" /> {item.lastUpdatedAt ? new Date(item.lastUpdatedAt).toLocaleString('vi-VN') : 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => openAdjustDialog(item)}>
+                          Cập nhật
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        {!loading && items.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <span className="text-xs text-gray-500">Hiển thị {items.length} / {totalCount} sản phẩm</span>
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Trang trước</Button>
-              <span className="text-xs px-2 font-medium">Trang {page} / {totalPages}</span>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Trang sau</Button>
+          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+            <span className="text-xs text-gray-500">Hiển thị {filteredItems.length} / {totalCount} bản ghi</span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-7 text-xs">Trang trước</Button>
+              <span className="text-xs text-gray-600 font-medium">Trang {page} / {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-7 text-xs">Trang sau</Button>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Adjust Inventory Modal */}
+      {/* Adjust Inventory Dialog */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
             <div className="p-4 border-b border-gray-100">
-              <h3 className="text-base font-bold flex items-center gap-2 text-blue-700">
-                <ArrowLeftRight className="w-5 h-5" />
-                Điều chỉnh tồn kho
+              <h3 className="text-base font-bold flex items-center gap-2 text-gray-900">
+                <ArrowLeftRight className="w-5 h-5 text-blue-600" />
+                Cập Nhật / Điều Chỉnh Tồn Kho
               </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {editingItem.productName || editingItem.itemName} ({editingItem.productSku || editingItem.itemSku || '-'})
+              </p>
             </div>
-            
-            <div className="p-4 space-y-4">
-              <div className="bg-slate-50 p-3 rounded border border-slate-100 space-y-1">
-                <div className="text-xs text-gray-500 font-mono">{editingItem.productSku}</div>
-                <div className="font-semibold text-gray-800 text-sm">{editingItem.productName}</div>
-                <div className="flex justify-between mt-2 pt-2 border-t border-slate-200">
-                  <span className="text-xs text-gray-500">Tồn hiện tại hệ thống:</span>
-                  <span className="font-bold text-gray-700">{editingItem.onHandQuantity}</span>
-                </div>
-              </div>
 
+            <div className="p-4 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700">Tồn kho thực tế (đã đếm)</label>
                 <Input 
@@ -408,134 +440,146 @@ export default function WarehouseInventoryCount() {
         </div>
       )}
 
-      {/* Add Product Modal */}
+      {/* Add Product / Material Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
             <div className="p-4 border-b border-gray-100">
               <h3 className="text-base font-bold flex items-center gap-2 text-blue-700">
                 <PackageSearch className="w-5 h-5" />
-                Thêm sản phẩm vào kho
+                Thêm Hàng Vào Kho Tồn
               </h3>
             </div>
             
             <div className="p-4 space-y-4">
-              <div className="flex gap-4 mb-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="radio" checked={!isNewProduct} onChange={() => setIsNewProduct(false)} name="productType" className="w-4 h-4 text-blue-600" />
-                  <span>Chọn sản phẩm có sẵn</span>
+              {/* Category Selector: Product vs Material */}
+              <div className="flex gap-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-blue-900">
+                  <input type="radio" checked={targetType === 'Product'} onChange={() => setTargetType('Product')} name="targetType" className="w-4 h-4 text-blue-600" />
+                  <span>Sản Phẩm Kinh Doanh</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="radio" checked={isNewProduct} onChange={() => setIsNewProduct(true)} name="productType" className="w-4 h-4 text-blue-600" />
-                  <span className="font-semibold text-blue-700">Tạo mới hoàn toàn</span>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-900">
+                  <input type="radio" checked={targetType === 'Material'} onChange={() => setTargetType('Material')} name="targetType" className="w-4 h-4 text-amber-600" />
+                  <span>Nguyên Vật Liệu Sàn</span>
                 </label>
               </div>
 
-              {!isNewProduct ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700">Chọn sản phẩm</label>
-                  <select 
-                    className="w-full text-sm h-9 border border-gray-300 rounded px-2"
-                    value={selectedProductId}
-                    onChange={(e: any) => setSelectedProductId(e.target.value)}
-                  >
-                    <option value="">-- Chọn sản phẩm --</option>
-                    {productsList.map(p => (
-                      <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="space-y-3 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700">Tên sản phẩm *</label>
-                    <Input placeholder="Nhập tên sản phẩm mới" value={newProductName} onChange={(e: any) => setNewProductName(e.target.value)} className="h-8 text-sm" />
+              {targetType === 'Product' ? (
+                <>
+                  <div className="flex gap-4 mb-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input type="radio" checked={!isNewProduct} onChange={() => setIsNewProduct(false)} name="productType" className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Chọn sản phẩm có sẵn</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input type="radio" checked={isNewProduct} onChange={() => setIsNewProduct(true)} name="productType" className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="font-semibold text-blue-700">Tạo mới hoàn toàn</span>
+                    </label>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+
+                  {!isNewProduct ? (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Mã SKU *</label>
-                      <Input placeholder="Nhập mã SKU" value={newProductSku} onChange={(e: any) => setNewProductSku(e.target.value)} className="h-8 text-sm uppercase" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Danh mục *</label>
+                      <label className="text-xs font-semibold text-gray-700">Chọn sản phẩm</label>
                       <select 
-                        className="w-full text-sm h-8 border border-gray-300 rounded px-2"
-                        value={newProductCategoryId}
-                        onChange={(e: any) => setNewProductCategoryId(e.target.value)}
+                        className="w-full text-sm h-9 border border-gray-300 rounded px-2"
+                        value={selectedProductId}
+                        onChange={(e: any) => setSelectedProductId(e.target.value)}
                       >
-                        {categoriesList.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
+                        <option value="">-- Chọn sản phẩm --</option>
+                        {productsList.map(p => (
+                          <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>
                         ))}
                       </select>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Giá niêm yết (VNĐ)</label>
-                      <Input type="number" placeholder="0" value={newProductPrice} onChange={(e: any) => setNewProductPrice(e.target.value)} className="h-8 text-sm" />
+                  ) : (
+                    <div className="space-y-3 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-700">Tên sản phẩm *</label>
+                        <Input placeholder="Nhập tên sản phẩm mới" value={newProductName} onChange={(e: any) => setNewProductName(e.target.value)} className="h-8 text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Mã SKU *</label>
+                          <Input placeholder="Nhập mã SKU" value={newProductSku} onChange={(e: any) => setNewProductSku(e.target.value)} className="h-8 text-sm uppercase" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Danh mục *</label>
+                          <select 
+                            className="w-full text-sm h-8 border border-gray-300 rounded px-2"
+                            value={newProductCategoryId}
+                            onChange={(e: any) => setNewProductCategoryId(e.target.value)}
+                          >
+                            {categoriesList.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Giá niêm yết (VNĐ)</label>
+                          <Input type="number" placeholder="0" value={newProductPrice} onChange={(e: any) => setNewProductPrice(e.target.value)} className="h-8 text-sm" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Đơn vị tính *</label>
+                          <Input placeholder="Cái, Hộp, Kg..." value={newProductUnit} onChange={(e: any) => setNewProductUnit(e.target.value)} className="h-8 text-sm" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Đơn vị tính *</label>
-                      <Input placeholder="Cái, Hộp, Kg..." value={newProductUnit} onChange={(e: any) => setNewProductUnit(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700">Mô tả ngắn</label>
-                    <Input placeholder="Nhập mô tả sản phẩm" value={newProductDesc} onChange={(e: any) => setNewProductDesc(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Thông số kỹ thuật</label>
-                      <Input placeholder="Nhập thông số kỹ thuật" value={newProductSpecs} onChange={(e: any) => setNewProductSpecs(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-700">Tải lên hình ảnh</label>
-                      <Input type="file" accept="image/*" onChange={(e: any) => setNewProductImageFile(e.target.files[0])} className="h-8 text-sm pt-1" />
-                    </div>
-                  </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Chọn nguyên vật liệu *</label>
+                  <select 
+                    className="w-full text-sm h-9 border border-gray-300 rounded px-2"
+                    value={selectedMaterialId}
+                    onChange={(e: any) => setSelectedMaterialId(e.target.value)}
+                  >
+                    <option value="">-- Chọn nguyên vật liệu --</option>
+                    {materialsList.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.sku || m.unit || 'Vật tư'})</option>
+                    ))}
+                  </select>
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Chọn vị trí lưu trữ</label>
-                <select 
-                  className="w-full text-sm h-9 border border-gray-300 rounded px-2"
-                  value={selectedLocationId}
-                  onChange={(e: any) => setSelectedLocationId(e.target.value)}
-                >
-                  {warehouses.find(w => w.id === warehouseId)?.locations?.length === 0 && (
-                    <option value="">Kho này chưa có vị trí</option>
-                  )}
-                  {warehouses.find(w => w.id === warehouseId)?.locations?.map((loc: any) => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-                {warehouses.find(w => w.id === warehouseId)?.locations?.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">Vui lòng sang trang Quản lý kho tạo vị trí trước.</p>
-                )}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Vị trí lưu trữ trong kho</label>
+                  <select 
+                    className="w-full text-sm h-9 border border-gray-300 rounded px-2"
+                    value={selectedLocationId}
+                    onChange={(e: any) => setSelectedLocationId(e.target.value)}
+                  >
+                    <option value="">-- Chọn vị trí --</option>
+                    {warehouses.find(w => w.id === warehouseId)?.locations?.map((loc: any) => (
+                      <option key={loc.id} value={loc.id}>{loc.locationCode || loc.name || 'Vị trí mặc định'}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Số lượng ban đầu</label>
+                  <Input 
+                    type="number" 
+                    value={initialQuantity} 
+                    onChange={(e: any) => setInitialQuantity(e.target.value)} 
+                    className="h-9 text-sm font-bold text-blue-600"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Số lượng ban đầu</label>
-                <Input 
-                  type="number" 
-                  value={initialQuantity} 
-                  onChange={(e: any) => setInitialQuantity(e.target.value)} 
-                  className="font-mono text-lg font-bold text-blue-600"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
                 <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={submitting}>Hủy bỏ</Button>
-                <Button style={{ backgroundColor: PRIMARY }} onClick={handleAddSubmit} disabled={submitting || !selectedLocationId} className="gap-2">
-                  <Check className="w-4 h-4" /> {submitting ? 'Đang lưu...' : 'Lưu sản phẩm'}
+                <Button style={{ backgroundColor: PRIMARY }} onClick={handleAddSubmit} disabled={submitting} className="gap-2">
+                  <Check className="w-4 h-4" /> {submitting ? 'Đang thêm...' : 'Thêm Vào Kho'}
                 </Button>
               </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { AuthProvider } from '../../context/AuthContext.jsx'
+import { CartProvider } from '../../context/CartContext.jsx'
 import Cart from '../Cart.jsx'
 
 describe('Cart', () => {
@@ -11,9 +12,11 @@ describe('Cart', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <Cart />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <Cart />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>,
     )
 

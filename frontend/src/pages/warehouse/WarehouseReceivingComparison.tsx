@@ -3,6 +3,8 @@ import { Button } from '../../components/sales-ui/button';
 import { CheckCircle, XCircle, AlertTriangle, Search, Eye, TrendingUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { Input } from '../../components/sales-ui/input';
+import { getPurchaseOrders, getPurchaseOrderById, resolveDiscrepancy } from '../../services/purchaseOrderService.js';
+import { useEffect } from 'react';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -28,21 +30,6 @@ interface ComparisonItem {
   reason: string; warehouseNote: string; supplierNote: string;
 }
 
-const GR_ID = 'GR-2406-0089';
-const PO_ID = 'PO-2406-0233';
-
-const ITEMS: ComparisonItem[] = [
-  { sku: 'VT-SM-012', product: 'Sơ mi nam slim fit', orderedQty: 400, receivedQty: 175, difference: -225, damageQty: 5, missingQty: 220, extraQty: 0, variancePct: -56.25, qcRequired: true, decision: 'pending', reason: 'Thiếu hàng từ NCC', warehouseNote: 'Chờ NCC giao bổ sung lô 2', supplierNote: '' },
-  { sku: 'VT-QT-007', product: 'Quần tây slim fit',  orderedQty: 200, receivedQty: 90,  difference: -110, damageQty: 0, missingQty: 110, extraQty: 0, variancePct: -55.0, qcRequired: false, decision: 'inspection', reason: 'Giao thiếu đợt 1', warehouseNote: '', supplierNote: 'Giao bổ sung 07/07' },
-];
-
-const SUMMARY = [
-  { label: 'Khớp chính xác', value: 0, color: SUCCESS, icon: <CheckCircle className="w-4 h-4" /> },
-  { label: 'Thiếu',          value: 2, color: WARNING, icon: <AlertTriangle className="w-4 h-4" /> },
-  { label: 'Dư',             value: 0, color: INFO,    icon: <TrendingUp className="w-4 h-4" /> },
-  { label: 'Hư hỏng',        value: 1, color: ERROR,   icon: <XCircle className="w-4 h-4" /> },
-  { label: 'Chờ quyết định', value: 1, color: NEUTRAL, icon: <Search className="w-4 h-4" /> },
-];
 
 function DecisionBadge({ d }: { d: Decision }) {
   const c = DECISION_CFG[d];
@@ -50,15 +37,94 @@ function DecisionBadge({ d }: { d: Decision }) {
 }
 
 export default function WarehouseReceivingComparison() {
-  const [items, setItems] = useState(ITEMS);
+  const [items, setItems] = useState<ComparisonItem[]>([]);
   const [detail, setDetail] = useState<ComparisonItem | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
 
+  const [poList, setPoList] = useState<any[]>([]);
+  const [selectedPoId, setSelectedPoId] = useState<string>('');
+  const [poDetail, setPoDetail] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadPOs = async () => {
+    try {
+      const pos = await getPurchaseOrders('DiscrepancyReview');
+      setPoList(pos);
+    } catch (err: any) {
+      alert('Lỗi lấy danh sách PO: ' + err.message);
+    }
+  };
+
+  const loadPoDetails = async (id: string) => {
+    if (!id) {
+      setItems([]);
+      setPoDetail(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getPurchaseOrderById(id);
+      setPoDetail(data);
+      const mapped = data.items.map((i: any) => {
+        const received = i.receivedQuantity;
+        const ordered = i.expectedQuantity;
+        const diff = received - ordered;
+        const varPct = ordered > 0 ? (diff / ordered) * 100 : 0;
+        return {
+          id: i.id,
+          sku: i.product?.sku || i.material?.sku || '-',
+          product: i.product?.name || i.material?.name || '-',
+          orderedQty: ordered,
+          receivedQty: received,
+          difference: diff,
+          damageQty: 0, // Should come from receipts, but currently PO item doesn't expose it directly in Dto unless we fetch GRs. For now mock 0.
+          missingQty: diff < 0 ? Math.abs(diff) : 0,
+          extraQty: diff > 0 ? diff : 0,
+          variancePct: varPct,
+          qcRequired: false,
+          decision: 'pending',
+          reason: '',
+          warehouseNote: '',
+          supplierNote: ''
+        };
+      });
+      setItems(mapped.filter((i: any) => i.difference !== 0 || i.damageQty > 0)); // Only show items with discrepancy
+    } catch (err: any) {
+      alert('Lỗi lấy chi tiết PO: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadPOs(); }, []);
+
+  const handleSelectPo = (e: any) => {
+    const id = e.target.value;
+    setSelectedPoId(id);
+    loadPoDetails(id);
+  };
+
   const setDecision = (sku: string, decision: Decision) => {
     setItems(p => p.map(i => i.sku === sku ? { ...i, decision } : i));
     setDetail(prev => prev?.sku === sku ? { ...prev, decision } : prev);
+  };
+
+  const submitDecisions = async () => {
+    if (!selectedPoId) return;
+    try {
+      await resolveDiscrepancy(selectedPoId, {
+        decision: 'Approve', // Simplification for demo
+        notes: 'Xử lý sai lệch'
+      });
+      alert('Đã xử lý xong chênh lệch!');
+      setSelectedPoId('');
+      setItems([]);
+      loadPOs();
+    } catch (err: any) {
+      alert('Lỗi xử lý: ' + err.message);
+    }
   };
 
   return (
@@ -70,10 +136,19 @@ export default function WarehouseReceivingComparison() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Đối chiếu nhập hàng (Receiving Comparison)</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Phiếu nhập: <span className="font-medium text-gray-700">{GR_ID}</span> · PO: <span className="font-medium text-gray-700">{PO_ID}</span></p>
+            <p className="text-xs text-gray-500 mt-0.5">Kho xem xét hàng hoá sai lệch và đưa ra quyết định xử lý</p>
           </div>
         </div>
 
+        {/* PO Selector */}
+        <div className="flex items-center gap-2 mb-3">
+          <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 font-medium min-w-[200px]" value={selectedPoId} onChange={handleSelectPo}>
+            <option value="">-- Chọn PO đang có sai lệch --</option>
+            {poList.map(po => (
+              <option key={po.id} value={po.id}>{po.code} - {po.supplier?.name}</option>
+            ))}
+          </select>
+        </div>
         {/* Filter row */}
         <div className="flex items-center gap-2 mb-3">
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
@@ -86,17 +161,23 @@ export default function WarehouseReceivingComparison() {
           </select>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-5 gap-2">
-          {SUMMARY.map(s => (
-            <div key={s.label} className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
-              <span style={{ color: s.color }}>{s.icon}</span>
-              <div>
-                <p className="text-[10px] text-gray-500">{s.label}</p>
-                <p className="text-base font-bold" style={{ color: s.color }}>{s.value}</p>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+            <span style={{ color: WARNING }}><AlertTriangle className="w-4 h-4" /></span>
+            <div><p className="text-[10px] text-gray-500">Thiếu</p><p className="text-base font-bold" style={{ color: WARNING }}>{items.filter(i => i.missingQty > 0).length}</p></div>
+          </div>
+          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+            <span style={{ color: INFO }}><TrendingUp className="w-4 h-4" /></span>
+            <div><p className="text-[10px] text-gray-500">Dư</p><p className="text-base font-bold" style={{ color: INFO }}>{items.filter(i => i.extraQty > 0).length}</p></div>
+          </div>
+          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+            <span style={{ color: ERROR }}><XCircle className="w-4 h-4" /></span>
+            <div><p className="text-[10px] text-gray-500">Hư hỏng</p><p className="text-base font-bold" style={{ color: ERROR }}>{items.filter(i => i.damageQty > 0).length}</p></div>
+          </div>
+          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+            <span style={{ color: NEUTRAL }}><Search className="w-4 h-4" /></span>
+            <div><p className="text-[10px] text-gray-500">Chờ quyết định</p><p className="text-base font-bold" style={{ color: NEUTRAL }}>{items.filter(i => i.decision === 'pending').length}</p></div>
+          </div>
         </div>
       </div>
 
@@ -162,8 +243,8 @@ export default function WarehouseReceivingComparison() {
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
             <span className="text-xs text-gray-500">Hiển thị {items.length} sản phẩm</span>
             <div className="flex gap-2">
-              <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }}>
-                <CheckCircle className="w-3.5 h-3.5" /> Xác nhận tất cả
+              <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={submitDecisions} disabled={!selectedPoId}>
+                <CheckCircle className="w-3.5 h-3.5" /> Gửi quyết định xử lý
               </Button>
             </div>
           </div>

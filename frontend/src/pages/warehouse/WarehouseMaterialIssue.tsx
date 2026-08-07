@@ -67,16 +67,20 @@ export default function WarehouseMaterialIssue() {
             <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide mb-3">Thông tin phiếu xuất</p>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] text-gray-500 mb-1">Lệnh sản xuất</label>
-                <Input className="h-8 text-xs" placeholder="LSX-2406-..." value={productionOrder} onChange={e => setProductionOrder(e.target.value)} />
+                <label className="block text-[11px] text-gray-600 font-medium mb-1">
+                  Lệnh sản xuất <span className="text-red-500 font-bold ml-0.5">*</span>
+                </label>
+                <Input className="h-8 text-xs border-gray-300" placeholder="LSX-2406-..." value={productionOrder} onChange={e => setProductionOrder(e.target.value)} />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-500 mb-1">Người thực hiện</label>
-                <Input className="h-8 text-xs" value={issuer} onChange={e => setIssuer(e.target.value)} />
+                <label className="block text-[11px] text-gray-600 font-medium mb-1">
+                  Người thực hiện <span className="text-red-500 font-bold ml-0.5">*</span>
+                </label>
+                <Input className="h-8 text-xs border-gray-300" value={issuer} onChange={e => setIssuer(e.target.value)} />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-500 mb-1">Ghi chú</label>
-                <Input className="h-8 text-xs" placeholder="Ghi chú..." value={note} onChange={e => setNote(e.target.value)} />
+                <label className="block text-[11px] text-gray-600 font-medium mb-1">Ghi chú</label>
+                <Input className="h-8 text-xs border-gray-300" placeholder="Ghi chú..." value={note} onChange={e => setNote(e.target.value)} />
               </div>
             </div>
           </div>

@@ -79,6 +79,10 @@ export default function Cart() {
   }
 
   function goToCheckout() {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
     navigate('/checkout', {
       state: {
         cartItems: cartItems.map(item => {
@@ -96,6 +100,10 @@ export default function Cart() {
   }
 
   function openQuotationModal() {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
     setQuotationSent(false)
     setShowQuotationModal(true)
   }
@@ -138,33 +146,14 @@ export default function Cart() {
   }, [cartItems, negotiatedPrices, applyNegotiation, originalSubtotal])
 
   const hasNegotiatedPrices = applyNegotiation;
+  const hasPendingNegotiationUnder100m = !applyNegotiation &&
+    Object.keys(negotiatedPrices).length > 0 &&
+    cartItems.some(item => negotiatedPrices[item.productId]);
 
   const automaticDiscountRate = getAutomaticDiscount(subtotal)
   const automaticDiscountAmount = subtotal * automaticDiscountRate
   const shippingFee = 0
   const total = subtotal + shippingFee - automaticDiscountAmount
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="flex min-h-[60vh] items-center justify-center pt-20">
-          <div className="text-center">
-            <ShoppingBag className="mx-auto mb-6 h-20 w-20 text-gray-300" />
-            <h2 className="mb-4 text-3xl font-bold text-gray-900">Vui lòng đăng nhập</h2>
-            <p className="mb-8 text-gray-600">Đăng nhập để xem và quản lý giỏ hàng của bạn.</p>
-            <Link to="/login">
-              <Button size="lg" className="rounded-full bg-gray-900 hover:bg-gray-800">
-                Đăng Nhập Ngay
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    )
-  }
 
   if (cartItems.length === 0) {
     return (
@@ -285,12 +274,13 @@ export default function Cart() {
 
                         <div className="text-right">
                           {(() => {
+                            const isItemNegotiated = applyNegotiation && !!negotiatedPrices[item.productId];
                             const negotiatedPrice = negotiatedPrices[item.productId];
-                            const displayPrice = negotiatedPrice ?? item.unitPrice;
+                            const displayPrice = isItemNegotiated ? negotiatedPrice : item.unitPrice;
                             return (
                               <>
                                 <div className="text-xl font-bold text-gray-900">{formatPrice(displayPrice * item.quantity)}</div>
-                                {negotiatedPrice ? (
+                                {isItemNegotiated ? (
                                   <>
                                     <div className="text-sm text-gray-400 line-through">{formatPrice(item.unitPrice)} mỗi sp</div>
                                     <div className="text-sm font-semibold text-green-600">{formatPrice(negotiatedPrice)} mỗi sp (đàm phán)</div>
@@ -368,6 +358,22 @@ export default function Cart() {
                       <ClipboardList className="h-3.5 w-3.5" />
                       Xem chi tiết yêu cầu đàm phán
                     </Link>
+                  </motion.div>
+                )}
+
+                {hasPendingNegotiationUnder100m && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-5 w-5 text-amber-600" />
+                      <h3 className="font-bold text-amber-900">Chưa áp dụng giá đàm phán</h3>
+                    </div>
+                    <p className="text-sm text-amber-800 leading-relaxed">
+                      Sản phẩm có mức giá đàm phán ưu đãi. Giá đàm phán sẽ tự động áp dụng khi tổng giá trị đơn hàng đạt <strong>từ 100.000.000đ trở lên</strong>.
+                    </p>
                   </motion.div>
                 )}
 

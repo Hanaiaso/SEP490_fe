@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { ReturnExchangeRequestDetailModal, ReturnExchangeRequestsSection } from '../../components/ReturnExchangeRequests';
 import { useAuth } from '../../context/AuthContext';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
@@ -22,6 +23,7 @@ const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }>
   CancelRequested:     { label: 'Yêu cầu hủy',       color: '#991B1B', bg: '#FEE2E2' },
   CancelledReallocated:{ label: 'Đã hủy & chuyển',    color: '#991B1B', bg: '#FEE2E2' },
   PaidReviewRequired:  { label: 'Cần duyệt thanh toán', color: '#92400E', bg: '#FEF3C7' },
+  Returned:            { label: 'Đã đổi/trả',         color: '#9A3412', bg: '#FFEDD5' },
 };
 
 const FULFILLMENT_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -103,12 +105,14 @@ type SalesOrderDetail = {
   discountAmount: number;
   vatAmount: number;
   finalPayment: number;
+  creditApplied: number;
   paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   fulfillmentStatus?: string;
   deliveryStatus?: string;
   invoicePdfUrl?: string;
+  returnExchangeRequests?: any[];
   items: OrderItem[];
 };
 
@@ -128,22 +132,22 @@ function getTimelineSteps(order: SalesOrderDetail) {
     {
       label: order.paymentMethod === 'COD' ? 'Sales xác nhận COD' : 'Thanh toán thành công',
       icon: Wallet,
-      done: ['Confirmed', 'Processing', 'Completed'].includes(os),
+      done: ['Confirmed', 'Processing', 'Completed', 'Returned'].includes(os),
     },
     {
       label: 'Kho xử lý & đóng gói',
       icon: Box,
-      done: ['Picking', 'PartiallyReady', 'Ready', 'Consolidating', 'Consolidated', 'HandedOver', 'Fulfilled'].includes(fs),
+      done: ['Picking', 'PartiallyReady', 'Ready', 'Consolidating', 'Consolidated', 'HandedOver', 'Fulfilled'].includes(fs) || os === 'Returned' || os === 'Completed',
     },
     {
       label: 'Bàn giao vận chuyển',
       icon: Truck,
-      done: ['HandedOver', 'Fulfilled'].includes(fs),
+      done: ['HandedOver', 'Fulfilled'].includes(fs) || os === 'Returned' || os === 'Completed',
     },
     {
       label: 'Giao hàng thành công',
       icon: CheckCircle,
-      done: ds === 'Delivered' || os === 'Completed',
+      done: ds === 'Delivered' || os === 'Completed' || os === 'Returned',
     },
   ];
 
@@ -167,6 +171,14 @@ export default function SalesManagerOrderDetailPage() {
   const [showDirectCancelModal, setShowDirectCancelModal] = useState(false);
   const [directCancelReason, setDirectCancelReason] = useState('');
   const [showDirectConfirmModal, setShowDirectConfirmModal] = useState(false);
+
+  const [returnRequestIdToProcess, setReturnRequestIdToProcess] = useState('');
+  const [showApproveReturnModal, setShowApproveReturnModal] = useState(false);
+  const [showRejectReturnModal, setShowRejectReturnModal] = useState(false);
+  const [returnProcessNote, setReturnProcessNote] = useState('');
+  const [selectedReturnRequest, setSelectedReturnRequest] = useState<any | null>(null);
+  const [showCreateReplacementModal, setShowCreateReplacementModal] = useState(false);
+  const [pendingReplacementRequestId, setPendingReplacementRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -248,6 +260,70 @@ export default function SalesManagerOrderDetailPage() {
       }
 
       alert('Đã xử lý yêu cầu hủy đơn thành công!');
+      // Reload order
+      const res = await fetch(`/api/orders/sales/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+      });
+      const data = await res.json();
+      setOrder(data);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi không xác định.');
+    }
+  };
+
+  const [isCreatingReplacement, setIsCreatingReplacement] = useState(false);
+
+  const handleCreateExchangeReplacement = async (requestId: string) => {
+    if (isCreatingReplacement) return;
+    setIsCreatingReplacement(true);
+    try {
+      const response = await fetch(`/api/delivery/exchange/${requestId}/replacement`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) data = JSON.parse(text);
+      } catch (e) {
+        console.error("Parse error", e);
+      }
+      
+      if (!response.ok) throw new Error(data.message || `Lỗi từ server: ${response.status} ${response.statusText}`);
+
+      alert(data.message || 'Tạo đơn thay thế thành công!');
+      
+      const res = await fetch(`/api/orders/sales/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+      });
+      const orderData = await res.json();
+      setOrder(orderData);
+      setSelectedReturnRequest(null);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi không xác định.');
+    } finally {
+      setIsCreatingReplacement(false);
+    }
+  };
+
+  const handleProcessReturnExchangeRequest = async (requestId: string, isApproved: boolean, managerNote: string) => {
+    try {
+      const response = await fetch(`/api/orders/exchange-request/${requestId}/process`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
+        },
+        body: JSON.stringify({ isApproved, managerNote })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Lỗi khi xử lý yêu cầu đổi/trả.');
+      }
+
+      alert('Đã xử lý yêu cầu đổi/trả thành công!');
       // Reload order
       const res = await fetch(`/api/orders/sales/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
@@ -760,9 +836,103 @@ export default function SalesManagerOrderDetailPage() {
                 </p>
               </div>
             </div>
+
+            <ReturnExchangeRequestsSection
+              requests={order.returnExchangeRequests}
+              description="Yêu cầu từ khách hàng cần duyệt"
+              onSelect={setSelectedReturnRequest}
+            />
           </div>
         </div>
       </div>
+
+      {/* Modal Chi tiết Yêu cầu Đổi/Trả */}
+      {selectedReturnRequest && (
+        <ReturnExchangeRequestDetailModal
+          request={selectedReturnRequest}
+          onClose={() => setSelectedReturnRequest(null)}
+          footerActions={
+            <>
+              {selectedReturnRequest.status === 'Pending' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setReturnRequestIdToProcess(selectedReturnRequest.id);
+                      setReturnProcessNote('');
+                      setShowRejectReturnModal(true);
+                      setSelectedReturnRequest(null);
+                    }}
+                    className="rounded-xl border-2 border-red-200 bg-white px-5 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                  >
+                    Từ chối
+                  </button>
+                  <button
+                    onClick={() => {
+                      setReturnRequestIdToProcess(selectedReturnRequest.id);
+                      setReturnProcessNote('');
+                      setShowApproveReturnModal(true);
+                      setSelectedReturnRequest(null);
+                    }}
+                    className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
+                  >
+                    Duyệt yêu cầu
+                  </button>
+                </>
+              )}
+            </>
+          }
+        />
+      )}
+
+      {/* Modals cho Yêu cầu đổi trả */}
+      <ConfirmModal
+        isOpen={showApproveReturnModal}
+        title="Duyệt yêu cầu Đổi/Trả"
+        message="Vui lòng nhập ghi chú (nếu có) trước khi duyệt yêu cầu Đổi/Trả này:"
+        onConfirm={() => {
+          if (returnRequestIdToProcess) {
+            handleProcessReturnExchangeRequest(returnRequestIdToProcess, true, returnProcessNote);
+          }
+          setShowApproveReturnModal(false);
+        }}
+        onCancel={() => setShowApproveReturnModal(false)}
+        confirmText="Chấp nhận Đổi/Trả"
+      >
+        <textarea
+          className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+          rows={3}
+          placeholder="Nhập ghi chú cho nhân viên kho / khách hàng..."
+          value={returnProcessNote}
+          onChange={(e) => setReturnProcessNote(e.target.value)}
+        />
+      </ConfirmModal>
+
+      <ConfirmModal
+        isOpen={showRejectReturnModal}
+        title="Từ chối yêu cầu Đổi/Trả"
+        message="Vui lòng nhập lý do từ chối yêu cầu Đổi/Trả này (bắt buộc):"
+        onConfirm={() => {
+          if (!returnProcessNote.trim()) {
+            alert('Vui lòng nhập lý do từ chối');
+            return;
+          }
+          if (returnRequestIdToProcess) {
+            handleProcessReturnExchangeRequest(returnRequestIdToProcess, false, returnProcessNote);
+          }
+          setShowRejectReturnModal(false);
+        }}
+        onCancel={() => setShowRejectReturnModal(false)}
+        confirmText="Từ chối Đổi/Trả"
+      >
+        <textarea
+          className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          rows={3}
+          placeholder="Nhập lý do từ chối..."
+          value={returnProcessNote}
+          onChange={(e) => setReturnProcessNote(e.target.value)}
+        />
+      </ConfirmModal>
+
       {/* Modals cho Yêu cầu hủy đơn */}
       <ConfirmModal
         isOpen={showAcceptConfirm}

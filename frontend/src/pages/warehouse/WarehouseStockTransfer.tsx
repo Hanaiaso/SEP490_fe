@@ -126,20 +126,24 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
   };
 
   return (
-    <div className="space-y-5 text-sm">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-gray-500 font-medium">Kho nguồn *</label>
-          <select className="w-full h-9 text-sm border border-gray-200 rounded px-3 bg-white" value={formData.sourceWarehouseId} onChange={e => setFormData({...formData, sourceWarehouseId: e.target.value})}>
+    <div className="space-y-8 text-sm p-1">
+      <div className="grid grid-cols-2 gap-6 bg-gray-50/50 p-5 rounded-xl border border-gray-200/80">
+        <div className="space-y-2">
+          <label className="text-gray-700 font-semibold flex items-center gap-1 text-xs">
+            Kho nguồn <span className="text-red-500 font-bold ml-0.5">*</span>
+          </label>
+          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.sourceWarehouseId} onChange={e => setFormData({...formData, sourceWarehouseId: e.target.value})}>
             <option value="">-- Chọn Kho nguồn --</option>
             {warehouses.filter(w => w.id !== formData.targetWarehouseId).map(w => (
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
         </div>
-        <div className="space-y-1.5">
-          <label className="text-gray-500 font-medium">Kho đích *</label>
-          <select className="w-full h-9 text-sm border border-gray-200 rounded px-3 bg-white" value={formData.targetWarehouseId} onChange={e => setFormData({...formData, targetWarehouseId: e.target.value})}>
+        <div className="space-y-2">
+          <label className="text-gray-700 font-semibold flex items-center gap-1 text-xs">
+            Kho đích <span className="text-red-500 font-bold ml-0.5">*</span>
+          </label>
+          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.targetWarehouseId} onChange={e => setFormData({...formData, targetWarehouseId: e.target.value})}>
             <option value="">-- Chọn Kho đích --</option>
             {warehouses.filter(w => w.id !== formData.sourceWarehouseId).map(w => (
               <option key={w.id} value={w.id}>{w.name}</option>
@@ -147,64 +151,67 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
           </select>
         </div>
         
-        <div className="space-y-1.5">
-          <label className="text-gray-500 font-medium">Ngày dự kiến xuất</label>
-          <Input type="datetime-local" className="h-9 text-sm w-full px-3" value={formData.expectedDispatchDate} onChange={e => setFormData({...formData, expectedDispatchDate: e.target.value})} />
+        <div className="space-y-2">
+          <label className="text-gray-700 font-semibold text-xs">Ngày dự kiến xuất</label>
+          <Input type="datetime-local" className="h-10 text-sm w-full px-3 border-gray-300 rounded-lg shadow-sm" value={formData.expectedDispatchDate} onChange={e => setFormData({...formData, expectedDispatchDate: e.target.value})} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-gray-500 font-medium">Ngày dự kiến nhận</label>
-          <Input type="datetime-local" className="h-9 text-sm w-full px-3" value={formData.expectedReceiveDate} onChange={e => setFormData({...formData, expectedReceiveDate: e.target.value})} />
+        <div className="space-y-2">
+          <label className="text-gray-700 font-semibold text-xs">Ngày dự kiến nhận</label>
+          <Input type="datetime-local" className="h-10 text-sm w-full px-3 border-gray-300 rounded-lg shadow-sm" value={formData.expectedReceiveDate} onChange={e => setFormData({...formData, expectedReceiveDate: e.target.value})} />
         </div>
 
-        <div className="space-y-1.5 col-span-2">
-          <label className="text-gray-500 font-medium">Nhân viên thông báo (Tùy chọn - Nhập thủ công hoặc chọn)</label>
-          <Input type="email" list="staffEmails" className="w-full h-9 text-sm px-3" placeholder="Nhập hoặc chọn email..." value={formData.notificationEmail} onChange={e => setFormData({...formData, notificationEmail: e.target.value})} />
+        <div className="space-y-2 col-span-2">
+          <label className="text-gray-700 font-semibold text-xs">Nhân viên thông báo (Tùy chọn - Nhập thủ công hoặc chọn)</label>
+          <Input type="email" list="staffEmails" className="w-full h-10 text-sm px-3 border-gray-300 rounded-lg shadow-sm" placeholder="Nhập hoặc chọn email..." value={formData.notificationEmail} onChange={e => setFormData({...formData, notificationEmail: e.target.value})} />
           <datalist id="staffEmails">
             {staffUsers.map(s => (
               <option key={s.id} value={s.email}>{s.fullName} - {s.role}</option>
             ))}
           </datalist>
         </div>
-        <div className="space-y-1.5 col-span-2">
-          <label className="text-gray-500 font-medium">Ghi chú chung</label>
-          <Input className="h-9 text-sm w-full px-3" placeholder="Ghi chú thêm..." value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
+        <div className="space-y-2 col-span-2">
+          <label className="text-gray-700 font-semibold text-xs">Ghi chú chung</label>
+          <Input className="h-10 text-sm w-full px-3 border-gray-300 rounded-lg shadow-sm" placeholder="Ghi chú thêm..." value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
         </div>
       </div>
       
-      <div>
-        <div className="flex items-center justify-between mb-3 mt-5">
-          <p className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Danh sách hàng chuyển</p>
-          <Button variant="outline" size="sm" className="h-8 text-sm gap-1.5" onClick={() => setItems(p => [...p, { productId: '', productName: '', quantity: 0 }])}>
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-bold text-gray-800 text-xs uppercase tracking-wide">Danh sách hàng chuyển</p>
+          <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5 border-gray-300 hover:bg-gray-100 rounded-lg" onClick={() => setItems(p => [...p, { productId: '', productName: '', quantity: 0 }])}>
             <Plus className="w-4 h-4" /> Thêm dòng
           </Button>
         </div>
-        <table className="w-full border border-gray-200 rounded overflow-hidden text-sm">
-          <thead><tr className="bg-gray-50 border-b border-gray-200"><th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Sản phẩm có trong kho nguồn</th><th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Tồn kho</th><th className="text-center px-3 py-2.5 text-gray-700 font-semibold">SL chuyển</th><th className="w-10" /></tr></thead>
-          <tbody className="divide-y divide-gray-100">
-            {items.map((item, idx) => {
-              const selectedInv = inventory.find(inv => inv.productId === item.productId);
-              return (
-                <tr key={idx}>
-                  <td className="px-2 py-2">
-                    <select className="w-full h-9 text-sm border border-gray-200 rounded px-2 bg-white" value={item.productId} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, productId: e.target.value, productName: inventory.find(inv=>inv.productId === e.target.value)?.productName || '' } : i))}>
-                      <option value="">-- Chọn sản phẩm --</option>
-                      {inventory.map(inv => (
-                        <option key={inv.productId} value={inv.productId}>{inv.productName || inv.productId}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-2 text-center font-semibold text-gray-600">{selectedInv ? selectedInv.onHandQuantity : '—'}</td>
-                  <td className="px-2 py-2 text-center"><Input type="number" className="h-8 text-sm text-center w-24 mx-auto" value={item.quantity} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, quantity: +e.target.value } : i))} max={selectedInv ? selectedInv.onHandQuantity : undefined} /></td>
-                  <td className="px-2 py-2 text-center"><button className="text-gray-400 hover:text-red-500" onClick={() => setItems(p => p.filter((_, x) => x !== idx))}><X className="w-5 h-5" /></button></td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm mb-8">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-gray-100/80 border-b border-gray-200"><th className="text-left px-4 py-3 text-gray-700 font-semibold text-xs">Sản phẩm có trong kho nguồn</th><th className="text-center px-4 py-3 text-gray-700 font-semibold text-xs w-32">Tồn kho</th><th className="text-center px-4 py-3 text-gray-700 font-semibold text-xs w-40">SL chuyển</th><th className="w-12 text-center" /></tr></thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {items.map((item, idx) => {
+                const selectedInv = inventory.find(inv => inv.productId === item.productId);
+                return (
+                  <tr key={idx} className="hover:bg-gray-50/50">
+                    <td className="px-3 py-3">
+                      <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value={item.productId} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, productId: e.target.value, productName: inventory.find(inv=>inv.productId === e.target.value)?.productName || '' } : i))}>
+                        <option value="">-- Chọn sản phẩm --</option>
+                        {inventory.map(inv => (
+                          <option key={inv.productId} value={inv.productId}>{inv.productName || inv.productId}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-3 py-3 text-center font-semibold text-gray-700">{selectedInv ? selectedInv.onHandQuantity : '—'}</td>
+                    <td className="px-3 py-3 text-center"><Input type="number" className="h-9 text-sm text-center w-28 mx-auto border-gray-300 rounded-lg" value={item.quantity} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, quantity: +e.target.value } : i))} max={selectedInv ? selectedInv.onHandQuantity : undefined} /></td>
+                    <td className="px-3 py-3 text-center"><button className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors" onClick={() => setItems(p => p.filter((_, x) => x !== idx))}><X className="w-5 h-5" /></button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div className="flex gap-2 pt-4 border-t border-gray-100 mt-4">
-        <Button size="sm" className="h-9 text-sm gap-2 px-4" style={{ backgroundColor: PRIMARY }} onClick={handleCreate}><CheckCircle className="w-4 h-4" /> Tạo lệnh chuyển kho</Button>
-        <Button variant="outline" size="sm" className="h-9 text-sm ml-auto px-4" onClick={onClose}>Hủy</Button>
+
+      <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200 mt-10 pb-3">
+        <Button variant="outline" size="default" className="h-11 text-sm px-6 font-semibold border-gray-300 hover:bg-gray-100 rounded-lg" onClick={onClose}>Hủy</Button>
+        <Button size="default" className="h-11 text-sm gap-2 px-6 font-semibold shadow-md rounded-lg" style={{ backgroundColor: PRIMARY }} onClick={handleCreate}><CheckCircle className="w-5 h-5" /> Tạo lệnh chuyển kho</Button>
       </div>
     </div>
   );
@@ -556,9 +563,9 @@ export default function WarehouseStockTransfer() {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Tạo lệnh chuyển kho mới</DialogTitle>
+        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6" aria-describedby={undefined}>
+          <DialogHeader className="mb-3">
+            <DialogTitle className="text-lg font-bold text-gray-900">Tạo lệnh chuyển kho mới</DialogTitle>
           </DialogHeader>
           {showCreate && (
             <CreateForm key={prefillData ? 'prefill' : 'empty'} onClose={() => { setShowCreate(false); setPrefillData(null); }} onCreated={loadData} warehouses={warehouses} staffUsers={staffUsers} initialData={prefillData} />

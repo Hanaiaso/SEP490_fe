@@ -16,10 +16,14 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md gap-1.5 px-3",
-        lg: "h-10 rounded-md px-6",
-        icon: "size-9 rounded-md",
+        xs: "h-7 rounded px-2 text-xs gap-1",
+        sm: "h-8 rounded-md gap-1.5 px-3 text-xs",
+        md: "h-9 px-4 py-2 text-sm",
+        default: "h-9 px-4 py-2 text-sm",
+        lg: "h-11 rounded-lg px-6 text-sm font-semibold",
+        icon: "size-9 rounded-md p-0 flex items-center justify-center",
+        "icon-xs": "size-7 rounded p-0 flex items-center justify-center",
+        "icon-sm": "size-8 rounded-md p-0 flex items-center justify-center",
       },
     },
     defaultVariants: {

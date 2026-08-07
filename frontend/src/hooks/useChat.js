@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { HUB_BASE_URL } from '../config/api';
 
 export function useChat(quotationId) {
   const [connection, setConnection] = useState(null);
@@ -15,7 +14,7 @@ export function useChat(quotationId) {
     // Khởi tạo connection
     const newConnection = new signalR.HubConnectionBuilder()
       // Chú ý URL hub phải đúng với backend (thường là /hubs/chat, nhưng do vite proxy, có thể để thẳng URL API hoặc dùng proxy)
-      .withUrl(`${HUB_BASE_URL}/chat`, {
+      .withUrl(`/hubs/chat`, {
         accessTokenFactory: () => accessToken
       })
       .withAutomaticReconnect()

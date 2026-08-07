@@ -294,7 +294,7 @@ export default function WarehouseConsolidation() {
                             <td className="px-3 py-2 text-gray-800">{p.name}</td>
                             <td className="px-3 py-2 text-center font-semibold">{p.quantity}</td>
                             <td className={`px-3 py-2 text-center font-semibold ${readyQty > 0 ? 'text-green-600' : 'text-gray-400'}`}>{readyQty}</td>
-                            <td className={`px-3 py-2 text-center font-semibold ${p.requiredTransferQuantity > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.requiredTransferQuantity || 0}</td>
+                            <td className={`px-3 py-2 text-center font-semibold ${(p.requiredTransferQuantity || 0) > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.requiredTransferQuantity || 0}</td>
                           </tr>
                         );
                       })}

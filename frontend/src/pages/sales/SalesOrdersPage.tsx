@@ -142,7 +142,7 @@ export default function SalesOrdersPage() {
 
   const [orderToConfirm, setOrderToConfirm] = useState<string | null>(null);
 
-  const handleCancelOrder = () => {
+  const handleCancelOrder = (_orderId: string) => {
     alert('Tính năng hủy đơn chưa được triển khai.');
   };
 

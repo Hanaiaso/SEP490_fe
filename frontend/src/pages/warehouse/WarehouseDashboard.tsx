@@ -134,8 +134,8 @@ export default function WarehouseDashboard() {
 
         {/* Outbound KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Xuất kho (Outbound)</p>
-          <div className="grid grid-cols-4 gap-2.5">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Xuất kho (Outbound)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
             <KpiCard label="Lệnh xuất chờ xử lý" value={8}  sub="cần xử lý hôm nay"    icon={<Package className="w-4 h-4" />}       color={WARNING} onClick={() => navigate('/warehouse/fulfillment/orders')} />
             <KpiCard label="Đang Pick & Pack"     value={3}  sub="2 nhân viên đang làm"  icon={<PackageCheck className="w-4 h-4" />}   color={INFO}    onClick={() => navigate('/warehouse/fulfillment/pick-packing')} />
             <KpiCard label="Khu tập kết"          value={4}  sub="chờ bàn giao Sales"    icon={<Truck className="w-4 h-4" />}          color={PURPLE}  onClick={() => navigate('/warehouse/fulfillment/consolidation')} />
@@ -145,8 +145,8 @@ export default function WarehouseDashboard() {
 
         {/* Inbound KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Nhập kho (Inbound)</p>
-          <div className="grid grid-cols-4 gap-2.5">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Nhập kho (Inbound)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
             <KpiCard label="PO chờ nhập kho"       value={2}  sub="dự kiến về hôm nay"   icon={<ArrowDownToLine className="w-4 h-4" />} color={INFO}    onClick={() => navigate('/warehouse/purchase/orders')} />
             <KpiCard label="Phiếu nhập đang xử lý" value={1}  sub="đang nhập hàng"        icon={<ArrowDownToLine className="w-4 h-4" />} color={WARNING} onClick={() => navigate('/warehouse/purchase/goods-receipt')} />
             <KpiCard label="Cần kiểm tra CL"        value={2}  sub="hàng cách ly"          icon={<FlaskConical className="w-4 h-4" />}   color={ERROR}   onClick={() => navigate('/warehouse/purchase/quality-inspection')} />
@@ -156,8 +156,8 @@ export default function WarehouseDashboard() {
 
         {/* Inventory KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Tồn kho & Vận hành</p>
-          <div className="grid grid-cols-4 gap-2.5">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Tồn kho & Vận hành</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
             <KpiCard label="Sản phẩm sắp hết"       value={4}  sub="dưới ngưỡng tối thiểu" icon={<AlertCircle className="w-4 h-4" />}    color={ERROR}   onClick={() => navigate('/warehouse/inventory/low-stock')} />
             <KpiCard label="Hàng chậm luân chuyển"  value={7}  sub="trên 2 tuần"            icon={<TrendingDown className="w-4 h-4" />}   color={NEUTRAL} onClick={() => navigate('/warehouse/inventory/slow-moving')} />
             <KpiCard label="Lệnh chuyển kho"        value={3}  sub="đang vận chuyển"        icon={<ArrowRightLeft className="w-4 h-4" />} color={INFO}    onClick={() => navigate('/warehouse/transfer/stock-transfer')} />
@@ -166,9 +166,9 @@ export default function WarehouseDashboard() {
         </div>
 
         {/* Charts + panels row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Inbound/Outbound chart */}
-          <div className="col-span-2 bg-white border border-gray-200 rounded-lg">
+          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
             <PanelHeader title="Xuất / Nhập kho 7 ngày" />
             <div className="p-3">
               <ResponsiveContainer width="100%" height={150}>
@@ -176,7 +176,7 @@ export default function WarehouseDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v} đơn`]} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v} đơn`]} />
                   <Bar dataKey="xuat" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
                   <Bar dataKey="nhap" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
                 </BarChart>

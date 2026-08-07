@@ -1,6 +1,6 @@
 import { fetchFormDataWithToken } from './authService'
 
-import { API_BASE_URL as API_BASE } from '../config/api'
+const API_BASE = '/api'
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')

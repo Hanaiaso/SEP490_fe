@@ -1,4 +1,4 @@
-import { API_BASE_URL as API_BASE } from '../config/api';
+const API_BASE = '/api';
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken');
@@ -146,6 +146,14 @@ export async function postGoodsIssue(id) {
   return request('POST', `/goods-issues/${id}/post`);
 }
 
+export async function updateGoodsIssueHandover(id, data) {
+  return request('PUT', `/goods-issues/${id}/handover`, data);
+}
+
+export async function createGoodsIssueReversal(id, data) {
+  return request('POST', `/goods-issues/${id}/reversal`, data);
+}
+
 
 export async function receiveStockTransfer(id, formData) {
   const accessToken = localStorage.getItem('accessToken');
@@ -228,4 +236,16 @@ export async function deleteWarehouse(id) {
 
 export async function getStaffUsers() {
   return request('GET', `/warehouse-management/staff`);
+}
+
+// ==========================================
+// QUALITY INSPECTION / QUARANTINE
+// ==========================================
+
+export async function getQuarantineList() {
+  return request('GET', `/warehouse-management/quarantine`);
+}
+
+export async function dispatchQuarantine(id, decision) {
+  return request('POST', `/warehouse-management/quarantine/${id}/dispatch`, { decision });
 }

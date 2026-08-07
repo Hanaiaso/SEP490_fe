@@ -42,6 +42,8 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const dropdownRef = useRef(null)
 
+  const isCustomer = !user?.role || user.role === 'Customer'
+
   const authLink = useMemo(() => {
     if (location.pathname === '/login') return { to: '/register', label: 'Đăng ký' }
     if (location.pathname === '/register') return { to: '/login', label: 'Đăng nhập' }
@@ -115,24 +117,26 @@ export default function Header() {
             <Search className="h-5 w-5 stroke-[1.8]" />
           </button>
 
-          {isAuthenticated && (
+          {isAuthenticated && isCustomer && (
             <div className="flex items-center">
               <NotificationBell role="Customer" onViewAll={() => navigate('/notifications')} />
             </div>
           )}
 
-          <Link
-            to="/cart"
-            className="relative rounded-full p-2 text-slate-500 transition hover:text-slate-900"
-            aria-label="Giỏ hàng"
-          >
-            <ShoppingCart className="h-5 w-5 stroke-[1.8]" />
-            {isAuthenticated && totalItems > 0 && (
-              <span className="absolute -right-0.5 top-0 flex min-w-4.5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold leading-none text-white">
-                {totalItems}
-              </span>
-            )}
-          </Link>
+          {(!isAuthenticated || isCustomer) && (
+            <Link
+              to="/cart"
+              className="relative rounded-full p-2 text-slate-500 transition hover:text-slate-900"
+              aria-label="Giỏ hàng"
+            >
+              <ShoppingCart className="h-5 w-5 stroke-[1.8]" />
+              {isAuthenticated && totalItems > 0 && (
+                <span className="absolute -right-0.5 top-0 flex min-w-4.5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold leading-none text-white">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
+          )}
 
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
@@ -163,27 +167,45 @@ export default function Header() {
                   </div>
 
                   <div className="px-2.5 py-2.5">
-                    {dropdownItems.map((item) =>
-                      item.href.startsWith('/') ? (
-                        <Link
-                          key={item.label}
-                          to={item.href}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
-                        >
-                          <item.icon className="h-4 w-4 shrink-0 text-slate-400" />
-                          <span>{item.label}</span>
-                        </Link>
-                      ) : (
-                        <a
-                          key={item.label}
-                          href={item.href}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
-                        >
-                          <item.icon className="h-4 w-4 shrink-0 text-slate-400" />
-                          <span>{item.label}</span>
-                        </a>
-                      ),
+                    {isCustomer ? (
+                      dropdownItems.map((item) =>
+                        item.href.startsWith('/') ? (
+                          <Link
+                            key={item.label}
+                            to={item.href}
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                          >
+                            <item.icon className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span>{item.label}</span>
+                          </Link>
+                        ) : (
+                          <a
+                            key={item.label}
+                            href={item.href}
+                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                          >
+                            <item.icon className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span>{item.label}</span>
+                          </a>
+                        ),
+                      )
+                    ) : (
+                      <Link
+                        to={
+                          user?.role === 'SalesStaff' ? '/sales' :
+                          user?.role === 'SalesManager' ? '/sales-manager/dashboard' :
+                          user?.role === 'WarehouseStaff' ? '/warehouse' :
+                          user?.role === 'AccountingStaff' ? '/accounting' :
+                          user?.role === 'CEO' ? '/ceo' :
+                          user?.role === 'Admin' ? '/admin' : '/home'
+                        }
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-base text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                      >
+                        <User className="h-4 w-4 shrink-0 text-slate-400" />
+                        <span>Vào trang quản trị</span>
+                      </Link>
                     )}
                   </div>
 
