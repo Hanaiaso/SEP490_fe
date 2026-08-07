@@ -1,8 +1,9 @@
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, AlertCircle, Clock,
   Calendar as CalendarIcon, Globe, ThumbsUp, MessageSquare, Share2,
-  Send, Eye, User, Package, RefreshCw, ChevronDown
+  Send, Package, RefreshCw
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -56,8 +57,6 @@ export default function SalesManagerMarketingApproval() {
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [submittingDecision, setSubmittingDecision] = useState(false);
 
-  useEffect(() => { fetchPosts(); }, []);
-
   const fetchPosts = async () => {
     setLoading(true);
     try {
@@ -67,10 +66,15 @@ export default function SalesManagerMarketingApproval() {
     finally { setLoading(false); }
   };
 
+  useEffect(() => { fetchPosts(); }, []);
+
   const openDecisionModal = (post: MarketingPost, action: 'ApproveNow' | 'Approve' | 'Rework' | 'Reject' = 'ApproveNow') => {
     setSelectedPost(post);
     setDecisionAction(action);
     setRejectionReason('');
+    // openDecisionModal chỉ chạy trong onClick, không phải lúc render, nên gọi Date.now() ở
+    // đây là an toàn dù rule purity (dành cho React Compiler) không phân biệt được điều đó.
+    // eslint-disable-next-line react-hooks/purity
     const nextHour = new Date(Date.now() + 3600 * 1000);
     setScheduledDateTime(new Date(nextHour.getTime() - nextHour.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
   };
@@ -95,8 +99,8 @@ export default function SalesManagerMarketingApproval() {
       );
       setSelectedPost(null);
       fetchPosts();
-    } catch (err: any) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+    } catch (err: unknown) {
+      alert('Lỗi: ' + (getErrorMessage(err)));
     } finally { setSubmittingDecision(false); }
   };
 

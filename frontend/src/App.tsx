@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import type { ComponentType, ReactNode } from 'react'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ForgotPasswordSent from './pages/ForgotPasswordSent.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
@@ -26,7 +27,11 @@ import WarehousePortal from './pages/warehouse/WarehousePortal.tsx'
 import SalesManagerPortal from './pages/sales-manager/SalesManagerPortal.tsx'
 import ProtectedRouteImport from './components/ProtectedRoute.jsx'
 import { ToastProvider } from './context/ToastContext.tsx'
-const ProtectedRoute = ProtectedRouteImport as any;
+const ProtectedRoute = ProtectedRouteImport as ComponentType<{
+  children?: ReactNode;
+  allowedRoles?: string[];
+  allowGuest?: boolean;
+}>;
 
 function App() {
   return (

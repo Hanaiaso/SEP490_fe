@@ -5,7 +5,6 @@ import { Save, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PRIMARY = '#1F3B64';
-const SUCCESS = '#16A34A';
 
 interface ReceiveItem { materialId: string; name: string; qty: string; unitPrice: string; unit: string; }
 

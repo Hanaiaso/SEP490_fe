@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { getNotifications, markAsRead, markAllAsRead } from '../services/notificationService';
 import { Check, MailOpen, Bell } from 'lucide-react';
 import * as signalR from '@microsoft/signalr';
+import type { Notification } from '../types/notification';
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -13,7 +14,7 @@ export default function NotificationsPage() {
     setLoading(true);
     try {
       const data = await getNotifications(pageNumber, 20);
-      const items = data.items || data.Items || [];
+      const items = data.items || [];
       if (items.length < 20) setHasMore(false);
       
       if (append) {
@@ -39,7 +40,7 @@ export default function NotificationsPage() {
       .withAutomaticReconnect()
       .build();
 
-    connection.on('ReceiveNotification', (notification: any) => {
+    connection.on('ReceiveNotification', (notification: Notification) => {
       setNotifications((prev) => [notification, ...prev]);
     });
 
@@ -50,7 +51,7 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  const handleMarkAsRead = async (id: number) => {
+  const handleMarkAsRead = async (id: string) => {
     try {
       await markAsRead(id);
       setNotifications((prev) =>

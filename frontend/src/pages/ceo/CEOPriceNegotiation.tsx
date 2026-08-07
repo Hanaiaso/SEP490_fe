@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getQuotations, ceoReview } from '../../services/quotationService.js';
+import { getQuotations } from '../../services/quotationService.js';
 import { Eye } from 'lucide-react';
+import type { Quotation } from '../../types/quotation';
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'Draft': return <span className="text-gray-500 font-medium">Bản nháp</span>;
@@ -16,8 +17,13 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function CEOPriceNegotiation({ setActiveTab, setSelectNegotiationId }: any) {
-  const [rows, setRows] = useState<any[]>([]);
+interface CEOPriceNegotiationProps {
+  setActiveTab: (tab: string) => void;
+  setSelectNegotiationId: (id: string) => void;
+}
+
+export default function CEOPriceNegotiation({ setActiveTab, setSelectNegotiationId }: CEOPriceNegotiationProps) {
+  const [rows, setRows] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchQuotations = async () => {

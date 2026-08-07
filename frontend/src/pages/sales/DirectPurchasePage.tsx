@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Trash2, Printer, FileText, Check, Loader2, ArrowLeft } from 'lucide-react';
@@ -5,6 +6,10 @@ import { getProducts } from '../../services/productService';
 import { placeDirectOrder } from '../../services/directOrderService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import type { Product } from '../../types/catalog';
+import type { DirectOrderResponse } from '../../types/directOrder';
+
+type SuccessOrder = DirectOrderResponse & { paymentMethod: 'Cash' | 'SePay' };
 
 // ─── Utility: Vietnamese Number to Words ─────────────────────────────────────
 function numberToVietnameseWords(amount: number): string {
@@ -40,7 +45,7 @@ function numberToVietnameseWords(amount: number): string {
   }
 
   let strAmount = Math.floor(amount).toString();
-  let groups: string[] = [];
+  const groups: string[] = [];
   while (strAmount.length > 0) {
     groups.push(strAmount.substring(Math.max(0, strAmount.length - 3)));
     strAmount = strAmount.substring(0, Math.max(0, strAmount.length - 3));
@@ -90,7 +95,7 @@ export default function DirectPurchasePage() {
   // ─── Products lists ────────────────────────────────────────────────────────
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
 
@@ -102,7 +107,7 @@ export default function DirectPurchasePage() {
 
   // ─── API Submit status ──────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
-  const [successOrder, setSuccessOrder] = useState<any>(null);
+  const [successOrder, setSuccessOrder] = useState<SuccessOrder | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [sepayQr, setSepayQr] = useState<{ qrImageUrl: string; transferContent: string } | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('');
@@ -153,7 +158,7 @@ export default function DirectPurchasePage() {
     }
 
     let isMounted = true;
-    let intervalId: any = null;
+    let intervalId: ReturnType<typeof setInterval> | undefined = undefined;
 
     const fetchSePayQr = async () => {
       try {
@@ -287,7 +292,7 @@ export default function DirectPurchasePage() {
   }, [phoneNumber]);
 
   // ─── Add Product ───────────────────────────────────────────────────────────
-  const handleAddProduct = (product: any) => {
+  const handleAddProduct = (product: Product) => {
     const stock = product.availableStock ?? 0;
 
     // Concurrency or standard stock validation (NAC-01, BV-01)
@@ -334,6 +339,8 @@ export default function DirectPurchasePage() {
       setItems([
         ...items,
         {
+          // handleAddProduct chỉ chạy trong onClick khi chọn sản phẩm, không phải lúc render.
+          // eslint-disable-next-line react-hooks/purity
           id: `${Date.now()}-${product.id}`,
           productId: product.id,
           name: product.name,
@@ -351,7 +358,7 @@ export default function DirectPurchasePage() {
   };
 
   // ─── Edit fields ───────────────────────────────────────────────────────────
-  const updateItemField = (id: string, field: keyof InvoiceItem, value: any) => {
+  const updateItemField = (id: string, field: keyof InvoiceItem, value: string) => {
     setItems(items.map(item => {
       if (item.id === id) {
         if (field === 'quantity') {
@@ -528,7 +535,7 @@ export default function DirectPurchasePage() {
       };
 
       // 3. Post to API (Atomic inventory deduction AC-03, NAC-03)
-      const result = await placeDirectOrder(payload);
+      const result = await placeDirectOrder(payload) as DirectOrderResponse;
 
       setSuccessOrder({ ...result, paymentMethod: backendPaymentMethod });
 
@@ -565,8 +572,8 @@ export default function DirectPurchasePage() {
       setAddress('Thái Bình');
       setDiscountPercent(0);
       setHasVat(false);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi hệ thống khi lưu đơn hàng.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'Lỗi hệ thống khi lưu đơn hàng.'));
     } finally {
       setSubmitting(false);
     }
@@ -937,7 +944,7 @@ export default function DirectPurchasePage() {
               <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Phương thức thanh toán</label>
               <select
                 value={paymentMethod}
-                onChange={e => setPaymentMethod(e.target.value as any)}
+                onChange={e => setPaymentMethod(e.target.value as 'Cash' | 'SePay')}
                 className="w-full text-xs h-8 border border-slate-300 rounded px-2 outline-none focus:border-blue-900 bg-white"
               >
                 <option value="Cash">Tiền mặt tại quầy</option>

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Check, CircleHelp, FileText, MessageSquareWarning, Truck, X } from 'lucide-react';
@@ -156,8 +157,8 @@ export default function SalesManagerChangeRequestDetailPage() {
 
       // Gợi ý sẵn Sale khách mong muốn (nếu hợp lệ)
       if (d?.desiredSalesStaffId) setNewSaleId(d.desiredSalesStaffId);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không thể tải dữ liệu'));
     } finally {
       setLoading(false);
     }
@@ -185,8 +186,8 @@ export default function SalesManagerChangeRequestDetailPage() {
       await requestExplanation(id);
       alert('Đã yêu cầu Sale giải trình.');
       await loadData();
-    } catch (err: any) {
-      alert(err.message || 'Thao tác thất bại');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Thao tác thất bại'));
     } finally {
       setSubmitting(false);
     }
@@ -204,8 +205,8 @@ export default function SalesManagerChangeRequestDetailPage() {
         alert('Đã từ chối yêu cầu.');
       }
       navigate('/sales-manager/change-requests');
-    } catch (err: any) {
-      alert(err.message || 'Thao tác thất bại');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Thao tác thất bại'));
     } finally {
       setSubmitting(false);
     }
@@ -243,8 +244,8 @@ export default function SalesManagerChangeRequestDetailPage() {
       });
       alert('Đã phê duyệt yêu cầu và chuyển Sale phụ trách.');
       navigate('/sales-manager/change-requests');
-    } catch (err: any) {
-      alert(err.message || 'Phê duyệt thất bại');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Phê duyệt thất bại'));
     } finally {
       setSubmitting(false);
     }

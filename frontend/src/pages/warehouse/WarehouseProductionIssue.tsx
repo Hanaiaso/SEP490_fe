@@ -1,10 +1,32 @@
+import type { ChangeEvent } from 'react';
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, RefreshCw, Download, Upload, Send, Save, CheckCircle, Camera, FileText, Plus, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Search, Eye, RefreshCw, Upload, Send, CheckCircle, Camera, FileText, Plus, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getGoodsIssues, postGoodsIssue, uploadGoodsIssueProof, updateGoodsIssueHandover, createGoodsIssueReversal } from '../../services/warehouseService';
 import WarehouseProductionIssueFormModal from './WarehouseProductionIssueFormModal';
+import type { GoodsIssue } from '../../types/warehouse';
+
+interface ProductionIssueLine {
+  sku: string;
+  materialName: string;
+  unit: string;
+  issuedQty: number;
+  note?: string;
+}
+
+interface ProductionIssueRow extends GoodsIssue {
+  realId: string;
+  warehouse: string;
+  factory: string;
+  receiver: string;
+  paperDoc: string;
+  receivedAtFormatted: string;
+  hasProof: boolean;
+  lines: ProductionIssueLine[];
+}
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -31,10 +53,10 @@ function Badge({ status }: { status: string }) {
 export default function WarehouseProductionIssue() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [warehouseFilter, setWarehouseFilter] = useState('all');
+  const [warehouseFilter] = useState('all');
   const [selected, setSelected] = useState<string[]>([]);
-  const [detail, setDetail] = useState<any | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [detail, setDetail] = useState<ProductionIssueRow | null>(null);
+  const [items, setItems] = useState<ProductionIssueRow[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
@@ -55,8 +77,8 @@ export default function WarehouseProductionIssue() {
 
   const loadData = () => {
     getGoodsIssues('ProductionMaterial')
-      .then(res => {
-        const mapped = res.map((r: any) => ({
+      .then((res: GoodsIssue[]) => {
+        const mapped: ProductionIssueRow[] = res.map((r) => ({
           ...r,
           realId: r.id,
           id: r.code || r.id,
@@ -67,7 +89,7 @@ export default function WarehouseProductionIssue() {
           receivedAtFormatted: r.receivedAt ? new Date(r.receivedAt).toLocaleString('vi-VN') : 'Chưa ghi nhận',
           issueDate: r.issueDate ? new Date(r.issueDate).toLocaleString('vi-VN') : new Date(r.createdAt).toLocaleString('vi-VN'),
           hasProof: !!r.imageProofUrl,
-          lines: (r.items || []).map((i: any) => ({
+          lines: (r.items || []).map((i) => ({
             sku: i.itemSku || '-',
             materialName: i.itemName || 'N/A',
             unit: i.unit || 'Cái',
@@ -84,7 +106,7 @@ export default function WarehouseProductionIssue() {
     loadData();
   }, []);
 
-  const openDetailModal = (item: any) => {
+  const openDetailModal = (item: ProductionIssueRow) => {
     setDetail(item);
     setHandoverRecipient(item.externalRecipientName || '');
     setHandoverDepartment(item.department || item.factory || '');
@@ -117,8 +139,8 @@ export default function WarehouseProductionIssue() {
       alert('Cập nhật thông tin bàn giao thành công!');
       loadData();
       setDetail(null);
-    } catch (err: any) {
-      alert('Lỗi: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi: ' + getErrorMessage(err));
     } finally {
       setSavingHandover(false);
     }
@@ -130,8 +152,8 @@ export default function WarehouseProductionIssue() {
       alert('Đăng sổ xuất kho thành công! Tồn kho đã được trừ.');
       loadData();
       setDetail(null);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     }
   };
 
@@ -144,14 +166,15 @@ export default function WarehouseProductionIssue() {
       setShowUpload(false);
       setFileToUpload(null);
       loadData();
-    } catch (err: any) { 
-      alert(err.message); 
+    } catch (err: unknown) { 
+      alert(getErrorMessage(err)); 
     } finally {
       setUploading(false);
     }
   };
 
   const handleCreateReversal = async () => {
+    if (!detail) return;
     if (!reversalReason) return alert('Vui lòng nhập lý do tạo chứng từ Reversal đảo tồn kho!');
     try {
       setSubmittingReversal(true);
@@ -161,8 +184,8 @@ export default function WarehouseProductionIssue() {
       setReversalReason('');
       setDetail(null);
       loadData();
-    } catch (err: any) {
-      alert('Lỗi Reversal: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi Reversal: ' + getErrorMessage(err));
     } finally {
       setSubmittingReversal(false);
     }
@@ -266,7 +289,7 @@ export default function WarehouseProductionIssue() {
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center justify-between">
               <span>Chi tiết lệnh xuất NVL — {detail?.id}</span>
-              <Badge status={detail?.status} />
+              <Badge status={detail?.status || ''} />
             </DialogTitle>
           </DialogHeader>
 
@@ -284,7 +307,7 @@ export default function WarehouseProductionIssue() {
                     <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tên người nhận (Ngoài hệ thống) *</label>
                     <Input 
                       value={handoverRecipient} 
-                      onChange={(e: any) => setHandoverRecipient(e.target.value)} 
+                      onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setHandoverRecipient(e.target.value)} 
                       placeholder="Nhập họ tên đại diện xưởng sản xuất..."
                       className="h-8 text-xs"
                       disabled={detail.status?.toLowerCase() === 'posted' || detail.status?.toLowerCase() === 'reversed'}
@@ -295,7 +318,7 @@ export default function WarehouseProductionIssue() {
                     <label className="block text-[11px] font-semibold text-gray-700 mb-1">Bộ phận sản xuất nhận *</label>
                     <Input 
                       value={handoverDepartment} 
-                      onChange={(e: any) => setHandoverDepartment(e.target.value)} 
+                      onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setHandoverDepartment(e.target.value)} 
                       placeholder="Xưởng may A, Tổ PE..."
                       className="h-8 text-xs"
                       disabled={detail.status?.toLowerCase() === 'posted' || detail.status?.toLowerCase() === 'reversed'}
@@ -306,7 +329,7 @@ export default function WarehouseProductionIssue() {
                     <label className="block text-[11px] font-semibold text-gray-700 mb-1">Số biên bản giấy (Duy nhất) *</label>
                     <Input 
                       value={handoverPaperDoc} 
-                      onChange={(e: any) => setHandoverPaperDoc(e.target.value)} 
+                      onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setHandoverPaperDoc(e.target.value)} 
                       placeholder="BBBG-2026-XXXX..."
                       className="h-8 text-xs font-mono uppercase font-bold text-blue-900"
                       disabled={detail.status?.toLowerCase() === 'posted' || detail.status?.toLowerCase() === 'reversed'}
@@ -318,7 +341,7 @@ export default function WarehouseProductionIssue() {
                     <Input 
                       type="datetime-local" 
                       value={handoverReceivedAt} 
-                      onChange={(e: any) => setHandoverReceivedAt(e.target.value)} 
+                      onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setHandoverReceivedAt(e.target.value)} 
                       className="h-8 text-xs"
                       disabled={detail.status?.toLowerCase() === 'posted' || detail.status?.toLowerCase() === 'reversed'}
                     />
@@ -328,7 +351,7 @@ export default function WarehouseProductionIssue() {
                     <label className="block text-[11px] font-semibold text-gray-700 mb-1">Mục đích sử dụng *</label>
                     <Input 
                       value={handoverPurpose} 
-                      onChange={(e: any) => setHandoverPurpose(e.target.value)} 
+                      onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setHandoverPurpose(e.target.value)} 
                       placeholder="Nhập mục đích xuất..."
                       className="h-8 text-xs"
                       disabled={detail.status?.toLowerCase() === 'posted' || detail.status?.toLowerCase() === 'reversed'}
@@ -358,7 +381,7 @@ export default function WarehouseProductionIssue() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {detail.lines.map((line: any, idx: number) => (
+                    {detail.lines.map((line, idx: number) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-3 py-2 font-mono text-gray-500">{line.sku}</td>
                         <td className="px-3 py-2 text-gray-800 font-medium">{line.materialName}</td>
@@ -430,7 +453,7 @@ export default function WarehouseProductionIssue() {
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setShowUpload(false)}>Hủy</Button>
-              <Button size="sm" className="bg-blue-900 text-white font-bold" onClick={() => uploadProof(detail.realId)} disabled={uploading || !fileToUpload}>
+              <Button size="sm" className="bg-blue-900 text-white font-bold" onClick={() => detail && uploadProof(detail.realId)} disabled={uploading || !fileToUpload}>
                 {uploading ? 'Đang upload...' : 'Upload Chứng Từ'}
               </Button>
             </div>

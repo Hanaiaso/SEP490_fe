@@ -7,7 +7,6 @@ const INFO    = '#2563EB';
 const SUCCESS = '#16A34A';
 const WARNING = '#F97316';
 const ERROR   = '#DC2626';
-const NEUTRAL = '#64748B';
 
 type NotifType = 'new_order' | 'low_stock' | 'low_material' | 'admin_reply' | 'audit_request';
 

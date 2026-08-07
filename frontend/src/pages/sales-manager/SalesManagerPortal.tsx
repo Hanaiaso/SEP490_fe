@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '../../components/sales-ui/avatar';
 import {
-  Bell,
   CheckSquare,
   LayoutDashboard,
   LogOut,
@@ -24,6 +23,7 @@ import SalesManagerMarketingApproval from './SalesManagerMarketingApproval';
 import DirectPurchasePage from '../sales/DirectPurchasePage';
 import { useAuth } from '../../context/AuthContext';
 import { getQuotations } from '../../services/quotationService.js';
+import type { Quotation } from '../../types/quotation';
 import { FileText, Sparkles } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -45,7 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'round-robin',
-    label: 'Quản lý Round-robin',
+    label: 'Phân bổ khách hàng',
     icon: <Shuffle className="w-4 h-4" />,
     path: '/sales-manager/round-robin',
   },
@@ -118,15 +118,15 @@ function NavItemRow({
 
 export default function SalesManagerPortal() {
   const [pendingCount, setPendingCount] = useState(0);
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const role: string = user?.role || '';
 
   useEffect(() => {
     getQuotations()
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        const count = list.filter((q: any) => q.status === 'PendingManager').length;
+        const list: Quotation[] = Array.isArray(data) ? data : [];
+        const count = list.filter((q) => q.status === 'PendingManager').length;
         setPendingCount(count);
       })
       .catch(console.error);

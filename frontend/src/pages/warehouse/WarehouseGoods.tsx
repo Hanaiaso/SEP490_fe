@@ -5,8 +5,6 @@ import { Search, ArrowDownToLine, History, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PRIMARY = '#1F3B64';
-const SUCCESS = '#16A34A';
-const WARNING = '#F97316';
 const ERROR   = '#DC2626';
 
 const GOODS = [

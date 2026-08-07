@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useCallback, useEffect, useState } from 'react';
 import { Users, RefreshCw, Search, Eye, X, Save, StickyNote } from 'lucide-react';
 import {
@@ -13,7 +14,7 @@ const WARNING = '#F97316';
 const NEUTRAL = '#64748B';
 
 const SOURCE_LABELS: Record<string, { label: string; bg: string }> = {
-  ROUND_ROBIN: { label: 'Round-robin', bg: INFO },
+  ROUND_ROBIN: { label: 'Phân bổ khách hàng', bg: INFO },
   REFERRAL: { label: 'Giới thiệu', bg: SUCCESS },
   RETURNING_CUSTOMER: { label: 'Khách cũ', bg: WARNING },
   MANUAL_REASSIGNMENT: { label: 'Gán tay', bg: '#8B5CF6' },
@@ -104,8 +105,8 @@ function CustomerDetailModal({
           setDetail(data);
           setNote(data.salesNote || '');
         }
-      } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Không tải được chi tiết khách hàng.');
+      } catch (err: unknown) {
+        if (!cancelled) setError(getErrorMessage(err, 'Không tải được chi tiết khách hàng.'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -120,8 +121,8 @@ function CustomerDetailModal({
       setSavingNote(true);
       await updateCustomerNote(customerId, note.trim() || null);
       onNoteSaved();
-    } catch (err: any) {
-      alert(err.message || 'Không lưu được ghi chú.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Không lưu được ghi chú.'));
     } finally {
       setSavingNote(false);
     }
@@ -292,8 +293,8 @@ export default function SalesMyCustomersPage() {
       setItems(data.items || []);
       setTotalCount(data.totalCount || 0);
       setTotalPages(data.totalPages || 1);
-    } catch (err: any) {
-      setError(err.message || 'Không tải được danh sách khách hàng.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không tải được danh sách khách hàng.'));
     } finally {
       setLoading(false);
     }

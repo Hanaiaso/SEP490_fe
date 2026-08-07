@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getQuotations } from '../../services/quotationService.js';
 import { Eye } from 'lucide-react';
+import type { Quotation } from '../../types/quotation';
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -20,7 +21,7 @@ const getStatusLabel = (status: string) => {
 
 export default function ManagerPriceNegotiation() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchQuotations = async () => {

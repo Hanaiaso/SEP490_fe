@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Package, AlertCircle, TrendingDown, CheckCircle, Layers, ShoppingBag,
+  Package, AlertCircle, TrendingDown, CheckCircle,
   ArrowDownToLine, ArrowRightLeft, ClipboardCheck, FlaskConical, Truck,
-  PackageCheck, Factory, ShieldCheck,
+  PackageCheck, ShieldCheck,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 
@@ -100,12 +100,6 @@ function PanelHeader({ title, link, onLink }: { title: string; link?: string; on
   );
 }
 
-function EmptyRow({ msg }: { msg: string }) {
-  return (
-    <tr><td colSpan={10} className="px-3 py-6 text-center text-xs text-gray-400">{msg}</td></tr>
-  );
-}
-
 export default function WarehouseDashboard() {
   const navigate = useNavigate();
 
@@ -176,7 +170,7 @@ export default function WarehouseDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v} đơn`]} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} đơn`]} />
                   <Bar dataKey="xuat" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
                   <Bar dataKey="nhap" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
                 </BarChart>

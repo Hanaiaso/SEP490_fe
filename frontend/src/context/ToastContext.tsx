@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Override window.alert mặc định của trình duyệt để hiển thị Toast đẹp mắt
   useEffect(() => {
     const originalAlert = window.alert;
-    window.alert = (message: any) => {
+    window.alert = (message: unknown) => {
       const msgStr = typeof message === 'string' ? message : JSON.stringify(message);
       if (msgStr.toLowerCase().includes('lỗi') || msgStr.toLowerCase().includes('thất bại') || msgStr.toLowerCase().includes('failed') || msgStr.toLowerCase().includes('error')) {
         showToast('error', msgStr, 'Thông báo lỗi');

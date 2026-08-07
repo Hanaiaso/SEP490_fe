@@ -5,9 +5,20 @@ import { Link, useParams } from 'react-router-dom'
 import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 import ProductCard from '../components/ProductCard.jsx'
+import ConfirmModal from '../components/ui/ConfirmModal.jsx'
 import { Badge } from '../components/ui/Badge.jsx'
 import { Button } from '../components/ui/Button.jsx'
+import { StarRating } from '../components/ui/StarRating.jsx'
 import { formatPrice, getProductById, getProducts } from '../services/productService.js'
+import {
+  createReview,
+  deleteReview,
+  getProductReviews,
+  getReviewEligibility,
+  getReviewSummary,
+  updateReview,
+} from '../services/reviewService.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 
 const tabs = [
@@ -18,6 +29,7 @@ const tabs = [
 export default function ProductDetail() {
   const { id } = useParams()
   const { addToCart } = useCart()
+  const { user, isAuthenticated } = useAuth()
   const [addingToCart, setAddingToCart] = useState(false)
 
   const [product, setProduct] = useState(null)
@@ -27,6 +39,19 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [activeTab, setActiveTab] = useState('description')
+
+  // ─── Đánh giá sản phẩm ───────────────────────────────────────────────────
+  const isCustomer = isAuthenticated && (user?.role ?? 'Customer') === 'Customer'
+  const [reviews, setReviews] = useState([])
+  const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, reviewCount: 0 })
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [eligibility, setEligibility] = useState(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [editingReviewId, setEditingReviewId] = useState(null)
+  const [formRating, setFormRating] = useState(5)
+  const [formComment, setFormComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   async function handleAddToCart() {
     if (!product) return
@@ -71,6 +96,87 @@ export default function ProductDetail() {
       .catch((err) => setError(err.message || 'Không thể tải sản phẩm.'))
       .finally(() => setLoading(false))
   }, [id])
+
+  // ─── Fetch đánh giá sản phẩm ────────────────────────────────────────────────
+  async function loadReviews() {
+    setReviewsLoading(true)
+    try {
+      const [list, summary] = await Promise.all([getProductReviews(id), getReviewSummary(id)])
+      setReviews(list)
+      setReviewSummary(summary)
+    } catch {
+      setReviews([])
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
+
+  async function loadEligibility() {
+    if (!isCustomer) {
+      setEligibility(null)
+      return
+    }
+    try {
+      setEligibility(await getReviewEligibility(id))
+    } catch {
+      setEligibility(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!id) return
+    setShowReviewForm(false)
+    setEditingReviewId(null)
+    loadReviews()
+    loadEligibility()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isCustomer])
+
+  function openCreateReviewForm() {
+    setEditingReviewId(null)
+    setFormRating(5)
+    setFormComment('')
+    setShowReviewForm(true)
+  }
+
+  function openEditReviewForm() {
+    const mine = reviews.find((r) => r.id === eligibility?.existingReviewId)
+    setEditingReviewId(eligibility?.existingReviewId ?? null)
+    setFormRating(mine?.rating ?? 5)
+    setFormComment(mine?.comment ?? '')
+    setShowReviewForm(true)
+  }
+
+  async function handleSubmitReview(e) {
+    e.preventDefault()
+    if (!formComment.trim()) return
+    setSubmittingReview(true)
+    try {
+      if (editingReviewId) {
+        await updateReview(editingReviewId, { rating: formRating, comment: formComment.trim() })
+      } else {
+        await createReview(id, { rating: formRating, comment: formComment.trim() })
+      }
+      setShowReviewForm(false)
+      setEditingReviewId(null)
+      await Promise.all([loadReviews(), loadEligibility()])
+    } catch (err) {
+      alert(err.message || 'Không thể gửi đánh giá.')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  async function handleDeleteReview() {
+    if (!eligibility?.existingReviewId) return
+    try {
+      await deleteReview(eligibility.existingReviewId)
+      setDeleteConfirmOpen(false)
+      await Promise.all([loadReviews(), loadEligibility()])
+    } catch (err) {
+      alert(err.message || 'Không thể xoá đánh giá.')
+    }
+  }
 
   function handleQuantityChange(delta) {
     setQuantity((v) => Math.max(1, Math.min(product?.availableStock ?? 99, v + delta)))
@@ -311,6 +417,98 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
+
+          {/* Đánh giá sản phẩm */}
+          <div className="mt-20 border-t border-gray-100 pt-16">
+            <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="mb-2 text-sm uppercase tracking-[0.4em] text-gray-500">Khách Hàng Nói Gì</p>
+                <h2 className="text-4xl font-bold text-gray-900">Đánh Giá Sản Phẩm</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <StarRating value={reviewSummary.averageRating} size="lg" />
+                <span className="text-lg font-semibold text-gray-900">{reviewSummary.averageRating.toFixed(1)}</span>
+                <span className="text-sm text-gray-500">({reviewSummary.reviewCount} đánh giá)</span>
+              </div>
+            </div>
+
+            {isCustomer && (
+              <div className="mb-10 rounded-2xl border border-gray-100 bg-gray-50 p-6">
+                {showReviewForm ? (
+                  <form onSubmit={handleSubmitReview} className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-900">Số sao</label>
+                      <StarRating value={formRating} onChange={setFormRating} readOnly={false} size="lg" />
+                    </div>
+                    <textarea
+                      value={formComment}
+                      onChange={(e) => setFormComment(e.target.value)}
+                      rows={4}
+                      maxLength={2000}
+                      placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
+                      className="w-full rounded-xl border border-gray-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                    <div className="flex gap-3">
+                      <Button type="submit" disabled={submittingReview || !formComment.trim()} className="rounded-full">
+                        {submittingReview ? 'Đang gửi...' : editingReviewId ? 'Lưu đánh giá' : 'Gửi đánh giá'}
+                      </Button>
+                      <Button type="button" variant="outline" className="rounded-full" onClick={() => setShowReviewForm(false)}>
+                        Hủy
+                      </Button>
+                    </div>
+                  </form>
+                ) : eligibility?.canReview ? (
+                  <Button className="rounded-full" onClick={openCreateReviewForm}>Viết đánh giá</Button>
+                ) : eligibility?.alreadyReviewed ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-sm text-gray-600">Bạn đã đánh giá sản phẩm này.</p>
+                    <Button variant="outline" size="sm" className="rounded-full" onClick={openEditReviewForm}>Sửa đánh giá</Button>
+                    <Button variant="outline" size="sm" className="rounded-full" onClick={() => setDeleteConfirmOpen(true)}>Xoá</Button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {reviewsLoading ? (
+              <p className="text-sm text-gray-500">Đang tải đánh giá...</p>
+            ) : reviews.length === 0 ? (
+              <p className="text-sm text-gray-500">Chưa có đánh giá nào cho sản phẩm này.</p>
+            ) : (
+              <div className="space-y-6">
+                {reviews.map((r) => (
+                  <div key={r.id} className="border-b border-gray-100 pb-6">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-gray-900">{r.customerName}</span>
+                        <StarRating value={r.rating} size="sm" />
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {new Date(r.updatedAt || r.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-600">{r.comment}</p>
+                    {r.replyText && (
+                      <div className="mt-3 ml-6 rounded-xl bg-gray-50 p-4">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Phản hồi từ Việt Tiến{r.repliedByName ? ` · ${r.repliedByName}` : ''}
+                        </p>
+                        <p className="text-sm leading-relaxed text-gray-600">{r.replyText}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <ConfirmModal
+            isOpen={deleteConfirmOpen}
+            title="Xoá đánh giá"
+            message="Bạn có chắc muốn xoá đánh giá này? Hành động này không thể hoàn tác."
+            confirmText="Xoá"
+            onConfirm={handleDeleteReview}
+            onCancel={() => setDeleteConfirmOpen(false)}
+          />
 
           {/* Related products */}
           {relatedProducts.length > 0 && (

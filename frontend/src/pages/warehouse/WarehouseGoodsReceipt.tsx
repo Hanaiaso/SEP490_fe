@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
@@ -5,11 +6,11 @@ import { Search, Eye, RefreshCw, Download, Printer, CheckCircle, Save } from 'lu
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getAllGoodsReceipts } from '../../services/purchaseOrderService.js';
 import { useEffect } from 'react';
+import type { GoodsReceipt as ApiGoodsReceipt } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
 const WARNING = '#D97706';
-const ERROR   = '#DC2626';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';
 
@@ -55,22 +56,22 @@ export default function WarehouseGoodsReceipt() {
   const [detail, setDetail] = useState<GoodsReceipt | null>(null);
   const [editItems, setEditItems] = useState<ReceiptItem[]>([]);
   const [DATA, setDATA] = useState<GoodsReceipt[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const receipts = await getAllGoodsReceipts('');
-      const mapped = receipts.map((r: any) => ({
+      const receipts: ApiGoodsReceipt[] = await getAllGoodsReceipts('');
+      const mapped: GoodsReceipt[] = receipts.map((r) => ({
         id: r.id,
         code: r.code,
         poNo: r.purchaseOrderId, // Would be better to have po code, but backend doesn't return it directly in DTO
         supplier: 'NCC (Từ PO)', // We don't have supplier in GR Dto currently
         warehouse: 'Kho Hệ Thống',
         receivingDate: r.receivedDate,
-        receiver: r.receivedByUserName || r.receivedByUserId,
+        receiver: r.receivedByUserName,
         status: r.status,
-        items: (r.items || []).map((i: any) => ({
+        items: (r.items || []).map((i) => ({
           sku: i.itemSku,
           name: i.itemName,
           orderedQty: 0,
@@ -86,8 +87,8 @@ export default function WarehouseGoodsReceipt() {
         }))
       }));
       setDATA(mapped);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

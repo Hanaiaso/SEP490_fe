@@ -1,10 +1,13 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { CheckCircle, XCircle, AlertTriangle, Search, Eye, TrendingUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { Input } from '../../components/sales-ui/input';
 import { getPurchaseOrders, getPurchaseOrderById, resolveDiscrepancy } from '../../services/purchaseOrderService.js';
 import { useEffect } from 'react';
+import type { PurchaseOrder, PurchaseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -43,17 +46,17 @@ export default function WarehouseReceivingComparison() {
   const [dateTo, setDateTo] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
 
-  const [poList, setPoList] = useState<any[]>([]);
+  const [poList, setPoList] = useState<PurchaseOrderListItem[]>([]);
   const [selectedPoId, setSelectedPoId] = useState<string>('');
-  const [poDetail, setPoDetail] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [, setPoDetail] = useState<PurchaseOrder | null>(null);
+  const [, setLoading] = useState(false);
 
   const loadPOs = async () => {
     try {
       const pos = await getPurchaseOrders('DiscrepancyReview');
       setPoList(pos);
-    } catch (err: any) {
-      alert('Lỗi lấy danh sách PO: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi lấy danh sách PO: ' + getErrorMessage(err));
     }
   };
 
@@ -65,17 +68,16 @@ export default function WarehouseReceivingComparison() {
     }
     setLoading(true);
     try {
-      const data = await getPurchaseOrderById(id);
+      const data: PurchaseOrder = await getPurchaseOrderById(id);
       setPoDetail(data);
-      const mapped = data.items.map((i: any) => {
+      const mapped: ComparisonItem[] = data.items.map((i) => {
         const received = i.receivedQuantity;
         const ordered = i.expectedQuantity;
         const diff = received - ordered;
         const varPct = ordered > 0 ? (diff / ordered) * 100 : 0;
         return {
-          id: i.id,
-          sku: i.product?.sku || i.material?.sku || '-',
-          product: i.product?.name || i.material?.name || '-',
+          sku: i.itemSku || '-',
+          product: i.itemName || '-',
           orderedQty: ordered,
           receivedQty: received,
           difference: diff,
@@ -90,9 +92,9 @@ export default function WarehouseReceivingComparison() {
           supplierNote: ''
         };
       });
-      setItems(mapped.filter((i: any) => i.difference !== 0 || i.damageQty > 0)); // Only show items with discrepancy
-    } catch (err: any) {
-      alert('Lỗi lấy chi tiết PO: ' + err.message);
+      setItems(mapped.filter((i) => i.difference !== 0 || i.damageQty > 0)); // Only show items with discrepancy
+    } catch (err: unknown) {
+      alert('Lỗi lấy chi tiết PO: ' + getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -100,7 +102,7 @@ export default function WarehouseReceivingComparison() {
 
   useEffect(() => { loadPOs(); }, []);
 
-  const handleSelectPo = (e: any) => {
+  const handleSelectPo = (e: ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setSelectedPoId(id);
     loadPoDetails(id);
@@ -122,8 +124,8 @@ export default function WarehouseReceivingComparison() {
       setSelectedPoId('');
       setItems([]);
       loadPOs();
-    } catch (err: any) {
-      alert('Lỗi xử lý: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi xử lý: ' + getErrorMessage(err));
     }
   };
 
@@ -145,7 +147,7 @@ export default function WarehouseReceivingComparison() {
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 font-medium min-w-[200px]" value={selectedPoId} onChange={handleSelectPo}>
             <option value="">-- Chọn PO đang có sai lệch --</option>
             {poList.map(po => (
-              <option key={po.id} value={po.id}>{po.code} - {po.supplier?.name}</option>
+              <option key={po.id} value={po.id}>{po.code} - {po.supplierName}</option>
             ))}
           </select>
         </div>

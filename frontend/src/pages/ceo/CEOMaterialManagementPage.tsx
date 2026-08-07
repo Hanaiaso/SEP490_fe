@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useState, useEffect, useCallback } from 'react';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../../services/materialService.js';
-import { Search, Plus, Edit2, Trash2, ShieldAlert } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
+import type { Material } from '../../types/catalog';
 
 export default function CEOMaterialManagementPage() {
-  const [materials, setMaterials] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<any>(null);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -16,26 +18,26 @@ export default function CEOMaterialManagementPage() {
     safetyThreshold: 0
   });
 
-  const loadMaterials = async () => {
+  const loadMaterials = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getMaterials({ search });
       setMaterials(Array.isArray(data) ? data : data.items || []);
-    } catch (err: any) {
-      alert("Lỗi khi tải danh sách nguyên liệu: " + err.message);
+    } catch (err: unknown) {
+      alert("Lỗi khi tải danh sách nguyên liệu: " + getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       loadMaterials();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+  }, [loadMaterials]);
 
-  const handleOpenModal = (material: any = null) => {
+  const handleOpenModal = (material: Material | null = null) => {
     if (material) {
       setEditingMaterial(material);
       setFormData({
@@ -62,8 +64,8 @@ export default function CEOMaterialManagementPage() {
       }
       setIsModalOpen(false);
       loadMaterials();
-    } catch (err: any) {
-      alert(err.message || "Đã xảy ra lỗi");
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, "Đã xảy ra lỗi"));
     }
   };
 
@@ -73,15 +75,13 @@ export default function CEOMaterialManagementPage() {
         await deleteMaterial(id);
         alert("Xoá thành công!");
         loadMaterials();
-      } catch (err: any) {
-        alert(err.message || "Không thể xoá nguyên liệu này");
+      } catch (err: unknown) {
+        alert(getErrorMessage(err, "Không thể xoá nguyên liệu này"));
       }
     }
   };
 
-  const PRIMARY = '#1F3B64';
   const SUCCESS = '#16A34A';
-  const WARNING = '#F97316';
   const ERROR   = '#DC2626';
 
   const criticalCount = materials.filter(m => m.isBelowSafetyThreshold).length;

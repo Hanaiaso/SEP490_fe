@@ -16,7 +16,7 @@ export const handlers = [
 
   http.post('/api/auth/logout', () => HttpResponse.json({ message: 'OK' })),
 
-  http.post('/api/auth/refresh', () => HttpResponse.json({
+  http.post('/api/auth/refresh-token', () => HttpResponse.json({
     data: { accessToken: 'jwt-2', refreshToken: 'rt-2' },
   })),
 

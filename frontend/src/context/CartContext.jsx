@@ -33,13 +33,11 @@ export function CartProvider({ children }) {
   }, [isAuthenticated])
 
   // Gộp giỏ hàng tạm (localStorage) vào giỏ hàng thật trên server sau khi đăng nhập.
-  // Trả về thông điệp lỗi (hoặc null) thay vì tự gọi setError ở đây — effect gọi hàm này rồi gọi
-  // fetchCart() ngay sau đó, mà fetchCart() luôn setError(null) khi bắt đầu nên sẽ xoá mất lỗi gộp
-  // nếu set ở đây. Effect chịu trách nhiệm áp lại lỗi SAU khi fetchCart() đã chạy xong.
+  // Trả về thông báo lỗi nếu gộp thất bại (giữ nguyên guestCart để thử lại), null nếu thành công.
   const mergeGuestCartIntoServer = useCallback(async () => {
     if (mergingRef.current) return null
     mergingRef.current = true
-    let mergeErrorMessage = null
+    let mergeError = null
     try {
       const guestItems = cartService.getGuestCartItems()
       for (const item of guestItems) {
@@ -48,28 +46,27 @@ export function CartProvider({ children }) {
           cartService.removeGuestCartItem(item.productId)
         } catch (err) {
           console.error('Không thể gộp sản phẩm vào giỏ hàng:', item.productId, err)
-          mergeErrorMessage = err.message || 'Không thể gộp giỏ hàng tạm vào tài khoản, vui lòng thử lại.'
+          mergeError = err.message || 'Không thể gộp giỏ hàng tạm vào giỏ hàng của bạn.'
           break
         }
       }
     } finally {
       mergingRef.current = false
     }
-    return mergeErrorMessage
+    return mergeError
   }, [])
 
   // Load cart khi trạng thái đăng nhập thay đổi; nếu vừa đăng nhập thì gộp giỏ tạm trước
   useEffect(() => {
     (async () => {
-      let mergeErrorMessage = null
+      let mergeError = null
       if (isAuthenticated) {
-        mergeErrorMessage = await mergeGuestCartIntoServer()
+        mergeError = await mergeGuestCartIntoServer()
       }
       await fetchCart()
-      // Áp SAU fetchCart() — fetchCart() tự setError(null) khi bắt đầu, nếu áp trước sẽ bị xoá mất.
-      if (mergeErrorMessage) {
-        setError(mergeErrorMessage)
-      }
+      // fetchCart() vừa reset error về null khi thành công — báo lại lỗi gộp giỏ (nếu có)
+      // sau cùng để người dùng biết giỏ tạm chưa được gộp, thay vì chỉ console.error.
+      if (mergeError) setError(mergeError)
     })()
   }, [isAuthenticated, mergeGuestCartIntoServer, fetchCart])
 

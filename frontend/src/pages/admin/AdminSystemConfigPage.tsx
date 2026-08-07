@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { History as HistoryIcon, Pencil } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { getAllConfigs, getConfigHistory, updateConfig } from '../../services/adminSystemConfigService.js';
+import type { SystemConfig, SystemConfigVersion } from '../../types/admin';
 
-function formatDate(iso: string) {
+function formatDate(iso: string | undefined) {
   if (!iso) return '-';
   return new Date(iso).toLocaleString('vi-VN');
 }
 
 // ─── Modal: Sửa giá trị cấu hình ─────────────────────────────────────────────
-function EditConfigModal({ config, onClose, onSaved }: { config: any; onClose: () => void; onSaved: () => void }) {
+function EditConfigModal({ config, onClose, onSaved }: { config: SystemConfig; onClose: () => void; onSaved: () => void }) {
   const { toast } = useToast();
   const [value, setValue] = useState(config.effectiveValue ?? '');
   const [effectiveDate, setEffectiveDate] = useState('');
@@ -30,8 +32,8 @@ function EditConfigModal({ config, onClose, onSaved }: { config: any; onClose: (
       toast.success('Cập nhật cấu hình thành công!');
       onSaved();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -89,13 +91,13 @@ function EditConfigModal({ config, onClose, onSaved }: { config: any; onClose: (
 // ─── Modal: Lịch sử phiên bản ────────────────────────────────────────────────
 function HistoryModal({ configKey, onClose }: { configKey: string; onClose: () => void }) {
   const { toast } = useToast();
-  const [versions, setVersions] = useState<any[]>([]);
+  const [versions, setVersions] = useState<SystemConfigVersion[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getConfigHistory(configKey)
       .then(setVersions)
-      .catch((err: any) => toast.error(err.message))
+      .catch((err: unknown) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configKey]);
@@ -136,24 +138,24 @@ function HistoryModal({ configKey, onClose }: { configKey: string; onClose: () =
 
 export default function AdminSystemConfigPage() {
   const { toast } = useToast();
-  const [configs, setConfigs] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<SystemConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editTarget, setEditTarget] = useState<SystemConfig | null>(null);
   const [historyKey, setHistoryKey] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAllConfigs();
       setConfigs(data || []);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="flex flex-col gap-[20px] p-[24px]">

@@ -1,9 +1,11 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, RefreshCw, Download, Plus, Truck, CheckCircle, X, ArrowRight, UploadCloud } from 'lucide-react';
+import { Search, Eye, RefreshCw, Plus, Truck, CheckCircle, X, ArrowRight, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import type { InventoryItem, StaffUser, StockTransfer, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -17,38 +19,36 @@ const PURPLE  = '#7C3AED';
 type Tab = 'create' | 'dispatch' | 'receive' | 'completed';
 
 const STATUS_TRANSFER: Record<string, { label: string; bg: string }> = {
-  Draft:      { label: 'Nháp',          bg: NEUTRAL },
-  Dispatched: { label: 'Đang vận chuyển', bg: PURPLE },
-  Received:   { label: 'Đã nhận hàng',    bg: SUCCESS },
-  Cancelled:  { label: 'Đã hủy',        bg: ERROR   },
+  Draft:              { label: 'Nháp',             bg: NEUTRAL },
+  TransportRequested: { label: 'Chờ xếp xe',       bg: WARNING },
+  TransportArranged:  { label: 'Đã xếp xe',        bg: INFO },
+  Dispatched:         { label: 'Đang vận chuyển',   bg: PURPLE },
+  Received:           { label: 'Đã nhận hàng',      bg: SUCCESS },
+  Cancelled:          { label: 'Đã hủy',           bg: ERROR   },
 };
 
-interface TransferItem { 
-  id?: string; 
-  productId: string; 
-  productName: string; 
-  quantity: number; 
-  receivedQuantity?: number;
+// Dòng hàng đang soạn trong form Tạo lệnh chuyển kho — khác StockTransferItem thật (chưa có
+// id/receivedQuantity vì lệnh chưa tồn tại trên server), lấy productName trực tiếp từ tồn kho
+// nguồn để hiển thị cho người dùng chọn.
+interface DraftTransferItem {
+  productId: string;
+  productName: string;
+  quantity: number;
 }
 
-interface Transfer {
-  id: string; 
-  code: string; 
+// Item mồi sẵn khi điều hướng từ trang khác (vd. WarehouseConsolidation) sang tạo lệnh chuyển kho.
+interface PrefillItem {
+  sku?: string;
+  productId?: string;
+  name?: string;
+  productName?: string;
+  quantity: number;
+}
+
+interface TransferPrefillData {
   sourceWarehouseId: string;
-  sourceWarehouseName: string; 
-  destinationWarehouseId: string;
-  destinationWarehouseName: string; 
-  createdByUserName: string;
-  createdAt: string; 
-  expectedDispatchDate?: string;
-  expectedReceiveDate?: string;
-  dispatchedAt?: string;
-  receivedAt?: string;
-  status: string;
-  note: string;
-  receiveNote?: string;
-  proofImageUrl?: string;
-  items: TransferItem[];
+  targetWarehouseId: string;
+  items: PrefillItem[];
 }
 
 function Badge({ status }: { status: string }) {
@@ -56,8 +56,8 @@ function Badge({ status }: { status: string }) {
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
 }
 
-function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }: { onClose: () => void, onCreated: () => void, warehouses: any[], staffUsers: any[], initialData?: any }) {
-  const [items, setItems] = useState<TransferItem[]>(initialData?.items?.length ? initialData.items.map((i: any) => ({ productId: i.sku, productName: i.name, quantity: i.quantity })) : [{ productId: '', productName: '', quantity: 0 }]);
+function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }: { onClose: () => void, onCreated: () => void, warehouses: Warehouse[], staffUsers: StaffUser[], initialData?: TransferPrefillData | null }) {
+  const [items, setItems] = useState<DraftTransferItem[]>(initialData?.items?.length ? initialData.items.map((i) => ({ productId: i.sku || i.productId || '', productName: i.name || i.productName || '', quantity: i.quantity })) : [{ productId: '', productName: '', quantity: 0 }]);
   const [formData, setFormData] = useState({ 
     sourceWarehouseId: initialData?.sourceWarehouseId || '', 
     targetWarehouseId: initialData?.targetWarehouseId || '', 
@@ -66,7 +66,7 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
     expectedDispatchDate: '',
     expectedReceiveDate: ''
   });
-  const [inventory, setInventory] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
 
   const isInitialMount = useRef(true);
 
@@ -74,15 +74,15 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
   useEffect(() => {
     if (formData.sourceWarehouseId) {
       import('../../services/warehouseService.js').then(module => {
-        module.getWarehouseInventory(formData.sourceWarehouseId, { pageNumber: 1, pageSize: 1000 }).then(data => {
+        module.getWarehouseInventory(formData.sourceWarehouseId, { pageNumber: 1, pageSize: 1000 }).then((data: { items?: InventoryItem[] }) => {
           const invs = data.items || [];
           setInventory(invs);
-          
-          if (isInitialMount.current && initialData?.items?.length > 0) {
-            const mappedItems = initialData.items.map((i: any) => {
-              const invItem = invs.find((inv: any) => inv.productSku === i.sku || inv.productId === i.productId);
+
+          if (isInitialMount.current && initialData && initialData.items.length > 0) {
+            const mappedItems = initialData.items.map((i) => {
+              const invItem = invs.find((inv) => inv.productSku === i.sku || inv.productId === i.productId);
               return {
-                productId: invItem ? invItem.productId : (i.productId || ''),
+                productId: (invItem ? invItem.productId : i.productId) || '',
                 productName: i.name || i.productName || (invItem ? invItem.productName : ''),
                 quantity: i.quantity
               };
@@ -101,6 +101,10 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
       }
     }
     isInitialMount.current = false;
+    // initialData chỉ dùng để mồi giá trị ban đầu (chặn bằng isInitialMount.current) — cố ý
+    // KHÔNG thêm vào deps: initialData là prop object mới mỗi lần cha re-render, thêm vào sẽ
+    // khiến effect chạy lại ngoài ý muốn và xoá mất các dòng item người dùng đang nhập dở.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.sourceWarehouseId]);
   
   const handleCreate = async () => {
@@ -122,7 +126,7 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
       alert('Tạo lệnh chuyển kho thành công!');
       onCreated();
       onClose();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   };
 
   return (
@@ -217,9 +221,9 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
   );
 }
 
-function ReceiveForm({ transfer, onClose, onReceived }: { transfer: Transfer, onClose: () => void, onReceived: () => void }) {
+function ReceiveForm({ transfer, onClose, onReceived }: { transfer: StockTransfer, onClose: () => void, onReceived: () => void }) {
   const [items, setItems] = useState<{productId: string, receivedQuantity: number}[]>(
-    transfer.items.map(i => ({ productId: i.productId, receivedQuantity: i.quantity }))
+    transfer.items.map(i => ({ productId: i.productId || '', receivedQuantity: i.quantity }))
   );
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -240,8 +244,8 @@ function ReceiveForm({ transfer, onClose, onReceived }: { transfer: Transfer, on
       alert('Nhận hàng thành công!');
       onReceived();
       onClose();
-    } catch (err: any) { 
-      alert(err.message); 
+    } catch (err: unknown) { 
+      alert(getErrorMessage(err)); 
     } finally {
       setLoading(false);
     }
@@ -259,7 +263,7 @@ function ReceiveForm({ transfer, onClose, onReceived }: { transfer: Transfer, on
               return (
                 <tr key={idx}>
                   <td className="px-3 py-2 font-mono text-gray-500 text-xs">{item.productId.substring(0, 8)}...</td>
-                  <td className="px-3 py-2">{original?.productName || 'N/A'}</td>
+                  <td className="px-3 py-2">{original?.itemName || 'N/A'}</td>
                   <td className="px-3 py-2 text-center font-semibold text-gray-700">{original?.quantity}</td>
                   <td className="px-3 py-2 text-center"><Input type="number" className="h-8 text-sm text-center w-24 mx-auto" value={item.receivedQuantity} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, receivedQuantity: +e.target.value } : i))} /></td>
                 </tr>
@@ -302,19 +306,19 @@ export default function WarehouseStockTransfer() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState<string[]>([]);
-  const [detail, setDetail] = useState<Transfer | null>(null);
+  const [detail, setDetail] = useState<StockTransfer | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [receiveTransfer, setReceiveTransfer] = useState<Transfer | null>(null);
-  
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [staffUsers, setStaffUsers] = useState<any[]>([]);
-  const [prefillData, setPrefillData] = useState<any>(null);
+  const [receiveTransfer, setReceiveTransfer] = useState<StockTransfer | null>(null);
+
+  const [transfers, setTransfers] = useState<StockTransfer[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [prefillData, setPrefillData] = useState<TransferPrefillData | null>(null);
 
   useEffect(() => {
     if (prefill && warehouses.length > 0) {
-      const sourceW = warehouses.find((w: any) => w.name === prefill.sourceWarehouse);
-      const targetW = warehouses.find((w: any) => w.name === 'Kho mặc định' || w.name === 'WH-DEFAULT' || w.code === 'WH-DEFAULT' || w.name.includes('WH-DEFAULT') || w.name === 'Kho Chính');
+      const sourceW = warehouses.find((w) => w.name === prefill.sourceWarehouse);
+      const targetW = warehouses.find((w) => w.name === 'Kho mặc định' || w.name === 'WH-DEFAULT' || w.code === 'WH-DEFAULT' || w.name.includes('WH-DEFAULT') || w.name === 'Kho Chính');
       if (sourceW && targetW) {
         setPrefillData({
            sourceWarehouseId: sourceW.id,
@@ -346,9 +350,9 @@ export default function WarehouseStockTransfer() {
     loadData();
   }, []);
 
-  const tabFilters: Record<Tab, (t: Transfer) => boolean> = {
-    create:   t => true, // Tất cả lệnh
-    dispatch: t => ['Draft'].includes(t.status), // Cần xuất kho
+  const tabFilters: Record<Tab, (t: StockTransfer) => boolean> = {
+    create:   () => true, // Tất cả lệnh
+    dispatch: t => ['Draft', 'TransportRequested', 'TransportArranged'].includes(t.status), // Cần xuất kho
     receive:  t => ['Dispatched'].includes(t.status), // Cần nhận hàng
     completed:t => ['Received', 'Cancelled'].includes(t.status), // Đã hoàn thành hoặc Hủy
   };
@@ -367,7 +371,7 @@ export default function WarehouseStockTransfer() {
       alert('Xuất kho thành công! Hàng đang trên đường tới kho đích.');
       loadData();
       setDetail(null);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   };
 
   const cancel = async (id: string) => {
@@ -378,8 +382,19 @@ export default function WarehouseStockTransfer() {
       alert('Hủy lệnh thành công!');
       loadData();
       setDetail(null);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   }
+
+  const requestTransport = async (id: string) => {
+    if (!confirm('Gửi yêu cầu xếp xe cho bộ phận Sale?')) return;
+    try {
+      const { requestStockTransferTransport } = await import('../../services/warehouseService.js');
+      await requestStockTransferTransport(id);
+      alert('Đã gửi yêu cầu xếp xe thành công! Bộ phận Sale sẽ xếp xe vận chuyển.');
+      loadData();
+      setDetail(null);
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
+  };
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map(t => t.id));
@@ -471,7 +486,19 @@ export default function WarehouseStockTransfer() {
                       }} title="Xem chi tiết"><Eye className="w-3.5 h-3.5" /></button>
                       
                       {t.status === 'Draft' && (
-                        <button className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" onClick={() => dispatch(t.id)} title="Xuất kho"><Truck className="w-3.5 h-3.5" /></button>
+                        <button className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" onClick={() => dispatch(t.id)} title="Xuất kho">
+                          <Truck className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {t.status === 'Draft' && (
+                        <button className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600" onClick={() => requestTransport(t.id)} title="Yêu cầu xếp xe">
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {t.status === 'TransportArranged' && (
+                        <button className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" onClick={() => dispatch(t.id)} title="Xuất kho">
+                          <Truck className="w-3.5 h-3.5" />
+                        </button>
                       )}
                       {t.status === 'Dispatched' && (
                         <button className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" onClick={async () => {
@@ -538,7 +565,7 @@ export default function WarehouseStockTransfer() {
                       {detail.items.map(item => (
                         <tr key={item.productId} className="hover:bg-gray-50">
                           <td className="px-3 py-2 font-mono text-gray-500">{item.productId}</td>
-                          <td className="px-3 py-2 text-gray-800">{item.productName || 'N/A'}</td>
+                          <td className="px-3 py-2 text-gray-800">{item.itemName || 'N/A'}</td>
                           <td className="px-3 py-2 text-center font-semibold" style={{ color: PRIMARY }}>{item.quantity}</td>
                           <td className={`px-3 py-2 text-center font-semibold ${item.receivedQuantity !== undefined && item.receivedQuantity < item.quantity ? 'text-red-500' : 'text-green-600'}`}>
                             {item.receivedQuantity ?? '—'}
@@ -551,9 +578,13 @@ export default function WarehouseStockTransfer() {
               )}
 
               <div className="flex gap-2 pt-2 border-t border-gray-100">
-                {detail.status === 'Draft' && <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => dispatch(detail.id)}><Truck className="w-3.5 h-3.5" /> Xuất kho</Button>}
+                {detail.status === 'Draft' && <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: WARNING }} onClick={() => requestTransport(detail.id)}><Send className="w-3.5 h-3.5" /> Yêu cầu xếp xe</Button>}
+                {detail.status === 'Draft' && <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => dispatch(detail.id)}><Truck className="w-3.5 h-3.5" /> Xuất kho (Tự chở)</Button>}
+                {detail.status === 'TransportArranged' && <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => dispatch(detail.id)}><Truck className="w-3.5 h-3.5" /> Xuất kho</Button>}
                 {detail.status === 'Dispatched' && <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} onClick={() => { setReceiveTransfer(detail); setDetail(null); }}><CheckCircle className="w-3.5 h-3.5" /> Xác nhận nhận hàng</Button>}
                 {(detail.status === 'Draft' || detail.status === 'Dispatched') && <Button variant="outline" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => cancel(detail.id)}>Hủy Lệnh</Button>}
+                {detail.status === 'TransportRequested' && <span className="text-xs text-amber-600 font-medium py-1">⏳ Đang chờ Sale xếp xe...</span>}
+                {detail.status === 'TransportArranged' && detail.deliveryVehicleId && <span className="text-xs text-blue-600 font-medium py-1">🚚 Xe {detail.deliveryVehicleId} · Ca {detail.deliveryShift}</span>}
                 <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
               </div>
             </div>

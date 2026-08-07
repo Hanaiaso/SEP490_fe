@@ -43,7 +43,7 @@ describe('L1-FES · authService.fetchWithToken', () => {
           ? new HttpResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 })
           : HttpResponse.json({ items: [], totalCount: 0, retried: true })
       }),
-      http.post('/api/auth/refresh', () => {
+      http.post('/api/auth/refresh-token', () => {
         refreshCalls += 1
         return HttpResponse.json({ data: { accessToken: 'jwt-2', refreshToken: 'rt-2' } })
       }),
@@ -67,7 +67,7 @@ describe('L1-FES · authService.fetchWithToken', () => {
         ordersCalls += 1
         return new HttpResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 })
       }),
-      http.post('/api/auth/refresh', () =>
+      http.post('/api/auth/refresh-token', () =>
         new HttpResponse(JSON.stringify({ message: 'Refresh token hết hạn' }), { status: 401 })),
     )
 

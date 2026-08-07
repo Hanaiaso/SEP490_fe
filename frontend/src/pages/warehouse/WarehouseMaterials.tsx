@@ -1,15 +1,16 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, ArrowDownToLine, ArrowUpFromLine, History, AlertCircle, Download, RefreshCw } from 'lucide-react';
+import { Search, History, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getMaterials } from '../../services/materialService';
+import type { Material as ApiMaterial } from '../../types/catalog';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
 const WARNING = '#F97316';
 const ERROR   = '#DC2626';
-const NEUTRAL = '#64748B';
 
 interface Material {
   id: string; name: string; unit: string;
@@ -33,8 +34,8 @@ export default function WarehouseMaterials() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getMaterials();
-      const mapped: Material[] = data.map((m: any) => ({
+      const data: ApiMaterial[] = await getMaterials();
+      const mapped: Material[] = data.map((m) => ({
         id: m.id,
         name: m.name,
         unit: m.unit,
@@ -43,8 +44,8 @@ export default function WarehouseMaterials() {
         status: (m.currentStock || 0) < (m.safetyThreshold || 0) ? 'critical' : 'ok'
       }));
       setItems(mapped);
-    } catch (err: any) {
-      alert('Lỗi lấy danh sách nguyên liệu: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi lấy danh sách nguyên liệu: ' + getErrorMessage(err));
     } finally {
       setLoading(false);
     }

@@ -1,13 +1,16 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { ReturnExchangeRequestDetailModal, ReturnExchangeRequestsSection } from '../../components/ReturnExchangeRequests';
+import type { ReturnExchangeRequest } from '../../components/ReturnExchangeRequests';
 import { useAuth } from '../../context/AuthContext';
+import type { SalesOrderDetail } from '../../types/order';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, Building2,
   Mail, Hash, FileText, Download, ChevronRight, Box, Wallet,
-  ShieldCheck, CircleDot, Timer
+  Timer, RotateCcw
 } from 'lucide-react';
 
 const PRIMARY = '#1F3B64';
@@ -81,41 +84,6 @@ const formatDateTime = (dateStr: string) => {
   });
 };
 
-type OrderItem = {
-  id?: string;
-  productId?: string;
-  productName: string;
-  productSku?: string;
-  productImageUrl?: string;
-  quantity: number;
-  priceSnapshot: number;
-  lineTotal: number;
-};
-
-type SalesOrderDetail = {
-  id: string;
-  orderCode: string;
-  customerName: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  companyName?: string;
-  shippingAddress?: string;
-  createdAt: string;
-  totalAmount: number;
-  discountAmount: number;
-  vatAmount: number;
-  finalPayment: number;
-  creditApplied: number;
-  paymentMethod: string;
-  paymentStatus: string;
-  orderStatus: string;
-  fulfillmentStatus?: string;
-  deliveryStatus?: string;
-  invoicePdfUrl?: string;
-  returnExchangeRequests?: any[];
-  items: OrderItem[];
-};
-
 // ─── Timeline Steps ─────────────────────────────────────────────────────
 function getTimelineSteps(order: SalesOrderDetail) {
   const os = order.orderStatus;
@@ -157,7 +125,7 @@ function getTimelineSteps(order: SalesOrderDetail) {
 export default function SalesManagerOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [order, setOrder] = useState<SalesOrderDetail | null>(null);
@@ -176,9 +144,7 @@ export default function SalesManagerOrderDetailPage() {
   const [showApproveReturnModal, setShowApproveReturnModal] = useState(false);
   const [showRejectReturnModal, setShowRejectReturnModal] = useState(false);
   const [returnProcessNote, setReturnProcessNote] = useState('');
-  const [selectedReturnRequest, setSelectedReturnRequest] = useState<any | null>(null);
-  const [showCreateReplacementModal, setShowCreateReplacementModal] = useState(false);
-  const [pendingReplacementRequestId, setPendingReplacementRequestId] = useState<string | null>(null);
+  const [selectedReturnRequest, setSelectedReturnRequest] = useState<ReturnExchangeRequest | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -198,8 +164,8 @@ export default function SalesManagerOrderDetailPage() {
           const now = new Date().getTime();
           setTimeLeft(Math.max(0, Math.floor((limitTime - now) / 1000)));
         }
-      } catch (err: any) {
-        setError(err.message || 'Có lỗi xảy ra.');
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'Có lỗi xảy ra.'));
       } finally {
         setLoading(false);
       }
@@ -225,7 +191,7 @@ export default function SalesManagerOrderDetailPage() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || 'Lỗi khi xác nhận đơn hàng.');
+        throw new Error(getErrorMessage(err, 'Lỗi khi xác nhận đơn hàng.'));
       }
 
       alert('Xác nhận thành công!');
@@ -235,8 +201,8 @@ export default function SalesManagerOrderDetailPage() {
       const data = await res.json();
       setOrder(data);
       setTimeLeft(null);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi không xác định.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi không xác định.'));
     } finally {
       setIsConfirming(false);
     }
@@ -256,7 +222,7 @@ export default function SalesManagerOrderDetailPage() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || 'Lỗi khi xử lý yêu cầu hủy.');
+        throw new Error(getErrorMessage(err, 'Lỗi khi xử lý yêu cầu hủy.'));
       }
 
       alert('Đã xử lý yêu cầu hủy đơn thành công!');
@@ -266,44 +232,8 @@ export default function SalesManagerOrderDetailPage() {
       });
       const data = await res.json();
       setOrder(data);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi không xác định.');
-    }
-  };
-
-  const [isCreatingReplacement, setIsCreatingReplacement] = useState(false);
-
-  const handleCreateExchangeReplacement = async (requestId: string) => {
-    if (isCreatingReplacement) return;
-    setIsCreatingReplacement(true);
-    try {
-      const response = await fetch(`/api/delivery/exchange/${requestId}/replacement`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
-
-      let data: any = {};
-      try {
-        const text = await response.text();
-        if (text) data = JSON.parse(text);
-      } catch (e) {
-        console.error("Parse error", e);
-      }
-      
-      if (!response.ok) throw new Error(data.message || `Lỗi từ server: ${response.status} ${response.statusText}`);
-
-      alert(data.message || 'Tạo đơn thay thế thành công!');
-      
-      const res = await fetch(`/api/orders/sales/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-      });
-      const orderData = await res.json();
-      setOrder(orderData);
-      setSelectedReturnRequest(null);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi không xác định.');
-    } finally {
-      setIsCreatingReplacement(false);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi không xác định.'));
     }
   };
 
@@ -320,7 +250,7 @@ export default function SalesManagerOrderDetailPage() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || 'Lỗi khi xử lý yêu cầu đổi/trả.');
+        throw new Error(getErrorMessage(err, 'Lỗi khi xử lý yêu cầu đổi/trả.'));
       }
 
       alert('Đã xử lý yêu cầu đổi/trả thành công!');
@@ -330,8 +260,8 @@ export default function SalesManagerOrderDetailPage() {
       });
       const data = await res.json();
       setOrder(data);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi không xác định.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi không xác định.'));
     }
   };
 
@@ -404,7 +334,7 @@ export default function SalesManagerOrderDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {(order.orderStatus === 'Draft' || order.orderStatus === 'New' || order.orderStatus === 'PendingConfirmation') && (user?.role === 'SalesManager' || user?.role === 'Admin') && (
+            {(order.orderStatus === 'Draft' || order.orderStatus === 'PendingConfirmation') && (user?.role === 'SalesManager' || user?.role === 'Admin') && (
               <>
                 <button
                   onClick={() => setShowDirectConfirmModal(true)}
@@ -439,6 +369,28 @@ export default function SalesManagerOrderDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* ── Return/Exchange Request Banner ──────────────────────────── */}
+        {order.hasReturnRequest && (
+          <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50 p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2.5 rounded-full flex-shrink-0 text-purple-600">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-purple-900 font-bold flex items-center gap-2">
+                  Đơn hàng có yêu cầu Đổi / Trả hàng
+                  <span className="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-semibold">
+                    {order.returnRequestStatus === 'Approved' ? 'Đã duyệt' : order.returnRequestStatus === 'Pending' ? 'Chờ xử lý' : 'Đã từ chối'}
+                  </span>
+                </h3>
+                <p className="text-sm text-purple-700 mt-0.5">
+                  Đơn hàng này có phát sinh yêu cầu thu hồi / đổi trả hàng.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Cancel Requested Banner ─────────────────────────────────── */}
         {order.orderStatus === 'CancelRequested' && (
           <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -705,14 +657,8 @@ export default function SalesManagerOrderDetailPage() {
                     <span className="font-medium text-slate-700 tabular-nums">{formatPrice(order.vatAmount)} ₫</span>
                   </div>
                 )}
-                {order.creditApplied > 0 && (
-                  <div className="flex justify-between text-xs text-blue-600">
-                    <span>Thanh toán bằng Credit</span>
-                    <span className="font-medium tabular-nums">-{formatPrice(order.creditApplied)} ₫</span>
-                  </div>
-                )}
                 <div className="flex justify-between items-center pt-3 border-t border-dashed border-slate-200">
-                  <span className="text-sm font-bold text-slate-900">{order.creditApplied > 0 ? "Khách cần trả thêm" : "Tổng cộng"}</span>
+                  <span className="text-sm font-bold text-slate-900">Tổng cộng</span>
                   <span className="text-xl font-extrabold tabular-nums" style={{ color: PRIMARY }}>
                     {formatPrice(order.finalPayment)} ₫
                   </span>
@@ -738,7 +684,7 @@ export default function SalesManagerOrderDetailPage() {
               {/* Product Cards */}
               <div className="divide-y divide-slate-100">
                 {order.items?.map((item, idx) => (
-                  <div key={item.id || item.productId || idx} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                  <div key={item.productId || idx} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
                     {/* Product Image */}
                     <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                       {item.productImageUrl ? (
@@ -857,7 +803,7 @@ export default function SalesManagerOrderDetailPage() {
                 <>
                   <button
                     onClick={() => {
-                      setReturnRequestIdToProcess(selectedReturnRequest.id);
+                      setReturnRequestIdToProcess(selectedReturnRequest.id || '');
                       setReturnProcessNote('');
                       setShowRejectReturnModal(true);
                       setSelectedReturnRequest(null);
@@ -868,7 +814,7 @@ export default function SalesManagerOrderDetailPage() {
                   </button>
                   <button
                     onClick={() => {
-                      setReturnRequestIdToProcess(selectedReturnRequest.id);
+                      setReturnRequestIdToProcess(selectedReturnRequest.id || '');
                       setReturnProcessNote('');
                       setShowApproveReturnModal(true);
                       setSelectedReturnRequest(null);

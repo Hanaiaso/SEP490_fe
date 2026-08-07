@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Search, ShieldCheck, Lock, Unlock } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import {
   searchUsers, createUser, changeUserRole, setUserStatus, ASSIGNABLE_ROLES,
 } from '../../services/adminUserService.js';
+import type { AdminUser } from '../../types/admin';
 
 const ROLE_LABELS: Record<string, string> = {
   SalesStaff: 'Nhân viên Sale',
@@ -42,8 +44,8 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       toast.success('Tạo tài khoản thành công!');
       onCreated();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -108,8 +110,8 @@ function ReasonActionModal({ title, children, confirmLabel, onConfirm, onClose }
     try {
       await onConfirm(reason.trim());
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -139,7 +141,7 @@ function ReasonActionModal({ title, children, confirmLabel, onConfirm, onClose }
 
 export default function AdminUsersPage() {
   const { toast } = useToast();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -151,11 +153,11 @@ export default function AdminUsersPage() {
   const [activeFilter, setActiveFilter] = useState('');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [roleTarget, setRoleTarget] = useState<any>(null);
-  const [statusTarget, setStatusTarget] = useState<any>(null);
+  const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null);
+  const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
   const [newRole, setNewRole] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const result = await searchUsers({
@@ -165,14 +167,14 @@ export default function AdminUsersPage() {
       setUsers(result.items || []);
       setTotalPages(result.totalPages || 1);
       setTotalCount(result.totalCount || 0);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchQuery, roleFilter, activeFilter, toast]);
 
-  useEffect(() => { load(); }, [page, searchQuery, roleFilter, activeFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +182,7 @@ export default function AdminUsersPage() {
     setSearchQuery(searchInput.trim());
   };
 
-  const openRoleModal = (u: any) => {
+  const openRoleModal = (u: AdminUser) => {
     setNewRole(u.role);
     setRoleTarget(u);
   };

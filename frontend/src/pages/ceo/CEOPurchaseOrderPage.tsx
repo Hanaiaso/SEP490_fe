@@ -1,31 +1,38 @@
-import { useState, useEffect } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useState, useEffect, useCallback } from 'react';
 import { getPurchaseOrders } from '../../services/purchaseOrderService.js';
 import { Plus, Search, Eye } from 'lucide-react';
 import CEOPurchaseOrderCreateModal from './CEOPurchaseOrderCreateModal';
 import { useToast } from '../../context/ToastContext';
+import type { PurchaseOrderListItem } from '../../types/warehouse';
 
-export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: any) {
+interface CEOPurchaseOrderPageProps {
+  setActiveTab: (tab: string) => void;
+  setSelectPOId: (id: string) => void;
+}
+
+export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CEOPurchaseOrderPageProps) {
   const { toast } = useToast();
-  const [pos, setPos] = useState<any[]>([]);
+  const [pos, setPos] = useState<PurchaseOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getPurchaseOrders(statusFilter);
       setPos(data || []);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, toast]);
 
   useEffect(() => {
     loadData();
-  }, [statusFilter]);
+  }, [loadData]);
 
   const PO_STATUS_MAP: Record<string, { label: string; style: string }> = {
     'Draft': { label: 'Bản nháp', style: 'bg-gray-100 text-gray-700' },

@@ -6,12 +6,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../../components/sales-ui/dropdown-menu';
 import {
-  Archive, CheckCircle,
   LayoutDashboard, Package, ClipboardList, Layers, ArrowDownToLine, ArrowUpFromLine,
   History, ShoppingBag, BarChart3, AlertCircle, TrendingDown, FileBarChart,
   Bell, LogOut, ChevronDown, Search, Settings, Truck, GitMerge,
   PackageCheck, ArrowRightLeft, FlaskConical, ClipboardCheck, ShieldCheck,
-  Factory, SlidersHorizontal, Building
+  SlidersHorizontal, Building
 } from 'lucide-react';
 
 import NotificationBell from '../../components/NotificationBell';
@@ -180,9 +179,8 @@ function NavItemRow({ item, level = 0, onNavigate }: { item: NavItem; level?: nu
 
 export default function WarehousePortal() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const navItems = buildNavItems();
-  const totalBadge = 4;
   const userName = user?.fullName || user?.email || 'Nhan vien kho';
   const initials =
     userName

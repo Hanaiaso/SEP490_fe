@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
@@ -8,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useChat } from '../../hooks/useChat.js';
 import { getQuotations, getQuotationById, getMessages, pickUpQuotation, createVersion } from '../../services/quotationService.js';
+import type { Quotation, QuotationItem, QuotationVersion, QuotationVersionItem, ChatMessage } from '../../types/quotation';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string }> = {
   Draft:                    { label: 'Chờ xử lý',       bg: '#64748B' },
@@ -22,9 +24,9 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string }> = {
 };
 
 export default function SalesNegotiationPage() {
-  const { user } = useAuth() as any;
-  const [quotationsList, setQuotationsList] = useState<any[]>([]);
-  const [active, setActive] = useState<any>(null);
+  const { user } = useAuth();
+  const [quotationsList, setQuotationsList] = useState<Quotation[]>([]);
+  const [active, setActive] = useState<Quotation | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [input, setInput] = useState('');
   const [proposePrice, setProposePrice] = useState(false);
@@ -40,13 +42,13 @@ export default function SalesNegotiationPage() {
     if (active?.id) {
       getMessages(active.id).then(setMessages).catch(console.error);
     }
-  }, [active?.id]);
+  }, [active?.id, setMessages]);
 
   const loadData = () => {
     getQuotations().then(data => {
-      const myQ = data.myQuotations || data.MyQuotations || [];
-      const pendingQ = data.pendingQuotations || data.PendingQuotations || [];
-      const all = [...myQ, ...pendingQ];
+      const myQ = data.myQuotations || [];
+      const pendingQ = data.pendingQuotations || [];
+      const all: Quotation[] = [...myQ, ...pendingQ];
       setQuotationsList(all);
       // Tự động chọn item đầu tiên nếu chưa có active
       if (!active && all.length > 0) {
@@ -55,7 +57,7 @@ export default function SalesNegotiationPage() {
     }).catch(console.error);
   };
 
-  const handleSelectQuotation = (q: any) => {
+  const handleSelectQuotation = (q: Quotation) => {
     setLoadingDetail(true);
     setProposePrice(false);
     setNewPrices({});
@@ -66,6 +68,10 @@ export default function SalesNegotiationPage() {
       .finally(() => setLoadingDetail(false));
   };
 
+  // Chỉ tải danh sách quotation MỘT LẦN khi mount; loadData đọc `active` chỉ để tự động
+  // chọn item đầu tiên lúc khởi tạo — thêm vào deps sẽ khiến tải lại cả danh sách mỗi
+  // khi người dùng chọn quotation khác.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData(); }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -83,8 +89,8 @@ export default function SalesNegotiationPage() {
       // Reload full detail sau khi pickup
       handleSelectQuotation(active);
       loadData();
-    } catch (err: any) {
-      alert(err.message || 'Có lỗi xảy ra');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Có lỗi xảy ra'));
     }
   };
 
@@ -96,13 +102,13 @@ export default function SalesNegotiationPage() {
       return;
     }
     try {
-      const itemsPayload = items.map((it: any) => ({
+      const itemsPayload = items.map((it: QuotationItem) => ({
         productId: it.productId,
         proposedUnitPrice: newPrices[it.productId] ? Number(newPrices[it.productId]) : it.originalUnitPrice
       }));
 
-      const newTotal = itemsPayload.reduce((sum: number, it: any) => {
-        const qty = items.find((x: any) => x.productId === it.productId)?.quantity || 0;
+      const newTotal = itemsPayload.reduce((sum, it) => {
+        const qty = items.find((x) => x.productId === it.productId)?.quantity || 0;
         return sum + it.proposedUnitPrice * qty;
       }, 0);
 
@@ -115,13 +121,13 @@ export default function SalesNegotiationPage() {
       alert('Đã tạo phiên bản báo giá gửi Manager duyệt!');
       handleSelectQuotation(active);
       loadData();
-    } catch (err: any) {
-      alert(err.message || 'Có lỗi xảy ra');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Có lỗi xảy ra'));
     }
   };
 
   const latestVersion = active?.versions?.[0];
-  const items = latestVersion ? latestVersion.items : (active?.items || []);
+  const items: (QuotationItem | QuotationVersionItem)[] = latestVersion ? latestVersion.items : (active?.items || []);
   const totalOriginal = active?.originalTotal || 0;
   const totalProposed = latestVersion ? latestVersion.proposedTotal : totalOriginal;
   const discount = totalOriginal - totalProposed;
@@ -192,7 +198,7 @@ export default function SalesNegotiationPage() {
           <div className="flex-1 flex items-center justify-center gap-2 text-gray-400 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" /> Đang tải...
           </div>
-        ) : (
+        ) : active ? (
           <>
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-4 py-3">
@@ -283,9 +289,9 @@ export default function SalesNegotiationPage() {
                         </td>
                       </tr>
                     ) : (
-                      items.map((item: any) => {
+                      items.map((item) => {
                         const originalPrice = item.originalUnitPrice;
-                        const proposedPrice = item.proposedUnitPrice;
+                        const proposedPrice = 'proposedUnitPrice' in item ? item.proposedUnitPrice : undefined;
                         const currentPrice = proposedPrice || originalPrice;
                         return (
                           <tr key={item.productId} className="hover:bg-gray-50/50">
@@ -356,7 +362,7 @@ export default function SalesNegotiationPage() {
                 <div className="mt-3 bg-white border border-gray-200 rounded-lg p-3">
                   <p className="text-[11px] font-semibold text-gray-900 mb-2">Lịch sử Phiên bản Báo giá</p>
                   <div className="space-y-2">
-                    {active.versions.map((v: any) => (
+                    {active.versions.map((v: QuotationVersion) => (
                       <div key={v.id} className="text-xs border-b border-gray-100 pb-2 last:border-0 last:pb-0">
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-semibold text-[#1F3B64]">Version {v.versionNumber}</span>
@@ -376,7 +382,7 @@ export default function SalesNegotiationPage() {
               )}
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       {/* ── Col 3: Chat ── */}
@@ -410,12 +416,12 @@ export default function SalesNegotiationPage() {
                   Chưa có tin nhắn nào
                 </div>
               ) : (
-                messages.map(msg => {
-                  const isMine = ((msg as any).senderId || (msg as any).SenderId) === user?.id;
-                  const msgText = (msg as any).messageText ?? (msg as any).content ?? '';
-                  const msgTime = (msg as any).sentAt ?? (msg as any).SentAt ?? (msg as any).createdAt;
+                messages.map((msg: ChatMessage) => {
+                  const isMine = msg.senderId === user?.id;
+                  const msgText = msg.messageText;
+                  const msgTime = msg.sentAt;
                   return (
-                    <div key={(msg as any).id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div
                         className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${isMine ? 'text-white' : 'bg-white text-[#374151] border border-[#E5E7EB]'}`}
                         style={isMine ? { backgroundColor: '#1F3B64' } : {}}

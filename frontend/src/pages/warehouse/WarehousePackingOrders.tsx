@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, CheckCircle, AlertCircle, Play, Package, Filter, Download } from 'lucide-react';
+import { Search, Eye, CheckCircle, AlertCircle, Play, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
-const WARNING = '#F97316';
 const ERROR   = '#DC2626';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';

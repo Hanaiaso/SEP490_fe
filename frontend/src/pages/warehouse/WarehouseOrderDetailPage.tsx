@@ -1,36 +1,38 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getWarehouseOrderDetail, acceptWarehouseOrder, reportShortage } from '../../services/warehouseService';
 import { ArrowLeft, CheckCircle, AlertTriangle, Package } from 'lucide-react';
+import type { WarehouseOrderDetail, WarehouseOrderItem } from '../../types/warehouse';
 
 export default function WarehouseOrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<WarehouseOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<WarehouseOrderItem | null>(null);
   const [missingQty, setMissingQty] = useState('');
   const [note, setNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    if (id) fetchDetail();
-  }, [id]);
-
-  const fetchDetail = async () => {
+  const fetchDetail = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getWarehouseOrderDetail(id);
       setOrder(data);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi tải chi tiết đơn hàng');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Lỗi tải chi tiết đơn hàng'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) fetchDetail();
+  }, [id, fetchDetail]);
 
   const handleAccept = async () => {
     try {
@@ -38,8 +40,8 @@ export default function WarehouseOrderDetailPage() {
       await acceptWarehouseOrder(id);
       alert('Nhận đơn thành công!');
       fetchDetail();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi nhận đơn');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi khi nhận đơn'));
     } finally {
       setActionLoading(false);
     }
@@ -57,8 +59,8 @@ export default function WarehouseOrderDetailPage() {
       alert('Báo cáo thiếu hàng thành công!');
       setShowModal(false);
       fetchDetail();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi báo cáo');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi khi báo cáo'));
     } finally {
       setActionLoading(false);
     }
@@ -113,7 +115,7 @@ export default function WarehouseOrderDetailPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {order.items?.map((item: any) => (
+            {order.items?.map((item) => (
               <tr key={item.productId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">

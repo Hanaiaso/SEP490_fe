@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Eye } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import {
   getJobRunsSummary, searchJobRuns, retryJob, searchWebhookLogs, retryWebhookLog,
 } from '../../services/adminSystemHealthService.js';
+import type { JobHealthSummary, JobRun, WebhookLog } from '../../types/admin';
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return '-';
@@ -53,11 +55,11 @@ function PaginationBar({ page, totalPages, totalCount, unit, onChange }: {
 // ─── Panel: Job Runs ─────────────────────────────────────────────────────────
 function JobRunsPanel() {
   const { toast } = useToast();
-  const [summary, setSummary] = useState<any[]>([]);
+  const [summary, setSummary] = useState<JobHealthSummary[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [retryingJob, setRetryingJob] = useState<string | null>(null);
 
-  const [runs, setRuns] = useState<any[]>([]);
+  const [runs, setRuns] = useState<JobRun[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -65,18 +67,18 @@ function JobRunsPanel() {
   const [jobNameFilter, setJobNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     setLoadingSummary(true);
     try {
       setSummary(await getJobRunsSummary());
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoadingSummary(false);
     }
-  };
+  }, [toast]);
 
-  const loadRuns = async () => {
+  const loadRuns = useCallback(async () => {
     setLoadingRuns(true);
     try {
       const result = await searchJobRuns({
@@ -87,15 +89,15 @@ function JobRunsPanel() {
       setRuns(result.items || []);
       setTotalPages(result.totalPages || 1);
       setTotalCount(result.totalCount || 0);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoadingRuns(false);
     }
-  };
+  }, [page, jobNameFilter, statusFilter, toast]);
 
-  useEffect(() => { loadSummary(); }, []);
-  useEffect(() => { loadRuns(); }, [page, jobNameFilter, statusFilter]);
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+  useEffect(() => { loadRuns(); }, [loadRuns]);
 
   const handleRetry = async (jobName: string) => {
     setRetryingJob(jobName);
@@ -103,8 +105,8 @@ function JobRunsPanel() {
       await retryJob(jobName);
       toast.success(`Đã chạy lại job "${jobName}".`);
       await Promise.all([loadSummary(), loadRuns()]);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setRetryingJob(null);
     }
@@ -209,7 +211,7 @@ function JobRunsPanel() {
 }
 
 // ─── Modal: chi tiết webhook ─────────────────────────────────────────────────
-function WebhookDetailModal({ log, onClose }: { log: any; onClose: () => void }) {
+function WebhookDetailModal({ log, onClose }: { log: WebhookLog; onClose: () => void }) {
   function prettyJson(raw: string | null) {
     if (!raw) return '(không có)';
     try { return JSON.stringify(JSON.parse(raw), null, 2); } catch { return raw; }
@@ -244,30 +246,30 @@ function WebhookDetailModal({ log, onClose }: { log: any; onClose: () => void })
 // ─── Panel: Webhook Logs ─────────────────────────────────────────────────────
 function WebhookLogsPanel() {
   const { toast } = useToast();
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
-  const [detailLog, setDetailLog] = useState<any>(null);
+  const [detailLog, setDetailLog] = useState<WebhookLog | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const result = await searchWebhookLogs({ page, pageSize: 20, status: statusFilter || undefined });
       setLogs(result.items || []);
       setTotalPages(result.totalPages || 1);
       setTotalCount(result.totalCount || 0);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, statusFilter, toast]);
 
-  useEffect(() => { load(); }, [page, statusFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const handleRetry = async (id: string) => {
     setRetryingId(id);
@@ -275,8 +277,8 @@ function WebhookLogsPanel() {
       await retryWebhookLog(id);
       toast.success('Đã thử lại webhook.');
       await load();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setRetryingId(null);
     }

@@ -155,6 +155,10 @@ export default function Cart() {
   const shippingFee = 0
   const total = subtotal + shippingFee - automaticDiscountAmount
 
+  // Đơn từ 100 triệu chưa có giá thoả thuận PHẢI đi qua báo giá được duyệt (BR-026),
+  // không được đặt hàng trực tiếp bằng giá niêm yết.
+  const requiresQuotationFlow = subtotal >= 100000000 && !hasNegotiatedPrices
+
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-white">
@@ -320,7 +324,7 @@ export default function Cart() {
                   </div>
                 </div>
 
-                {subtotal >= 100000000 && !hasNegotiatedPrices && (
+                {requiresQuotationFlow && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -423,7 +427,7 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  {!(subtotal >= 100000000 && !hasNegotiatedPrices) && (
+                  {!requiresQuotationFlow && (
                     <Button
                       size="lg"
                       className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, CheckCircle, XCircle, Archive } from 'lucide-react';
@@ -64,12 +65,12 @@ export default function WarehouseQuarantine() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api('/api/warehouse-management/quarantine');
@@ -81,9 +82,9 @@ export default function WarehouseQuarantine() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const dispatch = async (id: string, action: 'available' | 'damaged', notes?: string) => {
     setDispatchLoading(id);
@@ -97,8 +98,8 @@ export default function WarehouseQuarantine() {
       showToast(data.message || 'Xét duyệt thành công!');
       setDetail(null);
       await fetchItems();
-    } catch (err: any) {
-      showToast(err.message || 'Có lỗi xảy ra.', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Có lỗi xảy ra.'), 'error');
     } finally {
       setDispatchLoading(null);
     }

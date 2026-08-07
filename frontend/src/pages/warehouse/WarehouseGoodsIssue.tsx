@@ -1,13 +1,14 @@
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, RefreshCw, Download, ArrowUpFromLine, CheckCircle, Package2, ShieldCheck, X } from 'lucide-react';
+import { Search, Eye, RefreshCw, Download, ArrowUpFromLine, CheckCircle, Package2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getWarehouseOrders, postGoodsIssueWarehouseOrder } from '../../services/warehouseService';
+import type { WarehouseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
-const WARNING = '#D97706';
 const ERROR   = '#DC2626';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';
@@ -45,16 +46,14 @@ export default function WarehouseGoodsIssue() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<GoodsIssue | null>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const result = await getWarehouseOrders('GoodsIssue');
-      const mapped = result.map((d: any) => ({
+      const result: WarehouseOrderListItem[] = await getWarehouseOrders('GoodsIssue');
+      const mapped: GoodsIssue[] = result.map((d) => ({
         id: 'GI-' + d.orderCode,
         fulfillmentId: d.orderCode,
         orderId: d.orderId,
@@ -70,8 +69,8 @@ export default function WarehouseGoodsIssue() {
         notes: ''
       }));
       setData(mapped);
-    } catch (e: any) {
-      alert('Không lấy được danh sách Phiếu Xuất: ' + e.message);
+    } catch (e: unknown) {
+      alert('Không lấy được danh sách Phiếu Xuất: ' + getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -88,8 +87,8 @@ export default function WarehouseGoodsIssue() {
       alert('Phát hành phiếu xuất và trừ tồn kho thành công!');
       setDetail(null);
       fetchOrders();
-    } catch (e: any) {
-      alert('Lỗi: ' + e.message);
+    } catch (e: unknown) {
+      alert('Lỗi: ' + getErrorMessage(e));
     }
   };
 

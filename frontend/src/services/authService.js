@@ -1,63 +1,54 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
 const API_BASE = '/api'  // Vite proxy → http://localhost:5112
 
-// Gộp các lần refresh chạy song song (nhiều request 401 cùng lúc) thành 1 lần gọi API.
-let refreshPromise = null;
-
-async function refreshAccessToken() {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') }),
-      });
-      if (!res.ok) throw new Error('Không thể làm mới phiên đăng nhập');
-      const json = await res.json();
-      localStorage.setItem('accessToken', json.data.accessToken);
-      localStorage.setItem('refreshToken', json.data.refreshToken);
-    })();
-  }
-  try {
-    await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
-}
-
-function clearSessionAndRedirectToLogin() {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('user');
-  window.location.href = '/login';
-}
-
-export async function fetchWithToken(method, url, body, _isRetry = false) {
+async function doFetchWithToken(method, url, body) {
   const accessToken = localStorage.getItem('accessToken');
   const headers = { 'Content-Type': 'application/json' };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${API_BASE}${url}`, {
+  return fetch(`${API_BASE}${url}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+}
+
+// Refresh token bằng RefreshToken lưu trong localStorage. Trả về true nếu accessToken mới
+// đã được lưu lại, false nếu refresh thất bại (RefreshToken thiếu hoặc hết hạn).
+async function tryRefreshAccessToken() {
+  const storedRefreshToken = localStorage.getItem('refreshToken');
+  if (!storedRefreshToken) return false;
+
+  try {
+    const res = await refreshToken({ refreshToken: storedRefreshToken });
+    const { accessToken, refreshToken: newRefreshToken } = res.data || {};
+    if (!accessToken) return false;
+
+    localStorage.setItem('accessToken', accessToken);
+    if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchWithToken(method, url, body) {
+  let res = await doFetchWithToken(method, url, body);
+
+  // Access token hết hạn -> silent refresh rồi thử lại request gốc đúng 1 lần.
+  if (res.status === 401 && (await tryRefreshAccessToken())) {
+    res = await doFetchWithToken(method, url, body);
+  }
 
   const text = await res.text();
   const json = text ? JSON.parse(text) : {};
 
   if (!res.ok) {
-    if (res.status === 401 && !_isRetry) {
-      try {
-        await refreshAccessToken();
-      } catch {
-        clearSessionAndRedirectToLogin();
-        throw new Error(json.message || `Lỗi ${res.status}`);
-      }
-      return fetchWithToken(method, url, body, true);
-    }
     if (res.status === 401) {
-      clearSessionAndRedirectToLogin();
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
     throw new Error(json.message || `Lỗi ${res.status}`);
   }

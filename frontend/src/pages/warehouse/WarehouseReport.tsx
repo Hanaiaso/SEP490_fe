@@ -1,275 +1,299 @@
-import { useState } from 'react';
-import { Button } from '../../components/sales-ui/button';
-import { Download, FileText } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { getErrorMessage } from '../../lib/errors';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FileBarChart, Download, AlertTriangle, Boxes, Warehouse as WarehouseIcon, Wallet } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
+import { Button } from '../../components/ui/Button';
+import { getWarehouses, getInventoryReport } from '../../services/warehouseService';
+import type { InventoryReport, Warehouse } from '../../types/warehouse';
 
-const PRIMARY = '#1F3B64';
+const PRIMARY = '#3b82f6';
 const SUCCESS = '#16A34A';
-const WARNING = '#F97316';
-const ERROR   = '#DC2626';
-const INFO    = '#2563EB';
+const ERROR = '#DC2626';
 const NEUTRAL = '#64748B';
 
-type Tab = 'current' | 'movement' | 'materials' | 'goods' | 'slow';
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'current',   label: 'Tồn kho hiện tại' },
-  { id: 'movement',  label: 'Nhập xuất tồn' },
-  { id: 'materials', label: 'Nguyên liệu SX' },
-  { id: 'goods',     label: 'Hàng thương mại' },
-  { id: 'slow',      label: 'Hàng chậm luân chuyển' },
+const PERIOD_OPTIONS = [
+  { key: '7', label: '7 ngày qua', days: 7 },
+  { key: '30', label: '30 ngày qua', days: 30 },
+  { key: '90', label: '90 ngày qua', days: 90 },
 ];
 
-const CURRENT_STOCK = [
-  { sku: 'NL-001', name: 'Jumbo (cuộn giấy lớn)',    type: 'material', unit: 'cuộn', stock: 840, minStock: 100, status: 'ok'       },
-  { sku: 'NL-002', name: 'Lõi giấy',                 type: 'material', unit: 'cuộn', stock: 180, minStock: 200, status: 'low'      },
-  { sku: 'NL-003', name: 'Màng co',                  type: 'material', unit: 'kg',   stock: 620, minStock: 50,  status: 'ok'       },
-  { sku: 'NL-004', name: 'Chỉ khâu công nghiệp',     type: 'material', unit: 'kg',   stock: 45,  minStock: 60,  status: 'low'      },
-  { sku: 'NL-005', name: 'Keo dán nhãn',             type: 'material', unit: 'lít',  stock: 12,  minStock: 30,  status: 'critical' },
-  { sku: 'VT-CT-001', name: 'Vải cotton khổ 1.5m',  type: 'goods',    unit: 'm',    stock: 850, minStock: 200, status: 'ok'       },
-  { sku: 'VT-SM-012', name: 'Sơ mi nam slim fit',    type: 'goods',    unit: 'cái',  stock: 240, minStock: 50,  status: 'ok'       },
-  { sku: 'VT-QT-007', name: 'Quần tây nam slim fit', type: 'goods',    unit: 'cái',  stock: 185, minStock: 50,  status: 'ok'       },
-  { sku: 'VT-LN-003', name: 'Vải linen nhập khẩu Ý',type: 'goods',    unit: 'm',    stock: 420, minStock: 100, status: 'ok'       },
-  { sku: 'VT-DP-021', name: 'Đồng phục VP nữ',       type: 'goods',    unit: 'bộ',   stock: 92,  minStock: 30,  status: 'ok'       },
-];
+const formatCurrency = (n: number) => `${new Intl.NumberFormat('vi-VN').format(n || 0)} đ`;
+const formatDateShort = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+const toDateInputValue = (d: Date) => d.toISOString().slice(0, 10);
 
-const STATUS_CFG: Record<string, { label: string; bg: string }> = {
-  ok:       { label: 'Bình thường', bg: SUCCESS },
-  low:      { label: 'Gần hết',     bg: WARNING },
-  critical: { label: 'Cần nhập',    bg: ERROR   },
-};
-
-const MOVEMENT_DATA = [
-  { date: '01/06', nhap: 580, xuat: 320, ton: 5200 },
-  { date: '02/06', nhap: 0,   xuat: 450, ton: 4750 },
-  { date: '03/06', nhap: 820, xuat: 280, ton: 5290 },
-  { date: '04/06', nhap: 0,   xuat: 620, ton: 4670 },
-  { date: '05/06', nhap: 300, xuat: 390, ton: 4580 },
-  { date: '06/06', nhap: 680, xuat: 170, ton: 5090 },
-];
-
-const MATERIAL_USAGE = [
-  { name: 'Jumbo',    ton_dau: 900, nhap: 200, xuat: 260, ton_cuoi: 840 },
-  { name: 'Lõi giấy',ton_dau: 230, nhap: 0,   xuat: 50,  ton_cuoi: 180 },
-  { name: 'Màng co',  ton_dau: 600, nhap: 120, xuat: 100, ton_cuoi: 620 },
-  { name: 'Chỉ khâu',ton_dau: 55,  nhap: 0,   xuat: 10,  ton_cuoi: 45  },
-  { name: 'Keo dán',  ton_dau: 20,  nhap: 20,  xuat: 28,  ton_cuoi: 12  },
-];
-
-const GOODS_MOVEMENT = [
-  { name: 'Vải cotton',     ton_dau: 600, nhap: 300, xuat: 50, ton_cuoi: 850 },
-  { name: 'Sơ mi nam',      ton_dau: 260, nhap: 30,  xuat: 50, ton_cuoi: 240 },
-  { name: 'Quần tây',       ton_dau: 125, nhap: 80,  xuat: 20, ton_cuoi: 185 },
-  { name: 'Vải linen',      ton_dau: 420, nhap: 0,  xuat: 200, ton_cuoi: 220 },
-  { name: 'Đồng phục nữ',   ton_dau: 92,  nhap: 20,  xuat: 20, ton_cuoi: 92  },
-];
-
-const SLOW_REPORT = [
-  { sku: 'VT-DP-020', name: 'Đồng phục VP nam',    stock: 78,  days: 8,  suggestion: 'Giảm giá' },
-  { sku: 'VT-AK-009', name: 'Áo khoác công sở nữ', stock: 45,  days: 9,  suggestion: 'Kiểm tra nhu cầu' },
-  { sku: 'VT-DM-005', name: 'Vải denim cao cấp',   stock: 310, days: 14, suggestion: 'Liên hệ khách hàng' },
-  { sku: 'VT-LN-003', name: 'Vải linen nhập khẩu', stock: 420, days: 21, suggestion: 'Chiến dịch marketing' },
-  { sku: 'VT-CT-002', name: 'Vải cotton khổ 1.8m', stock: 150, days: 59, suggestion: 'Cân nhắc thanh lý' },
-];
+function KpiCard({ label, value, sub, icon, color, onClick }: { label: string; value: string; sub: string; icon: React.ReactNode; color: string; onClick?: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between ${onClick ? 'cursor-pointer hover:border-blue-300 hover:shadow-md transition-all' : ''}`}
+    >
+      <div className="flex items-start justify-between">
+        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <span className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}18`, color }}>{icon}</span>
+      </div>
+      <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
+      <div className="mt-4 pt-4 border-t border-gray-100 text-xs" style={{ color }}>{sub}</div>
+    </div>
+  );
+}
 
 export default function WarehouseReport() {
-  const [tab, setTab] = useState<Tab>('current');
+  const navigate = useNavigate();
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [warehouseId, setWarehouseId] = useState('');
+  const [periodKey, setPeriodKey] = useState('30');
+  const [data, setData] = useState<InventoryReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getWarehouses().then((res: Warehouse[]) => setWarehouses(res || [])).catch(() => setWarehouses([]));
+  }, []);
+
+  const fetchReport = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const days = PERIOD_OPTIONS.find(p => p.key === periodKey)?.days || 30;
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - days);
+
+      const params: Record<string, string> = {
+        fromDate: toDateInputValue(from),
+        toDate: toDateInputValue(to),
+      };
+      if (warehouseId) params.warehouseId = warehouseId;
+
+      const res: InventoryReport = await getInventoryReport(params);
+      setData(res);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không thể tải báo cáo tồn kho.'));
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [warehouseId, periodKey]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  const handleExportCsv = () => {
+    if (!data) return;
+    const lines: string[] = [];
+    lines.push('BAO CAO TON KHO');
+    lines.push(`Kho,${warehouses.find(w => w.id === warehouseId)?.name || 'Tat ca kho'}`);
+    lines.push(`Tong gia tri ton kho,${data.totalInventoryValue}`);
+    lines.push(`Tong ma hang dang ton,${data.totalSkus}`);
+    lines.push(`Tong kho hoat dong,${data.totalWarehouses}`);
+    lines.push(`Canh bao ton thap,${data.lowStockCount}`);
+    lines.push('');
+    lines.push('Ton kho theo danh muc');
+    lines.push('Danh muc,So ma hang,Ton vat ly,Gia tri');
+    data.categoryBreakdown.forEach(c => {
+      lines.push(`${c.categoryName},${c.itemCount},${c.totalOnHand},${c.totalValue}`);
+    });
+    lines.push('');
+    lines.push('Xuat nhap kho theo ngay');
+    lines.push('Ngay,Nhap,Xuat');
+    data.stockMovement.forEach(p => {
+      lines.push(`${formatDateShort(p.date)},${p.totalIn},${p.totalOut}`);
+    });
+
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bao-cao-ton-kho-${toDateInputValue(new Date())}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const chartData = (data?.stockMovement || []).map(p => ({
+    day: formatDateShort(p.date),
+    nhap: p.totalIn,
+    xuat: p.totalOut,
+  }));
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-200 px-5 py-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Báo cáo kho hàng</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Cập nhật đến 06/06/2026</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><FileText className="w-3.5 h-3.5" /> Xuất PDF</Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Download className="w-3.5 h-3.5" /> Xuất Excel</Button>
-          </div>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <FileBarChart className="w-6 h-6 text-indigo-600" />
+            Báo Cáo Tồn Kho
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">Thống kê giá trị tồn kho, xuất nhập tồn trong kỳ</p>
         </div>
-        <div className="flex border-b border-gray-200 -mb-3">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              className="px-4 py-2 text-xs border-b-2 transition-colors mr-1"
-              style={tab === t.id
-                ? { borderColor: PRIMARY, color: PRIMARY }
-                : { borderColor: 'transparent', color: '#6B7280' }}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="flex gap-3">
+          <Button style={{ backgroundColor: PRIMARY }} className="text-xs gap-2" onClick={handleExportCsv} disabled={!data}>
+            <Download className="w-4 h-4" /> Xuất CSV
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-gray-50 p-4">
-        {tab === 'current' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                { label: 'Tổng mặt hàng', value: CURRENT_STOCK.length, color: PRIMARY },
-                { label: 'Bình thường',    value: CURRENT_STOCK.filter(r => r.status === 'ok').length, color: SUCCESS },
-                { label: 'Gần hết',        value: CURRENT_STOCK.filter(r => r.status === 'low').length, color: WARNING },
-                { label: 'Cần nhập gấp',   value: CURRENT_STOCK.filter(r => r.status === 'critical').length, color: ERROR },
-              ].map(c => (
-                <div key={c.label} className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center gap-3">
-                  <div className="w-1 self-stretch rounded-full" style={{ backgroundColor: c.color }} />
-                  <div>
-                    <div className="text-[11px] text-gray-500">{c.label}</div>
-                    <div className="text-xl font-bold" style={{ color: c.color }}>{c.value}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-4 py-3 text-gray-700 font-semibold">SKU</th>
-                    <th className="text-left px-4 py-3 text-gray-700 font-semibold">Tên hàng</th>
-                    <th className="text-center px-4 py-3 text-gray-700 font-semibold">Loại</th>
-                    <th className="text-center px-4 py-3 text-gray-700 font-semibold">ĐVT</th>
-                    <th className="text-right px-4 py-3 text-gray-700 font-semibold">Tồn kho</th>
-                    <th className="text-right px-4 py-3 text-gray-700 font-semibold">Tồn tối thiểu</th>
-                    <th className="text-center px-4 py-3 text-gray-700 font-semibold">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {CURRENT_STOCK.map((r, i) => {
-                    const cfg = STATUS_CFG[r.status];
-                    return (
-                      <tr key={r.sku} className="hover:bg-[#F9FAFB]" style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                        <td className="px-4 py-3 font-mono text-gray-500 text-[11px]">{r.sku}</td>
-                        <td className="px-4 py-3 font-semibold text-gray-800">{r.name}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-[10px] font-medium text-white px-2 py-0.5 whitespace-nowrap" style={{ backgroundColor: r.type === 'material' ? WARNING : INFO, borderRadius: 4 }}>
-                            {r.type === 'material' ? 'Nguyên liệu' : 'Hàng TM'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-500">{r.unit}</td>
-                        <td className="px-4 py-3 text-right font-bold tabular-nums" style={{ color: r.status === 'critical' ? ERROR : r.status === 'low' ? WARNING : '#374151' }}>
-                          {r.stock.toLocaleString('vi-VN')}
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-500 tabular-nums">{r.minStock.toLocaleString('vi-VN')}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-[10px] font-medium text-white px-2 py-0.5 whitespace-nowrap" style={{ backgroundColor: cfg.bg, borderRadius: 4 }}>
-                            {cfg.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-end flex-wrap">
+        <div className="w-full md:w-56 space-y-1.5">
+          <label className="text-xs font-medium text-gray-600">Kho hàng</label>
+          <select
+            className="h-9 text-xs border border-gray-200 rounded-md px-2.5 bg-white w-full"
+            value={warehouseId}
+            onChange={e => setWarehouseId(e.target.value)}
+          >
+            <option value="">Tất cả kho</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-600">Khoảng thời gian</label>
+          <div className="flex gap-2">
+            {PERIOD_OPTIONS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setPeriodKey(p.key)}
+                className={`h-9 px-3 text-xs rounded-md border transition-colors ${periodKey === p.key ? 'text-white border-transparent' : 'text-gray-600 border-gray-200 bg-white hover:bg-gray-50'}`}
+                style={periodKey === p.key ? { backgroundColor: PRIMARY } : {}}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      </div>
 
-        {tab === 'movement' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide mb-3">Biến động nhập xuất tồn 6 ngày gần nhất</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={MOVEMENT_DATA} barSize={20}>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="nhap" name="Nhập kho" fill={SUCCESS} />
-                  <Bar dataKey="xuat" name="Xuất kho" fill={WARNING} />
-                </BarChart>
-              </ResponsiveContainer>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-4 py-3">{error}</div>
+      )}
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard
+          label="Tổng Giá Trị Tồn Kho"
+          value={loading ? '...' : formatCurrency(data?.totalInventoryValue || 0)}
+          sub="Tính theo giá niêm yết sản phẩm"
+          icon={<Wallet className="w-4 h-4" />}
+          color={SUCCESS}
+        />
+        <KpiCard
+          label="Tổng Mã Hàng Đang Tồn"
+          value={loading ? '...' : (data?.totalSkus || 0).toLocaleString()}
+          sub="Số mã sản phẩm & vật liệu"
+          icon={<Boxes className="w-4 h-4" />}
+          color={PRIMARY}
+        />
+        <KpiCard
+          label="Tổng Kho Hoạt Động"
+          value={loading ? '...' : `${data?.totalWarehouses || 0} Kho`}
+          sub="Đang hoạt động trên hệ thống"
+          icon={<WarehouseIcon className="w-4 h-4" />}
+          color={NEUTRAL}
+        />
+        <KpiCard
+          label="Cảnh Báo Tồn Thấp"
+          value={loading ? '...' : (data?.lowStockCount || 0).toLocaleString()}
+          sub="Xem danh sách chi tiết →"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          color={ERROR}
+          onClick={() => navigate('/warehouse/inventory/low-stock')}
+        />
+      </div>
+
+      {/* Movement chart + category breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4">Xuất Nhập Kho Theo Ngày</h3>
+          {loading ? (
+            <div className="flex items-center justify-center h-64 text-gray-400 text-xs">Đang tải dữ liệu...</div>
+          ) : chartData.length === 0 ? (
+            <div className="flex items-center justify-center h-64 bg-slate-50 border border-dashed border-gray-200 rounded-lg text-gray-400 text-xs">
+              Không có biến động tồn kho trong khoảng thời gian này.
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Chi tiết theo ngày</p>
-              </div>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left px-4 py-2.5 text-gray-700 font-semibold">Ngày</th>
-                    <th className="text-right px-4 py-2.5 text-gray-700 font-semibold">Nhập kho</th>
-                    <th className="text-right px-4 py-2.5 text-gray-700 font-semibold">Xuất kho</th>
-                    <th className="text-right px-4 py-2.5 text-gray-700 font-semibold">Tồn cuối ngày</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {MOVEMENT_DATA.map((r, i) => (
-                    <tr key={r.date} className="hover:bg-[#F9FAFB]" style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                      <td className="px-4 py-3 font-medium text-gray-700">{r.date}/2026</td>
-                      <td className="px-4 py-3 text-right tabular-nums" style={{ color: SUCCESS }}>{r.nhap > 0 ? `+${r.nhap.toLocaleString()}` : '—'}</td>
-                      <td className="px-4 py-3 text-right tabular-nums" style={{ color: WARNING }}>-{r.xuat.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right font-bold tabular-nums text-gray-800">{r.ton.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #E5E7EB' }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="nhap" name="Nhập kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="xuat" name="Xuất kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm">Top Mặt Hàng Sắp Hết</h3>
           </div>
-        )}
-
-        {(tab === 'materials' || tab === 'goods') && (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-gray-700 font-semibold">Tên {tab === 'materials' ? 'nguyên liệu' : 'hàng hóa'}</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Tồn đầu kỳ</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Nhập trong kỳ</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Xuất trong kỳ</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Tồn cuối kỳ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {(tab === 'materials' ? MATERIAL_USAGE : GOODS_MOVEMENT).map((r, i) => (
-                  <tr key={r.name} className="hover:bg-[#F9FAFB]" style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                    <td className="px-4 py-3 font-semibold text-gray-800">{r.name}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{r.ton_dau.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium" style={{ color: r.nhap > 0 ? SUCCESS : '#9CA3AF' }}>
-                      {r.nhap > 0 ? `+${r.nhap.toLocaleString()}` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium" style={{ color: WARNING }}>
-                      -{r.xuat.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold" style={{ color: PRIMARY }}>{r.ton_cuoi.toLocaleString()}</td>
-                  </tr>
+          <div className="flex-1 overflow-auto">
+            {loading ? (
+              <div className="p-4 text-xs text-gray-400">Đang tải...</div>
+            ) : (data?.topLowStockItems?.length || 0) === 0 ? (
+              <div className="p-4 text-xs text-gray-400">Không có mặt hàng nào dưới ngưỡng an toàn.</div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {data!.topLowStockItems.map(item => (
+                  <li key={item.id} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800 truncate">{item.itemName}</p>
+                      <p className="text-gray-400">{item.itemSku || (item.itemType === 'Material' ? 'Nguyên vật liệu' : '')}</p>
+                    </div>
+                    <span className="font-bold text-red-600 flex-shrink-0 ml-2">{item.availableQuantity}</span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+            )}
           </div>
-        )}
+          <button
+            onClick={() => navigate('/warehouse/inventory/low-stock')}
+            className="px-4 py-2.5 text-xs text-blue-600 hover:underline border-t border-gray-100 text-left"
+          >
+            Xem tất cả cảnh báo tồn thấp →
+          </button>
+        </div>
+      </div>
 
-        {tab === 'slow' && (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-gray-700 font-semibold">SKU</th>
-                  <th className="text-left px-4 py-3 text-gray-700 font-semibold">Tên hàng</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Tồn kho</th>
-                  <th className="text-right px-4 py-3 text-gray-700 font-semibold">Số ngày không bán</th>
-                  <th className="text-left px-4 py-3 text-gray-700 font-semibold">Đề xuất</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {SLOW_REPORT.map((r, i) => {
-                  const urgency = r.days >= 30 ? ERROR : r.days >= 14 ? WARNING : NEUTRAL;
-                  return (
-                    <tr key={r.sku} className="hover:bg-[#F9FAFB]" style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                      <td className="px-4 py-3 font-mono text-gray-500 text-[11px]">{r.sku}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">{r.name}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold text-gray-700">{r.stock.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold" style={{ color: urgency }}>{r.days} ngày</td>
-                      <td className="px-4 py-3 text-gray-600">{r.suggestion}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Category breakdown */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900 text-sm">Tồn Kho Theo Danh Mục</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-gray-200">
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-700">Danh mục</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Số mã hàng</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Tồn vật lý</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Giá trị</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-xs text-gray-400">Đang tải dữ liệu...</td></tr>
+              ) : (data?.categoryBreakdown?.length || 0) === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-xs text-gray-400">Chưa có dữ liệu tồn kho.</td></tr>
+              ) : (
+                data!.categoryBreakdown.map(c => (
+                  <tr key={c.categoryName}>
+                    <td className="px-4 py-2.5 font-medium text-gray-800">{c.categoryName}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600">{c.itemCount.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600">{c.totalOnHand.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-gray-800">{formatCurrency(c.totalValue)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

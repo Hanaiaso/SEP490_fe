@@ -1,12 +1,14 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect } from 'react';
 import { getSuppliers, createSupplier, updateSupplier } from '../../services/supplierService.js';
 import { Plus, Edit, Search, Loader2 } from 'lucide-react';
+import type { Supplier } from '../../types/supplier';
 
 export default function CEOSupplierManagementPage() {
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [searchingMst, setSearchingMst] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -18,8 +20,8 @@ export default function CEOSupplierManagementPage() {
     try {
       const data = await getSuppliers();
       setSuppliers(data || []);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -29,10 +31,19 @@ export default function CEOSupplierManagementPage() {
     loadSuppliers();
   }, []);
 
-  const handleOpenModal = (supplier: any = null) => {
+  const handleOpenModal = (supplier: Supplier | null = null) => {
     if (supplier) {
       setEditingSupplier(supplier);
-      setFormData({ ...supplier });
+      setFormData({
+        name: supplier.name,
+        code: supplier.code,
+        contactPerson: supplier.contactPerson || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+        taxCode: supplier.taxCode || '',
+        isActive: supplier.isActive,
+      });
     } else {
       setEditingSupplier(null);
       const nextCode = `NCC-${String((suppliers.length || 0) + 1).padStart(3, '0')}`;
@@ -95,8 +106,8 @@ export default function CEOSupplierManagementPage() {
       }
       setIsModalOpen(false);
       loadSuppliers();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     }
   };
 

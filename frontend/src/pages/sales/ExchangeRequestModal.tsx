@@ -1,13 +1,33 @@
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState } from 'react';
 import { X, Search, Plus, Minus, Trash2, Upload, Loader2, Sparkles, RefreshCw, Calculator, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getProducts } from '../../services/productService';
+import type { SalesOrderDetail, SalesOrderItem } from '../../types/order';
+import type { CreateReturnExchangeRequest } from '../../types/exchange';
+import type { Product } from '../../types/catalog';
 
 const PRIMARY = '#1F3B64';
 
+interface ReturnLineItem extends SalesOrderItem {
+  returnQty: number;
+}
+
+// Dòng hàng đổi có thể đến từ 2 nguồn khác nhau (đổi cùng SKU từ returnItems, hoặc tìm sản
+// phẩm mới) nên các field giá là optional — UI đọc theo thứ tự ưu tiên standardListedPrice
+// (sản phẩm mới tìm) rồi priceSnapshot (đổi cùng SKU, lấy từ đơn hàng gốc).
+interface ExchangeLineItem {
+  productId: string;
+  name: string;
+  standardListedPrice?: number;
+  priceSnapshot?: number;
+  exchangeQty: number;
+  isDifferentSku: boolean;
+}
+
 interface ExchangeRequestModalProps {
-  order: any;
+  order: SalesOrderDetail;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: CreateReturnExchangeRequest) => void;
 }
 
 async function uploadEvidenceFile(file: File): Promise<string> {
@@ -20,7 +40,7 @@ async function uploadEvidenceFile(file: File): Promise<string> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Upload thất bại');
+    throw new Error(getErrorMessage(err, 'Upload thất bại'));
   }
   const data = await res.json();
   return data.url;
@@ -31,14 +51,14 @@ function formatVnd(val?: number) {
 }
 
 export default function ExchangeRequestModal({ order, onClose, onSubmit }: ExchangeRequestModalProps) {
-  const sourceItems = order?.items || order?.orderItems || [];
-  const [returnItems, setReturnItems] = useState(
-    sourceItems.map((item: any) => ({ ...item, returnQty: 0 }))
+  const sourceItems = order.items || [];
+  const [returnItems, setReturnItems] = useState<ReturnLineItem[]>(
+    sourceItems.map((item) => ({ ...item, returnQty: 0 }))
   );
-  
-  const [exchangeItems, setExchangeItems] = useState<any[]>([]);
+
+  const [exchangeItems, setExchangeItems] = useState<ExchangeLineItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
   const [reason, setReason] = useState('');
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
@@ -49,7 +69,7 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
     setSearching(true);
     try {
       const data = await getProducts({ page: 1, pageSize: 20, search: searchQuery });
-      setSearchResults(data.items || (data as any).data || []);
+      setSearchResults(data.items || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -65,25 +85,24 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
   } | null>(null);
 
   const handleQuickAddSameSku = () => {
-    const selectedReturns = returnItems.filter((i: any) => i.returnQty > 0);
+    const selectedReturns = returnItems.filter((i) => i.returnQty > 0);
     if (selectedReturns.length === 0) {
       alert('Vui lòng chọn số lượng hàng trả ở Bước 1 trước khi chọn nhanh!');
       return;
     }
 
     const doQuickAdd = () => {
-      const newExchanges = selectedReturns.map((ret: any) => ({
-        ...ret,
+      const newExchanges: ExchangeLineItem[] = selectedReturns.map((ret) => ({
         productId: ret.productId,
-        name: ret.productName || ret.name,
-        standardListedPrice: ret.priceSnapshot || ret.unitPrice || 0,
+        name: ret.productName,
+        priceSnapshot: ret.priceSnapshot,
         exchangeQty: ret.returnQty,
         isDifferentSku: false
       }));
       setExchangeItems(newExchanges);
     };
 
-    const hasDifferentSku = exchangeItems.some((e: any) => e.isDifferentSku);
+    const hasDifferentSku = exchangeItems.some((e) => e.isDifferentSku);
     if (hasDifferentSku) {
       setConfirmModalConfig({
         isOpen: true,
@@ -105,20 +124,20 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
       const uploadPromises = Array.from(files).map(file => uploadEvidenceFile(file));
       const urls = await Promise.all(uploadPromises);
       setEvidenceUrls(prev => [...prev, ...urls]);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải ảnh lên');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi khi tải ảnh lên'));
     } finally {
       setUploading(false);
       e.target.value = '';
     }
   };
 
-  const handleAddExchangeItem = (product: any) => {
+  const handleAddExchangeItem = (product: Product) => {
     const doAddItem = () => {
       setExchangeItems([{
-        ...product,
         productId: product.id,
         name: product.name,
+        standardListedPrice: product.standardListedPrice,
         exchangeQty: 1,
         isDifferentSku: true
       }]);
@@ -126,7 +145,7 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
       setSearchQuery('');
     };
 
-    const hasSameSku = exchangeItems.some((e: any) => !e.isDifferentSku);
+    const hasSameSku = exchangeItems.some((e) => !e.isDifferentSku);
     if (hasSameSku) {
       setConfirmModalConfig({
         isOpen: true,
@@ -136,10 +155,10 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
       });
     } else {
       if (exchangeItems.find((i) => i.productId === product.id)) return;
-      setExchangeItems([...exchangeItems, { 
-        ...product, 
-        productId: product.id, 
+      setExchangeItems([...exchangeItems, {
+        productId: product.id,
         name: product.name,
+        standardListedPrice: product.standardListedPrice,
         exchangeQty: 1,
         isDifferentSku: true
       }]);
@@ -159,20 +178,20 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
       return;
     }
 
-    const selectedReturns = returnItems.filter((i: any) => i.returnQty > 0);
+    const selectedReturns = returnItems.filter((i) => i.returnQty > 0);
     if (selectedReturns.length === 0) {
       alert('Vui lòng chọn ít nhất 1 sản phẩm để trả/đổi.');
       return;
     }
 
-    const payload = {
+    const payload: CreateReturnExchangeRequest = {
       reason,
       evidenceUrls: JSON.stringify(evidenceUrls),
-      returnItems: selectedReturns.map((i: any) => ({
+      returnItems: selectedReturns.map((i) => ({
         productId: i.productId,
         quantity: Number(i.returnQty)
       })),
-      exchangeItems: exchangeItems.map((i: any) => ({
+      exchangeItems: exchangeItems.map((i) => ({
         productId: i.productId,
         quantity: Number(i.exchangeQty)
       }))
@@ -182,8 +201,8 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
   };
 
   // Tính toán tài chính ước tính
-  const totalReturnVal = returnItems.reduce((acc: number, i: any) => acc + ((Number(i.returnQty) || 0) * (i.priceSnapshot || i.unitPrice || 0)), 0);
-  const totalExchangeVal = exchangeItems.reduce((acc: number, i: any) => acc + ((Number(i.exchangeQty) || 0) * (i.standardListedPrice || i.unitPrice || i.priceSnapshot || 0)), 0);
+  const totalReturnVal = returnItems.reduce((acc, i) => acc + ((Number(i.returnQty) || 0) * (i.priceSnapshot || 0)), 0);
+  const totalExchangeVal = exchangeItems.reduce((acc, i) => acc + ((Number(i.exchangeQty) || 0) * (i.standardListedPrice || i.priceSnapshot || 0)), 0);
   const diffVal = totalExchangeVal - totalReturnVal;
 
   return (
@@ -226,12 +245,12 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
             </div>
 
             <div className="space-y-2.5">
-              {returnItems.map((item: any, idx: number) => (
+              {returnItems.map((item, idx: number) => (
                 <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-slate-300 transition">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">{item.productName || item.name || 'Sản phẩm'}</p>
+                    <p className="text-sm font-semibold text-slate-800">{item.productName || 'Sản phẩm'}</p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Đã mua: <span className="font-semibold text-slate-700">{item.quantity}</span> | Đơn giá: <span className="font-semibold text-slate-700">{(item.priceSnapshot || item.unitPrice || 0).toLocaleString()} đ</span>
+                      Đã mua: <span className="font-semibold text-slate-700">{item.quantity}</span> | Đơn giá: <span className="font-semibold text-slate-700">{(item.priceSnapshot || 0).toLocaleString()} đ</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -340,11 +359,11 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
               {/* Kết quả tìm kiếm Dropdown */}
               {searchResults.length > 0 && (
                 <div className="relative z-20 mt-2 max-h-60 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white shadow-xl">
-                  {searchResults.map((p: any) => (
+                  {searchResults.map((p) => (
                     <div key={p.id} className="flex items-center justify-between p-3 transition hover:bg-slate-50">
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{p.name}</p>
-                        <p className="text-xs text-slate-500">Mã SKU: <span className="font-medium text-slate-700">{p.sku || p.code || 'N/A'}</span> | Giá niêm yết: <span className="font-semibold text-slate-900">{formatVnd(p.standardListedPrice || p.unitPrice)}</span></p>
+                        <p className="text-xs text-slate-500">Mã SKU: <span className="font-medium text-slate-700">{p.sku || 'N/A'}</span> | Giá niêm yết: <span className="font-semibold text-slate-900">{formatVnd(p.standardListedPrice)}</span></p>
                       </div>
                       <button
                         type="button"
@@ -365,18 +384,18 @@ export default function ExchangeRequestModal({ order, onClose, onSubmit }: Excha
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Sản phẩm đổi đã chọn ({exchangeItems.length}):</p>
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                    exchangeItems.some((e: any) => e.isDifferentSku)
+                    exchangeItems.some((e) => e.isDifferentSku)
                       ? 'bg-purple-100 text-purple-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {exchangeItems.some((e: any) => e.isDifferentSku) ? 'Chế độ: Đổi khác SKU' : 'Chế độ: Đổi cùng SKU'}
+                    {exchangeItems.some((e) => e.isDifferentSku) ? 'Chế độ: Đổi khác SKU' : 'Chế độ: Đổi cùng SKU'}
                   </span>
                 </div>
-                {exchangeItems.map((item: any, idx: number) => (
+                {exchangeItems.map((item, idx: number) => (
                   <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">Đơn giá đổi: <span className="font-semibold text-slate-700">{formatVnd(item.standardListedPrice || item.unitPrice || item.priceSnapshot)}</span></p>
+                      <p className="mt-0.5 text-xs text-slate-500">Đơn giá đổi: <span className="font-semibold text-slate-700">{formatVnd(item.standardListedPrice || item.priceSnapshot)}</span></p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">

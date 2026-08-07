@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 /**
  * SalesSePayExceptionPage.tsx
  * MGR-05 — Xử lý ngoại lệ thanh toán SePay
@@ -137,8 +138,8 @@ function ManualConfirmModal({
       });
       onSuccess(result?.message ?? 'Xác nhận thanh toán thủ công thành công.');
       onClose();
-    } catch (err: any) {
-      setError(err.message ?? 'Đã xảy ra lỗi. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) ?? 'Đã xảy ra lỗi. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -301,8 +302,8 @@ export default function SalesSePayExceptionPage() {
     try {
       const data = await getSePayExceptions();
       setItems(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message ?? 'Không thể tải danh sách ngoại lệ.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) ?? 'Không thể tải danh sách ngoại lệ.');
     } finally {
       setLoading(false);
     }
@@ -322,8 +323,8 @@ export default function SalesSePayExceptionPage() {
       const result = await retryAllocation(item.orderId, 'Retry thủ công từ màn hình MGR-05');
       showSuccess(result?.message ?? 'Đã thử phân bổ lại.');
       fetchExceptions();
-    } catch (err: any) {
-      alert(err.message ?? 'Lỗi khi retry allocation.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err) ?? 'Lỗi khi retry allocation.');
     } finally {
       setRetryingId(null);
     }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, Search, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Settings, ChevronDown } from 'lucide-react';
 import WarehouseReceiptFormModal from './WarehouseReceiptFormModal';
 
 // Mock Data
@@ -42,7 +42,22 @@ const MOCK_RECEIPTS = [
   }
 ];
 
-const MOCK_DETAILS: Record<string, any[]> = {
+interface MockReceiptDetail {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  warehouse: string;
+  account: string;
+  debitAccount: string;
+  unit: string;
+  quantity: number;
+  price: number;
+  total: number;
+  fee: number;
+  vat: number;
+}
+
+const MOCK_DETAILS: Record<string, MockReceiptDetail[]> = {
   '1': [
     { id: 1, itemCode: 'AN3-X1', itemName: 'Rơ le AN3-X1', warehouse: '156', account: '1561', debitAccount: '3312', unit: 'Chiếc', quantity: 350, price: 235000, total: 82250000, fee: 0, vat: 10 }
   ],

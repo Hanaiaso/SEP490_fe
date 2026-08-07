@@ -1,38 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '../../components/sales-ui/input';
 import { Button } from '../../components/sales-ui/button';
-import { Search, Download, RefreshCw, ArrowUpFromLine, ArrowDownToLine, Layers, Eye, FileText, CheckCircle, RotateCcw, Calendar, User, Building } from 'lucide-react';
+import { Search, Download, RefreshCw, ArrowUpFromLine, ArrowDownToLine, Layers, Eye, FileText, CheckCircle, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getGoodsIssues } from '../../services/warehouseService';
+import type { GoodsIssue } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
-const SUCCESS = '#16A34A';
-const WARNING = '#F97316';
-const ERROR   = '#DC2626';
-const INFO    = '#2563EB';
+
+interface HistoryLine {
+  sku: string;
+  materialName: string;
+  unit: string;
+  quantity: number;
+  note?: string;
+}
+
+interface HistoryItem {
+  id: string;
+  realId: string;
+  // 'receive' được UI hỗ trợ (bộ lọc + badge) nhưng fetchHistory hiện chỉ gọi getGoodsIssues
+  // (phiếu XUẤT), chưa có nguồn dữ liệu nhập kho NVL nào gắn vào type này.
+  type: 'issue' | 'reversal' | 'receive';
+  warehouse: string;
+  department: string;
+  recipient: string;
+  paperDoc: string;
+  user: string;
+  createdAt: string;
+  issueDate: string;
+  status: string;
+  imageProofUrl?: string;
+  usagePurpose: string;
+  itemsCount: number;
+  totalQty: number;
+  lines: HistoryLine[];
+}
 
 export default function WarehouseMaterialHistory() {
   const [loading, setLoading] = useState(false);
-  const [historyItems, setHistoryItems] = useState<any[]>([]);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // all, receive, issue, reversal
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<HistoryItem | null>(null);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const res: any = await getGoodsIssues('ProductionMaterial');
-      
-      const mapped = (res || []).map((gi: any) => {
+      const res: GoodsIssue[] = await getGoodsIssues('ProductionMaterial');
+
+      const mapped: HistoryItem[] = (res || []).map((gi) => {
         const isReversal = gi.isReversal || gi.status?.toLowerCase() === 'reversed';
         const typeStr = isReversal ? 'reversal' : 'issue';
-        
+
         return {
           id: gi.code || gi.id,
           realId: gi.id,
-          type: typeStr, // issue, receive, reversal
+          type: typeStr,
           warehouse: gi.warehouseName || 'Kho chính',
           department: gi.department || gi.note?.replace('Xuất cho: ', '') || 'Xưởng sản xuất',
           recipient: gi.externalRecipientName || gi.issuedByName || 'Chưa ghi nhận',
@@ -44,8 +68,8 @@ export default function WarehouseMaterialHistory() {
           imageProofUrl: gi.imageProofUrl,
           usagePurpose: gi.usagePurpose || 'Phục vụ sản xuất',
           itemsCount: (gi.items || []).length,
-          totalQty: (gi.items || []).reduce((acc: number, curr: any) => acc + (curr.quantity || 0), 0),
-          lines: (gi.items || []).map((i: any) => ({
+          totalQty: (gi.items || []).reduce((acc, curr) => acc + (curr.quantity || 0), 0),
+          lines: (gi.items || []).map((i) => ({
             sku: i.itemSku || '-',
             materialName: i.itemName || 'Nguyên vật liệu',
             unit: i.unit || 'Cái',
@@ -56,9 +80,9 @@ export default function WarehouseMaterialHistory() {
       });
 
       setHistoryItems(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Lỗi khi tải lịch sử xuất nhập NVL:', err);
-    } fontinally: {
+    } finally {
       setLoading(false);
     }
   };
@@ -74,7 +98,7 @@ export default function WarehouseMaterialHistory() {
       item.department.toLowerCase().includes(q) ||
       item.recipient.toLowerCase().includes(q) ||
       item.paperDoc.toLowerCase().includes(q) ||
-      item.lines.some((l: any) => l.materialName.toLowerCase().includes(q) || l.sku.toLowerCase().includes(q));
+      item.lines.some((l) => l.materialName.toLowerCase().includes(q) || l.sku.toLowerCase().includes(q));
 
     const matchType = typeFilter === 'all' || item.type === typeFilter;
     return matchSearch && matchType;
@@ -297,7 +321,7 @@ export default function WarehouseMaterialHistory() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {selectedDetail.lines.map((line: any, idx: number) => (
+                    {selectedDetail.lines.map((line, idx: number) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-3 py-2 font-mono text-gray-500">{line.sku}</td>
                         <td className="px-3 py-2 font-medium text-gray-900">{line.materialName}</td>

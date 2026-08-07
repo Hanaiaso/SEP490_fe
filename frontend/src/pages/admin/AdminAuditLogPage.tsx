@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { Search, Download, Eye } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { searchAuditLogs, exportAuditLogsCsv } from '../../services/adminAuditLogService.js';
+import type { AuditLog } from '../../types/admin';
 
 function formatDate(iso: string) {
   if (!iso) return '-';
   return new Date(iso).toLocaleString('vi-VN');
 }
 
-function prettyJson(raw: string | null) {
+function prettyJson(raw: string | null | undefined) {
   if (!raw) return '(không có)';
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
@@ -17,7 +19,7 @@ function prettyJson(raw: string | null) {
   }
 }
 
-function DetailModal({ log, onClose }: { log: any; onClose: () => void }) {
+function DetailModal({ log, onClose }: { log: AuditLog; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-6 w-[720px] max-h-[80vh] overflow-y-auto flex flex-col gap-4 shadow-xl">
@@ -50,41 +52,41 @@ function DetailModal({ log, onClose }: { log: any; onClose: () => void }) {
 
 export default function AdminAuditLogPage() {
   const { toast } = useToast();
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [detailTarget, setDetailTarget] = useState<any>(null);
+  const [detailTarget, setDetailTarget] = useState<AuditLog | null>(null);
 
   const [filters, setFilters] = useState({ entityName: '', action: '', searchQuery: '', fromDate: '', toDate: '' });
   const [searchInput, setSearchInput] = useState('');
 
-  const currentQuery = () => ({
+  const currentQuery = useCallback(() => ({
     page, pageSize: 20,
     entityName: filters.entityName || undefined,
     action: filters.action || undefined,
     searchQuery: filters.searchQuery || undefined,
     fromDate: filters.fromDate ? new Date(filters.fromDate).toISOString() : undefined,
     toDate: filters.toDate ? new Date(filters.toDate).toISOString() : undefined,
-  });
+  }), [page, filters]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const result = await searchAuditLogs(currentQuery());
       setLogs(result.items || []);
       setTotalPages(result.totalPages || 1);
       setTotalCount(result.totalCount || 0);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentQuery, toast]);
 
-  useEffect(() => { load(); }, [page, filters]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +98,8 @@ export default function AdminAuditLogPage() {
     setExporting(true);
     try {
       await exportAuditLogsCsv(currentQuery());
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setExporting(false);
     }

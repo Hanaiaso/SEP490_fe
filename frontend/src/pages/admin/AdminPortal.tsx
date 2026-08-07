@@ -152,7 +152,7 @@ function ComingSoon({ label }: { label: string }) {
 
 // ─── Admin Portal ─────────────────────────────────────────────────────────────
 export default function AdminPortal() {
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -160,7 +160,7 @@ export default function AdminPortal() {
     navigate('/login');
   };
 
-  const userName = (user as any)?.fullName || (user as any)?.email || 'Admin';
+  const userName = user?.fullName || user?.email || 'Admin';
   const initials = userName.split(' ').slice(-2).map((n: string) => n[0]).join('').toUpperCase() || 'AD';
 
   const stubItems = NAV_GROUPS.flatMap(g => g.items).filter(item => !WIRED_IDS.has(item.id));

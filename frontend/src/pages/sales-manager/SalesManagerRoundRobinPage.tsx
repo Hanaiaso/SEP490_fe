@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Shuffle,
@@ -24,7 +25,7 @@ const ERROR = '#DC2626';
 const NEUTRAL = '#64748B';
 
 const SOURCE_LABELS: Record<string, { label: string; bg: string }> = {
-  ROUND_ROBIN: { label: 'Round-robin', bg: INFO },
+  ROUND_ROBIN: { label: 'Phân bổ khách hàng', bg: INFO },
   REFERRAL: { label: 'Giới thiệu', bg: SUCCESS },
   RETURNING_CUSTOMER: { label: 'Khách cũ', bg: WARNING },
   MANUAL_REASSIGNMENT: { label: 'Gán tay', bg: '#8B5CF6' },
@@ -119,8 +120,8 @@ export default function SalesRoundRobinPage() {
       setError('');
       const data = await getRoundRobinState();
       setState(data);
-    } catch (err: any) {
-      setError(err.message || 'Không tải được trạng thái round-robin.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không tải được trạng thái phân bổ khách hàng.'));
     } finally {
       setLoading(false);
     }
@@ -135,8 +136,8 @@ export default function SalesRoundRobinPage() {
       setUpdating(true);
       const data = await updateRoundRobin(payload);
       setState(data);
-    } catch (err: any) {
-      alert(err.message || 'Cập nhật thất bại.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Cập nhật thất bại.'));
     } finally {
       setUpdating(false);
     }
@@ -157,15 +158,15 @@ export default function SalesRoundRobinPage() {
 
   const handleAssign = async () => {
     if (!state) return;
-    if (!window.confirm(`Gán ${state.unassignedCustomerCount} khách chưa có Sale phụ trách theo round-robin?`)) return;
+    if (!window.confirm(`Gán ${state.unassignedCustomerCount} khách chưa có Sale phụ trách theo phân bổ khách hàng?`)) return;
     try {
       setAssigning(true);
       setAssignResult(null);
       const result = await runRoundRobinAssign();
       setAssignResult(result);
       await fetchState();
-    } catch (err: any) {
-      alert(err.message || 'Gán khách thất bại.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Gán khách thất bại.'));
     } finally {
       setAssigning(false);
     }
@@ -191,7 +192,7 @@ export default function SalesRoundRobinPage() {
         <div>
           <h1 className="flex items-center gap-2 text-[18px] font-bold text-[#374151]">
             <Shuffle className="h-5 w-5" style={{ color: PRIMARY }} />
-            Quản lý Round-robin
+            Phân bổ khách hàng
           </h1>
           <p className="mt-0.5 text-[12px] text-gray-500">
             Phân bổ khách hàng tự động cho đội Sale theo vòng tròn · Cập nhật lần cuối: {formatDateTime(state.updatedAt)}
@@ -218,7 +219,7 @@ export default function SalesRoundRobinPage() {
 
       {state.isPaused && (
         <div className="mb-4 rounded border border-orange-200 bg-orange-50 px-4 py-2.5 text-[12px] font-semibold text-orange-700">
-          Round-robin đang TẠM DỪNG — khách hàng mới đăng ký sẽ không được gán Sale tự động.
+          Phân bổ khách hàng đang TẠM DỪNG — khách hàng mới đăng ký sẽ không được gán Sale tự động.
         </div>
       )}
 
@@ -251,7 +252,7 @@ export default function SalesRoundRobinPage() {
       <div className="mb-5 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <h2 className="flex items-center gap-2 text-[14px] font-bold text-[#374151]">
-            <Users className="h-4 w-4" style={{ color: PRIMARY }} /> Đội Sale tham gia round-robin
+            <Users className="h-4 w-4" style={{ color: PRIMARY }} /> Đội Sale tham gia phân bổ khách hàng
           </h2>
           <button
             onClick={handleAssign}

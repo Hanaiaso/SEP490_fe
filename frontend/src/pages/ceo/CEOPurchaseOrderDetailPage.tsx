@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   getPurchaseOrderById, 
   issuePurchaseOrder, 
@@ -10,18 +11,26 @@ import {
 } from '../../services/purchaseOrderService.js';
 import { ArrowLeft } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import type { PurchaseOrder, GoodsReceipt, DiscrepancyResolutionRequest } from '../../types/warehouse';
 
-export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
-  const [po, setPo] = useState<any>(null);
-  const [receipts, setReceipts] = useState<any[]>([]);
+type PoActionFn = (id: string) => Promise<unknown>;
+
+interface CEOPurchaseOrderDetailPageProps {
+  poId: string | null;
+  onBack: () => void;
+}
+
+export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchaseOrderDetailPageProps) {
+  const [po, setPo] = useState<PurchaseOrder | null>(null);
+  const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Discrepancy Modal
   const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
-  const [resData, setResData] = useState({ resolutionType: 'AcceptExcess', reason: '' });
-  const [confirmConfig, setConfirmConfig] = useState<{ fn: any, msg: string } | null>(null);
+  const [resData, setResData] = useState<{ resolutionType: DiscrepancyResolutionRequest['resolutionType']; reason: string }>({ resolutionType: 'AcceptExcess', reason: '' });
+  const [confirmConfig, setConfirmConfig] = useState<{ fn: PoActionFn, msg: string } | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getPurchaseOrderById(poId);
@@ -30,18 +39,18 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
         const rc = await getGoodsReceipts(poId);
         setReceipts(rc);
       }
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [poId]);
 
   useEffect(() => {
     if (poId) loadData();
-  }, [poId]);
+  }, [poId, loadData]);
 
-  const handleAction = async (actionFn: any, confirmMsg?: string) => {
+  const handleAction = async (actionFn: PoActionFn, confirmMsg?: string) => {
     if (confirmMsg) {
       setConfirmConfig({ fn: actionFn, msg: confirmMsg });
       return;
@@ -49,12 +58,13 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
     await executeAction(actionFn);
   };
 
-  const executeAction = async (actionFn: any) => {
+  const executeAction = async (actionFn: PoActionFn) => {
+    if (!poId) return;
     try {
       await actionFn(poId);
       loadData();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     }
   };
 
@@ -67,15 +77,15 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
 
   const handleResolve = async () => {
     try {
-      const payload = {
-        decision: resData.resolutionType,
-        notes: resData.reason
+      const payload: DiscrepancyResolutionRequest = {
+        resolutionType: resData.resolutionType,
+        reason: resData.reason
       };
       await resolveDiscrepancy(poId, payload);
       setShowDiscrepancyModal(false);
       loadData();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     }
   };
 
@@ -165,10 +175,10 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
           </thead>
           <tbody>
             {po.items && po.items.length > 0 ? (
-              po.items.map((i: any) => (
-                <tr key={i.id || i.productSku || i.itemSku} className="border-b hover:bg-gray-50/50">
-                  <td className="p-2 font-mono text-gray-600">{i.itemSku || i.productSku || '-'}</td>
-                  <td className="p-2 font-medium text-gray-800">{i.itemName || i.productName || 'Sản phẩm'}</td>
+              po.items.map((i) => (
+                <tr key={i.id} className="border-b hover:bg-gray-50/50">
+                  <td className="p-2 font-mono text-gray-600">{i.itemSku || '-'}</td>
+                  <td className="p-2 font-medium text-gray-800">{i.itemName || 'Sản phẩm'}</td>
                   <td className="p-2 text-right font-mono">{(i.unitPrice ?? 0).toLocaleString('vi-VN')} đ</td>
                   <td className="p-2 text-right font-medium">{i.expectedQuantity ?? 0} {i.unit || 'Cái'}</td>
                   <td className="p-2 text-right text-green-700 font-bold">{i.receivedQuantity ?? 0}</td>
@@ -206,9 +216,9 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {r.items.map((ri: any) => (
+                    {r.items.map((ri) => (
                       <tr key={ri.id} className="border-t">
-                        <td className="p-1">{ri.productName}</td>
+                        <td className="p-1">{ri.itemName}</td>
                         <td className="p-1 text-right font-bold text-green-600">{ri.acceptedQuantity}</td>
                         <td className="p-1 text-right text-red-500">{ri.damagedQuantity}</td>
                         <td className="p-1 text-right text-orange-500">{ri.excessQuantity}</td>
@@ -229,7 +239,7 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: any) {
           <div className="bg-white rounded p-6 w-[400px]">
             <h2 className="text-lg font-bold mb-4">CEO xử lý chênh lệch</h2>
             <div className="flex flex-col gap-3">
-              <select className="border p-2 rounded text-sm" value={resData.resolutionType} onChange={e => setResData({...resData, resolutionType: e.target.value})}>
+              <select className="border p-2 rounded text-sm" value={resData.resolutionType} onChange={e => setResData({...resData, resolutionType: e.target.value as DiscrepancyResolutionRequest['resolutionType']})}>
                 <option value="AcceptExcess">Chấp nhận hàng thừa</option>
                 <option value="ReturnExcess">Yêu cầu trả hàng thừa/hỏng</option>
                 <option value="RequestSupplemental">Yêu cầu giao bổ sung</option>

@@ -10,12 +10,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign,
-  Package, Users, LogOut, Bell, Building, Layers
+  Package, Users, LogOut, Building, Layers
 } from 'lucide-react';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
-import { Routes, Route } from 'react-router-dom';
 
 // ─── Sidebar primitives (Same as Admin) ───────────────────────────────────────
 function SidebarHeader() {
@@ -114,7 +113,7 @@ export default function CEOPortal() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectPOId, setSelectPOId] = useState<string | null>(null);
   const [selectNegotiationId, setSelectNegotiationId] = useState<string | null>(null);
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -122,7 +121,7 @@ export default function CEOPortal() {
     navigate('/login');
   };
 
-  const userName = (user as any)?.fullName || (user as any)?.email || 'CEO';
+  const userName = user?.fullName || user?.email || 'CEO';
   const initials = userName.split(' ').slice(-2).map((n: string) => n[0]).join('').toUpperCase() || 'CEO';
 
   const renderContent = () => {

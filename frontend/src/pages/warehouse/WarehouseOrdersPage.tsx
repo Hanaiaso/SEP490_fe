@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
 import { getWarehouseOrders } from '../../services/warehouseService';
 import { PackageSearch, Clock, ChevronRight } from 'lucide-react';
+import type { WarehouseOrderListItem } from '../../types/warehouse';
 
 const TABS = [
   { id: 'OnlinePending', label: 'Đơn hàng trực tuyến' },
@@ -12,27 +14,27 @@ const TABS = [
 
 export default function WarehouseOrdersPage() {
   const [activeTab, setActiveTab] = useState('OnlinePending');
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<WarehouseOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
       const data = await getWarehouseOrders(activeTab, 1, 50);
       setOrders(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi tải danh sách đơn hàng');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Lỗi tải danh sách đơn hàng'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
     fetchOrders();
-  }, [activeTab]);
+  }, [fetchOrders]);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -59,7 +61,7 @@ export default function WarehouseOrdersPage() {
     return () => {
       connection.stop();
     };
-  }, [activeTab]);
+  }, [activeTab, fetchOrders]);
 
   return (
     <div className="p-6">

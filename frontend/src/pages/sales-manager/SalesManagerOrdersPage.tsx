@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FileText,
   Search,
@@ -7,6 +7,7 @@ import {
   Filter,
   RefreshCw,
   ShoppingCart,
+  RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { exportInvoiceToPdf } from '../../utils/exportPdf';
@@ -57,6 +58,8 @@ type SalesOrder = {
   paymentStatus: string;
   orderStatus: string;
   invoicePdfUrl?: string | null;
+  hasReturnRequest?: boolean;
+  returnRequestStatus?: string;
 };
 
 type SalesDashboardPayload = {
@@ -91,6 +94,29 @@ function PaymentBadge({ method }: { method: string }) {
       style={{ backgroundColor: bg, borderRadius: 4, lineHeight: '22px', height: 22 }}
     >
       {method}
+    </span>
+  );
+}
+
+function ReturnRequestBadge({ status }: { status?: string }) {
+  let label = 'Đổi trả';
+  let badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200/80';
+  
+  if (status === 'Approved') {
+    label = 'Đổi trả (Đã duyệt)';
+    badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+  } else if (status === 'Pending') {
+    label = 'Đổi trả (Chờ duyệt)';
+    badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200/80';
+  } else if (status === 'Rejected') {
+    label = 'Đổi trả (Từ chối)';
+    badgeStyle = 'bg-slate-50 text-slate-600 border-slate-200/80';
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${badgeStyle}`}>
+      <RotateCcw className="h-2.5 w-2.5 flex-shrink-0" />
+      <span>{label}</span>
     </span>
   );
 }
@@ -172,14 +198,14 @@ export default function SalesManagerOrdersPage() {
         const data = await response.json();
         alert(data.message || 'Lỗi khi hủy đơn hàng');
       }
-    } catch (err) {
+    } catch {
       alert('Đã xảy ra lỗi khi kết nối với máy chủ');
     } finally {
       setCancelModalOrder(null);
     }
   };
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     try {
       const response = await fetch('/api/orders/sales-dashboard', {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
@@ -191,9 +217,9 @@ export default function SalesManagerOrdersPage() {
     } catch (err) {
       console.error('Failed to load dashboard stats', err);
     }
-  };
+  }, []);
 
-  const fetchOrdersList = async () => {
+  const fetchOrdersList = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -226,7 +252,7 @@ export default function SalesManagerOrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchQuery, statusFilter, paymentFilter]);
 
   const handleConfirmOrder = (orderId: string) => {
     setOrderToConfirm(orderId);
@@ -279,14 +305,14 @@ export default function SalesManagerOrdersPage() {
 
   useEffect(() => {
     fetchDashboard();
-  }, []);
+  }, [fetchDashboard]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchOrdersList();
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchQuery, statusFilter, paymentFilter, page]);
+  }, [fetchOrdersList]);
 
   return (
     <div className="flex h-full flex-col bg-[#F5F7FA]">
@@ -440,11 +466,14 @@ export default function SalesManagerOrdersPage() {
                       }}
                     >
                       <td 
-                        className="px-4 py-3 font-bold cursor-pointer hover:text-blue-700 underline" 
+                        className="px-4 py-3 font-bold cursor-pointer" 
                         style={{ color: PRIMARY }}
                         onClick={() => navigate(`/sales-manager/orders/${order.id}`)}
                       >
-                        {order.orderCode}
+                        <div className="flex items-center gap-2">
+                          <span className="hover:underline">{order.orderCode}</span>
+                          {order.hasReturnRequest && <ReturnRequestBadge status={order.returnRequestStatus} />}
+                        </div>
                       </td>
                       <td className="max-w-[240px] truncate px-4 py-3 text-[#374151]">
                         {order.customerName}

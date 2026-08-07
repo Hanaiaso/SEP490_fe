@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../test/msw/server.js'
 import { AuthProvider } from '../../context/AuthContext.jsx'
 import { CartProvider } from '../../context/CartContext.jsx'
-import { server } from '../../test/msw/server.js'
 import Profile from '../Profile.jsx'
 
 vi.mock('../../services/authService.js', () => ({
@@ -70,48 +70,47 @@ describe('Profile', () => {
   })
 
   it('filters order history by search keyword', async () => {
-    const ORDERS = [
-      { id: 'O1', orderCode: 'VT-2024-10039', orderStatus: 'Delivered', paymentStatus: 'Paid', createdAt: '2024-10-01T00:00:00Z', itemCount: 1, finalPayment: 500_000, paymentMethod: 'SePay' },
-      { id: 'O2', orderCode: 'VT-2024-10042', orderStatus: 'Delivered', paymentStatus: 'Paid', createdAt: '2024-10-02T00:00:00Z', itemCount: 1, finalPayment: 300_000, paymentMethod: 'COD' },
-    ]
-
+    // BR-OH-07: backend chỉ hỗ trợ tìm theo Mã đơn hàng (OrderRepository.GetOrderHistoryAsync),
+    // không tìm theo tên sản phẩm — mock lại đúng hành vi lọc phía server.
     server.use(
       http.get('/api/orders/my-history', ({ request }) => {
-        const search = new URL(request.url).searchParams.get('search') || ''
+        const search = (new URL(request.url).searchParams.get('search') || '')
+          .toUpperCase().replace(/-/g, '')
+        const allOrders = [
+          { id: 'O1', orderCode: 'VT-2024-10039', createdAt: '2026-01-01', itemCount: 2, finalPayment: 500000, paymentMethod: 'COD', paymentStatus: 'Paid', orderStatus: 'Delivered' },
+          { id: 'O2', orderCode: 'VT-2024-10042', createdAt: '2026-01-02', itemCount: 1, finalPayment: 300000, paymentMethod: 'COD', paymentStatus: 'Paid', orderStatus: 'Delivered' },
+        ]
         const items = search
-          ? ORDERS.filter((o) => o.orderCode.toLowerCase().includes(search.toLowerCase()))
-          : ORDERS
-        return HttpResponse.json({ items, totalCount: items.length, page: 1, pageSize: 10, totalPages: 1 })
+          ? allOrders.filter((o) => o.orderCode.toUpperCase().replace(/-/g, '').includes(search))
+          : allOrders
+        return HttpResponse.json({ items, totalPages: 1, totalCount: items.length })
       }),
     )
 
     renderProfile('/profile?tab=orders')
-
-    expect((await screen.findAllByText('VT-2024-10039')).length).toBeGreaterThan(0)
-    expect(screen.getAllByText('VT-2024-10042').length).toBeGreaterThan(0)
+    // Desktop table + mobile card cùng render trong DOM (ẩn/hiện bằng CSS responsive,
+    // jsdom không lọc theo đó) -> mỗi mã đơn xuất hiện 2 lần, phải dùng findAllByText.
+    await screen.findAllByText('VT-2024-10042')
 
     fireEvent.change(screen.getByPlaceholderText(/Tìm theo mã đơn hàng/i), {
       target: { value: 'VT-2024-10039' },
     })
 
-    await waitFor(() => {
-      expect(screen.getAllByText('VT-2024-10039').length).toBeGreaterThan(0)
-      expect(screen.queryByText('VT-2024-10042')).not.toBeInTheDocument()
-    })
+    // Debounce 400ms trước khi filter thật sự chạy lên server.
+    await waitFor(() => expect(screen.queryAllByText('VT-2024-10042')).toHaveLength(0), { timeout: 2000 })
+    expect(screen.getAllByText('VT-2024-10039').length).toBeGreaterThan(0)
   })
 
   it('renders personal stats tab from the profile query param', async () => {
     server.use(
-      http.get('/api/orders/my-stats', () =>
-        HttpResponse.json({
-          totalOrders: 5,
-          totalSpent: 12_000_000,
-          topProductName: 'Bộ Văn Phòng Phẩm Tối Giản',
-          vatInvoiceCount: 2,
-          spendingByMonth: [{ label: 'T1', value: 4_000_000 }, { label: 'T2', value: 8_000_000 }],
-          topProducts: [{ name: 'Bộ Văn Phòng Phẩm Tối Giản', value: 5 }],
-        }),
-      ),
+      http.get('/api/orders/my-stats', () => HttpResponse.json({
+        totalOrders: 12,
+        totalSpent: 45000000,
+        topProductName: 'Ống PVC D21',
+        vatInvoiceCount: 3,
+        spendingByMonth: [{ label: 'T1', value: 5000000 }, { label: 'T2', value: 7000000 }],
+        topProducts: [{ name: 'Ống PVC D21', value: 20 }],
+      })),
     )
 
     renderProfile('/profile?tab=stats')

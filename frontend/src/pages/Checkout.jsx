@@ -21,6 +21,7 @@ import {
   Download,
   Search,
   Loader2,
+  ExternalLink,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AddressModal, { buildFullAddress, emptyAddressForm } from '../components/AddressModal.jsx'
@@ -1135,78 +1136,27 @@ export default function Checkout() {
                   <AnimatePresence>
                     {vatRequested && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        {!isEditingVat ? (
-                          <>
-                            <div className="mb-3 space-y-3 rounded-[1.25rem] bg-gray-50 p-4">
-                              {[['Mã số thuế', vatInfo.taxCode], ['Tên công ty', vatInfo.companyName], ['Địa chỉ công ty', vatInfo.companyAddress], ['Email nhận hóa đơn', vatInfo.invoiceEmail]].map(([label, value]) => (
-                                <div key={label} className="flex gap-4">
-                                  <span className="w-36 flex-shrink-0 pt-0.5 text-xs text-gray-500">{label}</span>
-                                  <span className="text-sm font-medium text-gray-900">{value || '—'}</span>
-                                </div>
-                              ))}
+                        <div className="mb-3 space-y-3 rounded-[1.25rem] bg-gray-50 p-4">
+                          {[['Mã số thuế', vatInfo.taxCode], ['Tên công ty', vatInfo.companyName], ['Địa chỉ công ty', vatInfo.companyAddress], ['Email nhận hóa đơn', vatInfo.invoiceEmail]].map(([label, value]) => (
+                            <div key={label} className="flex gap-4">
+                              <span className="w-36 flex-shrink-0 pt-0.5 text-xs text-gray-500">{label}</span>
+                              <span className="text-sm font-medium text-gray-900">{value || '—'}</span>
                             </div>
-                            <div className="mb-3 flex items-start gap-2 text-xs text-gray-500">
-                              <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                              <span>Khách có thể yêu cầu hóa đơn VAT tối đa 7 ngày sau khi giao hàng thành công.</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="rounded-full text-xs gap-1.5 hover:bg-gray-100"
-                                onClick={() => { setVatForm(vatInfo); setIsEditingVat(true) }}
-                              >
-                                <Edit2 className="h-3 w-3" />
-                                Cập nhật thông tin MST
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <form
-                            className="space-y-3"
-                            onSubmit={(e) => {
-                              e.preventDefault()
-                              setVatInfo(vatForm)
-                              setIsEditingVat(false)
-                            }}
-                          >
-                            <Input
-                              placeholder="Mã số thuế"
-                              value={vatForm.taxCode}
-                              onChange={(e) => setVatForm((f) => ({ ...f, taxCode: e.target.value }))}
-                            />
-                            <Input
-                              placeholder="Tên công ty"
-                              value={vatForm.companyName}
-                              onChange={(e) => setVatForm((f) => ({ ...f, companyName: e.target.value }))}
-                            />
-                            <Input
-                              placeholder="Địa chỉ công ty"
-                              value={vatForm.companyAddress}
-                              onChange={(e) => setVatForm((f) => ({ ...f, companyAddress: e.target.value }))}
-                            />
-                            <Input
-                              placeholder="Email nhận hóa đơn"
-                              value={vatForm.invoiceEmail}
-                              onChange={(e) => setVatForm((f) => ({ ...f, invoiceEmail: e.target.value }))}
-                            />
-                            <div className="flex flex-wrap items-center gap-3">
-                              <Button type="submit" size="sm" className="rounded-full text-xs">
-                                Lưu thông tin MST
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="rounded-full text-xs"
-                                onClick={() => setIsEditingVat(false)}
-                              >
-                                Hủy
-                              </Button>
-                            </div>
-                          </form>
-                        )}
+                          ))}
+                        </div>
+                        <div className="mb-3 flex items-start gap-2 text-xs text-gray-500">
+                          <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                          <span>Khách có thể yêu cầu hóa đơn VAT tối đa 7 ngày sau khi giao hàng thành công.</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link to="/profile?tab=tax" target="_blank">
+                            <Button variant="outline" size="sm" className="rounded-full text-xs gap-1.5 hover:bg-gray-100">
+                              <Edit2 className="h-3 w-3" />
+                              Cập nhật thông tin MST trong Hồ sơ
+                              <ExternalLink className="h-3 w-3 text-gray-400" />
+                            </Button>
+                          </Link>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

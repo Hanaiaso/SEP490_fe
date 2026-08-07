@@ -113,6 +113,10 @@ export async function cancelStockTransfer(id) {
   return request('POST', `/stock-transfers/${id}/cancel`);
 }
 
+export async function requestStockTransferTransport(id) {
+  return request('POST', `/stock-transfers/${id}/request-transport`);
+}
+
 // ─── Goods Issue ───────────────────────────────────────────────
 
 export async function getGoodsIssues(type) {
@@ -153,7 +157,6 @@ export async function updateGoodsIssueHandover(id, data) {
 export async function createGoodsIssueReversal(id, data) {
   return request('POST', `/goods-issues/${id}/reversal`, data);
 }
-
 
 export async function receiveStockTransfer(id, formData) {
   const accessToken = localStorage.getItem('accessToken');
@@ -197,12 +200,30 @@ export async function getWarehouseInventory(warehouseId, params) {
   return request('GET', `/inventory/${warehouseId}?${qs}`);
 }
 
+export async function getInventoryReport(params) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/inventory/report${qs ? `?${qs}` : ''}`);
+}
+
+export async function getSlowMovingItems(params) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/inventory/slow-moving${qs ? `?${qs}` : ''}`);
+}
+
 export async function adjustInventory(inventoryId, data) {
   return request('PUT', `/inventory/${inventoryId}/adjust`, data);
 }
 
 export async function addInventory(data) {
   return request('POST', `/inventory/add`, data);
+}
+
+export async function getWarehouseShifts() {
+  return request('GET', `/warehouse-shifts`);
+}
+
+export async function submitShiftInventoryCount(data) {
+  return request('POST', `/inventory/shift-count`, data);
 }
 
 // Dummy for backward compatibility with WarehouseStockAdjustment

@@ -5,6 +5,8 @@ import { Button } from './ui/Button.jsx'
 import { Input } from './ui/Input.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
+const VN_PHONE_REGEX = /^0(3|5|7|8|9)[0-9]{8}$/
+
 export default function PhoneVerificationModal({ isOpen, onClose, currentPhone }) {
   const { requestPhoneOtp, verifyPhoneOtp } = useAuth()
   
@@ -34,8 +36,8 @@ export default function PhoneVerificationModal({ isOpen, onClose, currentPhone }
       setErrorMsg('Vui lòng nhập số điện thoại')
       return
     }
-    if (!/^0\d{9}$/.test(phoneNumber)) {
-      setErrorMsg('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng (10 số, bắt đầu bằng 0).')
+    if (!VN_PHONE_REGEX.test(phoneNumber)) {
+      setErrorMsg('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng số điện thoại Việt Nam.')
       return
     }
 

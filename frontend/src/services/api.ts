@@ -9,11 +9,11 @@ export const api = {
     const data = await fetchWithToken('GET', cleanUrl(url));
     return { data };
   },
-  post: async (url: string, body?: any) => {
+  post: async (url: string, body?: unknown) => {
     const data = await fetchWithToken('POST', cleanUrl(url), body);
     return { data };
   },
-  put: async (url: string, body?: any) => {
+  put: async (url: string, body?: unknown) => {
     const data = await fetchWithToken('PUT', cleanUrl(url), body);
     return { data };
   },

@@ -46,7 +46,7 @@ export async function getProducts({ page = 1, pageSize = 6, categoryId, search, 
 /**
  * Lấy chi tiết 1 sản phẩm theo ID (GUID).
  * @param {string} id
- * @returns {{ id, name, sku, standardListedPrice, description, specifications, imageUrl, categoryId, categoryName, physicalStock, availableStock }}
+ * @returns {Promise<{ id, name, sku, standardListedPrice, description, specifications, imageUrl, categoryId, categoryName, physicalStock, availableStock }>}
  */
 export async function getProductById(id) {
   return request('GET', `/products/${id}`)

@@ -10,13 +10,13 @@ import {
 } from '../../components/sales-ui/dropdown-menu';
 import {
   Archive,
-  Bell,
   ChevronDown,
   DollarSign,
   FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  MessageSquareText,
   Package,
   Search,
   Settings,
@@ -40,6 +40,7 @@ import SalesDeliveryArrangementPage from './SalesDeliveryArrangementPage';
 import SalesPickupArrangementPage from './SalesPickupArrangementPage';
 import SalesDeliveryCollectionPage from './SalesDeliveryCollectionPage';
 import SalesMyCustomersPage from './SalesMyCustomersPage';
+import SalesReviewsPage from './SalesReviewsPage';
 import SalesChangeRequestExplainPage from './SalesChangeRequestExplainPage';
 import SalesAiContentStudio from './SalesAiContentStudio';
 import { useAuth } from '../../context/AuthContext';
@@ -75,6 +76,13 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Khách hàng của tôi',
     icon: <Users className="w-4 h-4" />,
     path: '/sales/my-customers',
+    roles: ['SalesStaff', 'Admin'],
+  },
+  {
+    id: 'reviews',
+    label: 'Đánh giá của khách hàng',
+    icon: <MessageSquareText className="w-4 h-4" />,
+    path: '/sales/reviews',
     roles: ['SalesStaff', 'Admin'],
   },
   {
@@ -241,7 +249,7 @@ type AssignmentToast = {
 };
 
 const TOAST_SOURCE_LABELS: Record<string, string> = {
-  ROUND_ROBIN: 'Round-robin',
+  ROUND_ROBIN: 'Phân bổ khách hàng',
   REFERRAL: 'Giới thiệu',
   RETURNING_CUSTOMER: 'Khách cũ quay lại',
   MANUAL_REASSIGNMENT: 'Quản lý gán',
@@ -249,7 +257,7 @@ const TOAST_SOURCE_LABELS: Record<string, string> = {
 
 export default function SalesPortal() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const role: string = user?.role || '';
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
   const [toasts, setToasts] = useState<AssignmentToast[]>([]);
@@ -407,6 +415,7 @@ export default function SalesPortal() {
           <Routes>
             <Route path="dashboard" element={<SalesDashboardPage />} />
             <Route path="my-customers" element={<SalesMyCustomersPage />} />
+            <Route path="reviews" element={<SalesReviewsPage />} />
             <Route path="ai-content-studio" element={<SalesAiContentStudio />} />
             <Route path="change-requests" element={<SalesChangeRequestExplainPage />} />
             <Route path="orders" element={<SalesOrdersPage />} />

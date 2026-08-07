@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, HelpCircle, Settings, Trash2, Plus, Calendar, Paperclip } from 'lucide-react';
+import { X, Settings, Trash2, Calendar, Paperclip } from 'lucide-react';
 
 interface ReceiptItem {
   id: string;
@@ -248,7 +248,7 @@ export default function WarehouseReceiptFormModal({
   );
 }
 
-function SearchIcon(props: any) {
+function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />

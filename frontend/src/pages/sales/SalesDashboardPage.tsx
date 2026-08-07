@@ -9,6 +9,11 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
+import type {
+  SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
+  DashboardQuoteRequest, DashboardOrder,
+} from '../../types/order';
+import type { SalesStaffDashboard } from '../../types/dashboard';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY  = '#1F3B64';
@@ -117,7 +122,7 @@ const formatTimeOrDate = (dateStr: string) => {
 
 export default function SalesDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<SalesDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState('');
@@ -153,7 +158,7 @@ export default function SalesDashboard() {
 
   // KPI theo business.md §5 (Revenue/DeliverySuccess/ProcessingSpeed/ReturningCustomer) — fetch riêng,
   // độc lập với dashboard vận hành phía trên: nếu API mới lỗi/chậm thì không ảnh hưởng phần đã có sẵn.
-  const [kpiSnapshot, setKpiSnapshot] = useState<any>(null);
+  const [kpiSnapshot, setKpiSnapshot] = useState<SalesStaffDashboard | null>(null);
   const [kpiLoading, setKpiLoading] = useState(true);
 
   useEffect(() => {
@@ -290,7 +295,7 @@ export default function SalesDashboard() {
                   <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                   <Tooltip 
                     contentStyle={tooltipStyle} 
-                    formatter={(v: any) => [`${v} tr đ (${formatPrice(v * 1_000_000)} đ)`, "Doanh thu"]} 
+                    formatter={(v: unknown) => [`${v} tr đ (${formatPrice(Number(v) * 1_000_000)} đ)`, "Doanh thu"]}
                   />
                   <Area type="monotone" dataKey="revenue" name="Thực tế" stroke={PRIMARY} strokeWidth={1.5} fill="url(#revFill)" dot={{ r: 2.5, fill: PRIMARY, strokeWidth: 0 }} />
                   <Area type="monotone" dataKey="target"  name="Mục tiêu" stroke="#D1D5DB" strokeWidth={1} strokeDasharray="4 3" fill="none" dot={false} />
@@ -322,7 +327,7 @@ export default function SalesDashboard() {
               {(stats?.urgentOrders || []).length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">Không có đơn hàng khẩn cấp.</div>
               ) : (
-                (stats.urgentOrders || []).map((o: any) => (
+                (stats?.urgentOrders || []).map((o: DashboardUrgentOrder) => (
                   <div key={o.id} className="flex items-stretch">
                     <div className="w-[3px] flex-shrink-0 self-stretch" style={{ backgroundColor: o.level === 'critical' ? ERROR : o.level === 'high' ? WARNING : '#D1D5DB' }} />
                     <div className="flex-1 px-3 py-2">
@@ -347,7 +352,7 @@ export default function SalesDashboard() {
               {(stats?.warehouseQueue || []).length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">Không có đơn hàng chờ kho.</div>
               ) : (
-                (stats.warehouseQueue || []).map((o: any) => (
+                (stats?.warehouseQueue || []).map((o: DashboardWarehouseQueueItem) => (
                   <div key={o.id} className="px-3 py-2 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="text-[11px] font-bold truncate" style={{ color: PRIMARY }}>{o.id}</p>
@@ -367,7 +372,7 @@ export default function SalesDashboard() {
               {(stats?.quoteRequests || []).length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">Không có yêu cầu báo giá mới.</div>
               ) : (
-                (stats.quoteRequests || []).map((q: any) => (
+                (stats?.quoteRequests || []).map((q: DashboardQuoteRequest) => (
                   <div key={q.id} className="px-3 py-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold truncate max-w-[110px]" style={{ color: PRIMARY }} title={q.id}>{q.id.slice(0, 8)}...</span>
@@ -421,7 +426,7 @@ export default function SalesDashboard() {
                     <td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-400">Không có đơn hàng nào gần đây.</td>
                   </tr>
                 ) : (
-                  (stats.recentOrders || []).map((o: any, i: number) => (
+                  (stats?.recentOrders || []).map((o: DashboardOrder, i: number) => (
                     <tr
                       key={o.id}
                       style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}

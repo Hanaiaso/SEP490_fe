@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
@@ -87,7 +88,7 @@ export default function WarehouseStockAdjustment() {
       alert('Đã duyệt điều chỉnh!');
       setItems(p => p.map(i => i.id === id ? { ...i, status: 'approved', approverNote: approveNote } : i));
       setDetail(p => p?.id === id ? { ...p, status: 'approved', approverNote: approveNote } : p);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   };
   const reject = async (id: string) => {
     try {
@@ -97,7 +98,7 @@ export default function WarehouseStockAdjustment() {
       alert('Đã từ chối điều chỉnh!');
       setItems(p => p.map(i => i.id === id ? { ...i, status: 'rejected', approverNote: approveNote } : i));
       setDetail(p => p?.id === id ? { ...p, status: 'rejected', approverNote: approveNote } : p);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   };
   const recount = async (id: string) => {
     try {
@@ -107,7 +108,7 @@ export default function WarehouseStockAdjustment() {
       alert('Đã yêu cầu kiểm lại!');
       setItems(p => p.map(i => i.id === id ? { ...i, status: 'recount', approverNote: approveNote } : i));
       setDetail(p => p?.id === id ? { ...p, status: 'recount', approverNote: approveNote } : p);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(getErrorMessage(err)); }
   };
 
   return (

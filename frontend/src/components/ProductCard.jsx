@@ -3,6 +3,7 @@ import { Eye, Heart, ShoppingCart } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { formatPrice } from '../services/productService.js'
+import { StarRating } from './ui/StarRating.jsx'
 import { useCart } from '../context/CartContext.jsx'
 
 export default function ProductCard({ product }) {
@@ -100,6 +101,12 @@ export default function ProductCard({ product }) {
             {product.name}
           </h3>
         </Link>
+        {product.reviewCount > 0 && (
+          <div className="mb-2 flex items-center gap-1.5">
+            <StarRating value={product.averageRating} size="sm" />
+            <span className="text-xs text-gray-500">({product.reviewCount})</span>
+          </div>
+        )}
         <p className="text-clamp-2 mb-4 min-h-10 text-sm leading-6 text-gray-600">{product.description}</p>
         <span className="text-xl font-bold text-gray-900">{formatPrice(price)}</span>
       </div>

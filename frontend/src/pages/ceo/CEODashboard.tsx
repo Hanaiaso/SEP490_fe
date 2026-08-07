@@ -1,6 +1,8 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect } from 'react';
 import { RefreshCw, Package, AlertTriangle, Boxes } from 'lucide-react';
 import { getCeoDashboard } from '../../services/dashboardService.js';
+import type { CeoDashboard as CeoDashboardData } from '../../types/dashboard';
 
 type Period = 'day' | 'week' | 'month' | 'quarter';
 
@@ -43,7 +45,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const [period, setPeriod] = useState<Period>('month');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<CeoDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -52,8 +54,8 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
     setError('');
     try {
       setData(await getCeoDashboard(rangeForPeriod(p)));
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu dashboard.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không thể tải dữ liệu dashboard.'));
     } finally {
       setLoading(false);
     }
@@ -61,11 +63,18 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
 
   useEffect(() => { load(period); }, [period]);
 
-  const orgKpi = data?.orgKpi || {};
-  const inventory = data?.inventory || {};
+  const orgKpi = data?.orgKpi || {
+    periodFrom: '', periodTo: '', revenue: 0, completedOrderCount: 0,
+    deliverySuccessRate: 0, deliveryAttemptedOrderCount: 0,
+    returningCustomerRate: 0, customersInScopeCount: 0,
+  };
+  const inventory = data?.inventory || { totalSkus: 0, lowStockCount: 0, estimatedInventoryValue: 0 };
   const purchaseOrders = data?.purchaseOrders || { countsByStatus: {}, recentOpenPurchaseOrders: [] };
-  const discrepancy = data?.discrepancy || {};
-  const totalPOs = Object.values(purchaseOrders.countsByStatus || {}).reduce((a: number, b: any) => a + (b as number), 0);
+  const discrepancy = data?.discrepancy || {
+    periodFrom: '', periodTo: '', goodsReceiptCount: 0, totalShortQuantity: 0,
+    totalExcessQuantity: 0, totalDamagedQuantity: 0, totalWrongItemQuantity: 0,
+  };
+  const totalPOs = Object.values(purchaseOrders.countsByStatus || {}).reduce((a, b) => a + b, 0);
   const discrepancyReviewCount = purchaseOrders.countsByStatus?.DiscrepancyReview ?? 0;
 
   return (
@@ -184,7 +193,7 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
               </tr>
             </thead>
             <tbody>
-              {purchaseOrders.recentOpenPurchaseOrders.map((po: any) => (
+              {purchaseOrders.recentOpenPurchaseOrders.map((po) => (
                 <tr key={po.id} className="border-b border-[#f5f7fa] hover:bg-[#f5f7fa] cursor-pointer" onClick={() => setActiveTab('purchase-orders')}>
                   <td className="px-[16px] py-[10px] text-[12px] font-medium text-[#1f3b64]">{po.code}</td>
                   <td className="px-[16px] py-[10px] text-[12px] text-[#64748b]">{po.supplierName}</td>

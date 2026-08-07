@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, MessageSquare, Package, RefreshCw, Truck, User } from 'lucide-react';
+import type { SalesOrderListItem } from '../../types/order';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,18 +50,18 @@ export default function SalesWarehouseCoordPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
-  };
+  }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api('/api/orders/sales?page=1&pageSize=100');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      const items: any[] = data.items || [];
+      const items: SalesOrderListItem[] = data.items || [];
 
       // Ánh xạ trạng thái FulfillmentStatus sang trạng thái đóng gói (waiting / packing / done)
       const mapped: WarehouseOrder[] = items.map((o) => {
@@ -122,11 +123,11 @@ export default function SalesWarehouseCoordPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const waitingCount = orders.filter((order) => order.status === 'waiting').length;
   const packingCount = orders.filter((order) => order.status === 'packing').length;

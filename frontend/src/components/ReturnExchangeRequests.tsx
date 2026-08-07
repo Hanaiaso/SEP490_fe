@@ -12,7 +12,7 @@ type ReturnExchangeItem = {
   name?: string;
 };
 
-type ReturnExchangeRequest = {
+export type ReturnExchangeRequest = {
   id?: string;
   reason?: string;
   status?: string;

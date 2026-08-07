@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle, MapPin, Package, RefreshCw, Truck, User, X } from 'lucide-react';
+import type { PendingPickup } from '../../types/delivery';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,6 @@ function api(path: string, opts?: RequestInit) {
 }
 
 export default function SalesPickupArrangementPage() {
-  const navigate = useNavigate();
   const [activeShift, setActiveShift] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -77,18 +77,20 @@ export default function SalesPickupArrangementPage() {
     return true;
   }, [selectedDate, activeShift]);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
-  const fetchPickups = async () => {
+  const VEHICLES_META = useCallback((): Vehicle[] => INITIAL_VEHICLES.map((v) => ({ ...v, requests: [] })), []);
+
+  const fetchPickups = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api('/api/delivery/pickups');
       if (!res.ok) throw new Error();
-      const data: any[] = await res.json();
+      const data: PendingPickup[] = await res.json();
 
       const unscheduled: PickupRequest[] = [];
       const newVehicles: Vehicle[] = VEHICLES_META();
@@ -128,13 +130,11 @@ export default function SalesPickupArrangementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, activeShift, showToast, VEHICLES_META]);
 
   useEffect(() => {
     fetchPickups();
-  }, [selectedDate, activeShift]);
-
-  const VEHICLES_META = (): Vehicle[] => INITIAL_VEHICLES.map((v) => ({ ...v, requests: [] }));
+  }, [fetchPickups]);
 
   const newlyAssignedCount = useMemo(() => {
     return vehicles.reduce((sum, v) => {
@@ -193,7 +193,7 @@ export default function SalesPickupArrangementPage() {
           }).then(async (res) => {
             if (!res.ok) {
               const err = await res.json();
-              throw new Error(err.message);
+              throw new Error(getErrorMessage(err));
             }
           })
         );
@@ -205,8 +205,8 @@ export default function SalesPickupArrangementPage() {
       const fmtDate = new Date(selectedDate).toLocaleDateString('vi-VN');
       showToast(`Lập lịch thành công cho các đơn thu hồi ca ${shiftKey} ngày ${fmtDate}!`);
       await fetchPickups();
-    } catch (err: any) {
-      showToast(err.message || 'Có lỗi xảy ra khi lập lịch thu hồi.', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Có lỗi xảy ra khi lập lịch thu hồi.'), 'error');
     } finally {
       setSaving(false);
     }

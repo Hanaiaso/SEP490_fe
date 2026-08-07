@@ -1,6 +1,8 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useState } from 'react';
 import { RefreshCw, TrendingUp, Truck, Clock, Users2, AlertTriangle } from 'lucide-react';
 import { getSalesManagerDashboard } from '../../services/dashboardService.js';
+import type { SalesManagerDashboard } from '../../types/dashboard';
 
 const PRIMARY = '#1F3B64';
 
@@ -33,7 +35,7 @@ function PanelHeader({ title }: { title: string }) {
 }
 
 export default function SalesManagerDashboardPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<SalesManagerDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -42,8 +44,8 @@ export default function SalesManagerDashboardPage() {
     setError('');
     try {
       setData(await getSalesManagerDashboard());
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu dashboard.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không thể tải dữ liệu dashboard.'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,11 @@ export default function SalesManagerDashboardPage() {
     );
   }
 
-  const teamKpi = data?.teamKpi || {};
+  const teamKpi = data?.teamKpi || {
+    periodFrom: '', periodTo: '', revenue: 0, completedOrderCount: 0,
+    deliverySuccessRate: 0, deliveryAttemptedOrderCount: 0,
+    returningCustomerRate: 0, customersInScopeCount: 0,
+  };
   const staffBreakdown = data?.staffBreakdown || [];
   const openExceptions = data?.openExceptions || [];
   const overdueDebts = data?.overdueDebts || [];
@@ -117,7 +123,7 @@ export default function SalesManagerDashboardPage() {
               <tbody>
                 {staffBreakdown.length === 0 ? (
                   <tr><td colSpan={6} className="px-3 py-6 text-center text-xs text-slate-400">Chưa có nhân viên Sale nào.</td></tr>
-                ) : staffBreakdown.map((s: any) => (
+                ) : staffBreakdown.map((s) => (
                   <tr key={s.salesStaffId} style={{ borderBottom: '1px solid #F3F4F6' }}>
                     <td className="px-3 py-2 font-bold" style={{ color: PRIMARY }}>{s.salesStaffName}</td>
                     <td className="px-3 py-2 tabular-nums">{formatPrice(s.kpi?.revenue)} đ</td>
@@ -139,7 +145,7 @@ export default function SalesManagerDashboardPage() {
             <div className="divide-y divide-[#F3F4F6] max-h-64 overflow-y-auto">
               {openExceptions.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">Không có ngoại lệ nào đang mở.</div>
-              ) : openExceptions.map((e: any) => (
+              ) : openExceptions.map((e) => (
                 <div key={e.id} className="px-3 py-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold" style={{ color: PRIMARY }}>{e.orderCode}</span>
@@ -157,7 +163,7 @@ export default function SalesManagerDashboardPage() {
             <div className="divide-y divide-[#F3F4F6] max-h-64 overflow-y-auto">
               {overdueDebts.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">Không có công nợ quá hạn.</div>
-              ) : overdueDebts.map((d: any) => (
+              ) : overdueDebts.map((d) => (
                 <div key={d.id} className="px-3 py-2 flex items-center justify-between">
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold truncate" style={{ color: PRIMARY }}>{d.customerName}</p>

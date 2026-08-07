@@ -1,17 +1,19 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getQuotationById, managerReview, getMessages } from '../../services/quotationService.js';
 import { Input } from '../../components/sales-ui/input';
-import { ArrowLeft, CheckCircle, XCircle, MessageSquare, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import type { Quotation, ChatMessage } from '../../types/quotation';
 
 export default function SalesManagerPriceNegotiationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [quotation, setQuotation] = useState<any>(null);
+  const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [managerNote, setManagerNote] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -64,8 +66,8 @@ export default function SalesManagerPriceNegotiationDetail() {
       await managerReview(quotation.id, { isApproved: isApprove, managerNote });
       alert(isApprove ? 'Đã duyệt báo giá thành công!' : 'Đã từ chối báo giá!');
       navigate('/sales-manager/manager-negotiation');
-    } catch (error: any) {
-      alert(error.message || 'Lỗi khi xử lý');
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, 'Lỗi khi xử lý'));
     }
   };
 
@@ -131,7 +133,7 @@ export default function SalesManagerPriceNegotiationDetail() {
                 </tr>
               </thead>
               <tbody>
-                {latestVersion.items?.map((item: any) => (
+                {latestVersion.items?.map((item) => (
                   <tr key={item.id} className="border-b border-[#f5f7fa] last:border-0 hover:bg-[#f8fafc]">
                     <td className="px-[16px] py-[10px] text-[12px] text-gray-800">{item.productName}</td>
                     <td className="px-[16px] py-[10px] text-[12px] text-gray-800 text-right">{item.quantity}</td>
@@ -161,8 +163,8 @@ export default function SalesManagerPriceNegotiationDetail() {
               messages.map((msg, index) => {
                 const isSystem = msg.senderRole === 'System';
                 const isCustomer = msg.senderRole === 'Customer' || msg.senderRole === 'User';
-                const content = msg.messageText || msg.content || '';
-                const time = msg.sentAt || msg.createdAt;
+                const content = msg.messageText;
+                const time = msg.sentAt;
                 
                 if (isSystem) {
                   return (

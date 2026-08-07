@@ -1,8 +1,9 @@
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import {
   Sparkles, Send, Save, RefreshCw, Image as ImageIcon,
   CheckCircle2, Clock, AlertCircle, XCircle, ChevronRight,
-  Tag, ThumbsUp, MessageSquare, Share2, Globe, Plus
+  Tag, ThumbsUp, MessageSquare, Share2, Globe
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -79,27 +80,6 @@ export default function SalesAiContentStudio() {
   const [submitting, setSubmitting] = useState(false);
   const [generatingSingleImage, setGeneratingSingleImage] = useState(false);
 
-  useEffect(() => { fetchProducts(); fetchMyPosts(); }, []);
-
-  const handleGenerateSingleImage = async () => {
-    if (!selectedProductId) return alert('Vui lòng chọn sản phẩm trước!');
-    const selectedProd = products.find(p => p.id === selectedProductId);
-    const imgPrompt = prompt.trim() || `${selectedProd?.name || 'Vật tư đóng gói'} commercial studio photography`;
-
-    setGeneratingSingleImage(true);
-    try {
-      const res = await api.post('/marketing-posts/generate-image', { prompt: imgPrompt });
-      if (res.data?.imageUrl) {
-        setEditedImageUrl(res.data.imageUrl);
-        alert('Đã sinh ảnh AI thành công qua Gemini Imagen 3!');
-      }
-    } catch (err: any) {
-      alert('Sinh ảnh AI thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setGeneratingSingleImage(false);
-    }
-  };
-
   const fetchProducts = async () => {
     setLoadingProducts(true);
     try {
@@ -121,6 +101,27 @@ export default function SalesAiContentStudio() {
     finally { setLoadingPosts(false); }
   };
 
+  useEffect(() => { fetchProducts(); fetchMyPosts(); }, []);
+
+  const handleGenerateSingleImage = async () => {
+    if (!selectedProductId) return alert('Vui lòng chọn sản phẩm trước!');
+    const selectedProd = products.find(p => p.id === selectedProductId);
+    const imgPrompt = prompt.trim() || `${selectedProd?.name || 'Vật tư đóng gói'} commercial studio photography`;
+
+    setGeneratingSingleImage(true);
+    try {
+      const res = await api.post('/marketing-posts/generate-image', { prompt: imgPrompt });
+      if (res.data?.imageUrl) {
+        setEditedImageUrl(res.data.imageUrl);
+        alert('Đã sinh ảnh AI thành công qua Gemini Imagen 3!');
+      }
+    } catch (err: unknown) {
+      alert('Sinh ảnh AI thất bại: ' + (getErrorMessage(err)));
+    } finally {
+      setGeneratingSingleImage(false);
+    }
+  };
+
   const handleGenerateAi = async () => {
     if (!selectedProductId) return alert('Vui lòng chọn sản phẩm!');
     setGenerating(true);
@@ -131,8 +132,8 @@ export default function SalesAiContentStudio() {
       const options = res.data?.options || [];
       setAiOptions(options);
       if (options.length > 0) selectOption(options[0]);
-    } catch (err: any) {
-      alert('Tạo nội dung AI thất bại: ' + (err.response?.data?.message || err.message));
+    } catch (err: unknown) {
+      alert('Tạo nội dung AI thất bại: ' + (getErrorMessage(err)));
     } finally { setGenerating(false); }
   };
 
@@ -170,7 +171,7 @@ export default function SalesAiContentStudio() {
         alert(submitImmediately ? 'Đã tạo và gửi duyệt bài viết!' : 'Đã lưu bài viết nháp!');
       }
       fetchMyPosts();
-    } catch (err: any) { alert('Lỗi: ' + (err.response?.data?.message || err.message)); }
+    } catch (err: unknown) { alert('Lỗi: ' + (getErrorMessage(err))); }
     finally { setSaving(false); setSubmitting(false); }
   };
 

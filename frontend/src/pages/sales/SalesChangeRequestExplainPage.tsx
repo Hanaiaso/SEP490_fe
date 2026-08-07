@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, FileText, FileWarning, Paperclip, Send, X } from 'lucide-react';
 import {
@@ -102,8 +103,8 @@ export default function SalesChangeRequestExplainPage() {
       setError('');
       const data = await getRequestsAboutMe();
       setRequests(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách yêu cầu');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Không thể tải danh sách yêu cầu'));
     } finally {
       setLoading(false);
     }
@@ -152,8 +153,8 @@ export default function SalesChangeRequestExplainPage() {
       alert('Đã gửi giải trình cho quản lý.');
       setFiles([]);
       await loadData();
-    } catch (err: any) {
-      alert(err.message || 'Gửi giải trình thất bại');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Gửi giải trình thất bại'));
     } finally {
       setSubmitting(false);
     }

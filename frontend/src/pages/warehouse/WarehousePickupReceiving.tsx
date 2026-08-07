@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { getErrorMessage } from '../../lib/errors';
+import { useCallback, useEffect, useState } from 'react';
 import { Archive, CheckCircle, Package, RefreshCw, Truck, User, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/sales-ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import { Dialog, DialogContent } from '../../components/sales-ui/dialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,22 @@ type PickupRequest = {
   items: PickupItem[];
 };
 
+// Shape thô từ GET /api/delivery/pickups (thuộc domain Delivery, không thuộc DTOs/Warehouse).
+interface RawPickupDto {
+  requestId: string;
+  requestCode: string;
+  orderId: string;
+  orderCode: string;
+  customerName: string;
+  customerPhone: string;
+  shippingAddress: string;
+  pickupStatus: string;
+  scheduledPickupDate?: string;
+  pickupShift?: string;
+  pickupVehicleId?: number;
+  items?: PickupItem[];
+}
+
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
   return fetch(path, {
@@ -42,22 +59,22 @@ export default function WarehousePickupReceiving() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [confirmReq, setConfirmReq] = useState<PickupRequest | null>(null);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
-  const fetchPickups = async () => {
+  const fetchPickups = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api('/api/delivery/pickups');
       if (!res.ok) throw new Error();
-      const data: any[] = await res.json();
+      const data: RawPickupDto[] = await res.json();
 
       // Chỉ hiển thị các yêu cầu đã lên lịch điều xe (Scheduled) để kho tiếp nhận
-      const scheduledPickups = data
-        .filter((o: any) => o.pickupStatus === 'Scheduled')
-        .map((o: any) => ({
+      const scheduledPickups: PickupRequest[] = data
+        .filter((o) => o.pickupStatus === 'Scheduled')
+        .map((o) => ({
           id: o.requestId,
           requestCode: o.requestCode,
           orderId: o.orderId,
@@ -78,11 +95,11 @@ export default function WarehousePickupReceiving() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchPickups();
-  }, []);
+  }, [fetchPickups]);
 
   const handleReceiveQuarantine = async (req: PickupRequest) => {
     setProcessingId(req.id);
@@ -101,7 +118,7 @@ export default function WarehousePickupReceiving() {
         }).then(async res => {
             if(!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || 'Lỗi khi nhập kho cách ly');
+                throw new Error(getErrorMessage(err, 'Lỗi khi nhập kho cách ly'));
             }
         })
       );
@@ -114,13 +131,13 @@ export default function WarehousePickupReceiving() {
       });
       if (!confirmRes.ok) {
         const err = await confirmRes.json();
-        throw new Error(err.message || 'Lỗi khi xác nhận hoàn tất thu hồi');
+        throw new Error(getErrorMessage(err, 'Lỗi khi xác nhận hoàn tất thu hồi'));
       }
 
       showToast(`Đã hạch toán nhập kho cách ly thành công cho ${req.requestCode}!`);
       await fetchPickups();
-    } catch (err: any) {
-      showToast(err.message, 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setProcessingId(null);
     }

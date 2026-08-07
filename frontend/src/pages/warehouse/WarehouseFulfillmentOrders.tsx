@@ -1,8 +1,10 @@
+import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, Download, RefreshCw, Filter, UserPlus, ClipboardList, X, Clock, CheckCircle, Package } from 'lucide-react';
+import { Search, Eye, Download, RefreshCw, Filter, ClipboardList, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import type { WarehouseOrderDetail, WarehouseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -37,8 +39,6 @@ interface FulfillmentOrder {
   products: { sku: string; name: string; physicalStock: number; orderedQty: number }[];
   timeline: { time: string; event: string; user: string }[];
 }
-
-const ORDERS: FulfillmentOrder[] = []; // Replaced by API call
 
 function Breadcrumb() {
   return (
@@ -77,8 +77,8 @@ export default function WarehouseFulfillmentOrders() {
     try {
       setLoading(true);
       const { getWarehouseOrders } = await import('../../services/warehouseService.js');
-      const data = await getWarehouseOrders('OnlinePending');
-      const mapped: FulfillmentOrder[] = data.map((d: any) => ({
+      const data: WarehouseOrderListItem[] = await getWarehouseOrders('OnlinePending');
+      const mapped: FulfillmentOrder[] = data.map((d) => ({
         id: d.orderId,
         soNo: d.orderCode,
         customer: 'Khách hàng',
@@ -99,8 +99,8 @@ export default function WarehouseFulfillmentOrders() {
         timeline: []
       }));
       setOrders(mapped);
-    } catch (e: any) {
-      alert('Không lấy được lệnh xuất kho: ' + e.message);
+    } catch (e: unknown) {
+      alert('Không lấy được lệnh xuất kho: ' + getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -223,8 +223,8 @@ export default function WarehouseFulfillmentOrders() {
                       <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={async () => {
                         try {
                           const { getWarehouseOrderDetail } = await import('../../services/warehouseService.js');
-                          const data = await getWarehouseOrderDetail(o.id);
-                          const mappedProducts = data.items.map((i: any) => ({
+                          const data: WarehouseOrderDetail = await getWarehouseOrderDetail(o.id);
+                          const mappedProducts = data.items.map((i) => ({
                             sku: i.sku,
                             name: i.productName,
                             physicalStock: i.physicalStock,
@@ -235,8 +235,8 @@ export default function WarehouseFulfillmentOrders() {
                             allocatedWarehouse: data.allocatedWarehouse || o.allocatedWarehouse,
                             orderProgress: data.orderProgress || 0,
                             products: mappedProducts });
-                        } catch (e: any) {
-                          alert('Lỗi lấy chi tiết: ' + e.message);
+                        } catch (e: unknown) {
+                          alert('Lỗi lấy chi tiết: ' + getErrorMessage(e));
                         }
                       }} title="Xem chi tiết"><Eye className="w-3.5 h-3.5" /></button>
                       {o.status === 'waiting' && (
@@ -246,8 +246,8 @@ export default function WarehouseFulfillmentOrders() {
                             await acceptWarehouseOrder(o.id);
                             alert('Nhận đơn thành công! Lệnh đã được chuyển sang Pick Task.');
                             fetchOrders();
-                          } catch (e: any) {
-                            alert('Lỗi nhận đơn: ' + e.message);
+                          } catch (e: unknown) {
+                            alert('Lỗi nhận đơn: ' + getErrorMessage(e));
                           }
                         }}><ClipboardList className="w-3.5 h-3.5" /></button>
                       )}
@@ -354,8 +354,8 @@ export default function WarehouseFulfillmentOrders() {
                       alert(detail.status === 'waiting' ? 'Nhận đơn thành công! Lệnh đã được chuyển sang Pick Task.' : 'Tạo Pick Tasks thành công.');
                       setDetail(null);
                       fetchOrders();
-                    } catch (e: any) {
-                      alert('Lỗi: ' + e.message);
+                    } catch (e: unknown) {
+                      alert('Lỗi: ' + getErrorMessage(e));
                     }
                   }}>
                     <ClipboardList className="w-3.5 h-3.5" /> {detail.status === 'waiting' ? 'Nhận đơn & Tạo Pick Task' : 'Tạo lại Pick Tasks'}

@@ -1,19 +1,21 @@
+import type { ChangeEvent } from 'react';
+import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import { Settings, Plus, Edit, Trash, Building, AlertCircle, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { getWarehouses, createWarehouse, updateWarehouse, deleteWarehouse } from '../../services/warehouseService';
+import type { Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#3b82f6';
-const ERROR = '#ef4444';
 
 export default function WarehouseManagement() {
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
+  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
 
   const [formData, setFormData] = useState({ name: '', code: '', locationNames: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -21,30 +23,30 @@ export default function WarehouseManagement() {
   // Xóa kho
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchWarehouses();
-  }, []);
-
   const fetchWarehouses = async () => {
     try {
       setLoading(true);
       setError('');
-      const res: any = await getWarehouses();
+      const res: Warehouse[] = await getWarehouses();
       setWarehouses(res || []);
-    } catch (err: any) {
-      setError('Lỗi khi tải danh sách kho: ' + err.message);
+    } catch (err: unknown) {
+      setError('Lỗi khi tải danh sách kho: ' + getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenModal = (warehouse: any = null) => {
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
+
+  const handleOpenModal = (warehouse: Warehouse | null = null) => {
     if (warehouse) {
       setEditingWarehouse(warehouse);
       setFormData({
         name: warehouse.name,
         code: warehouse.code,
-        locationNames: warehouse.locations?.map((l: any) => l.name).join(', ') || ''
+        locationNames: warehouse.locations?.map((l) => l.name).join(', ') || ''
       });
     } else {
       setEditingWarehouse(null);
@@ -82,8 +84,8 @@ export default function WarehouseManagement() {
       }
       handleCloseModal();
       fetchWarehouses();
-    } catch (err: any) {
-      alert('Lỗi: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi: ' + getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -99,8 +101,8 @@ export default function WarehouseManagement() {
       await deleteWarehouse(id);
       alert('Xóa kho thành công!');
       fetchWarehouses();
-    } catch (err: any) {
-      alert('Lỗi khi xóa kho: ' + err.message);
+    } catch (err: unknown) {
+      alert('Lỗi khi xóa kho: ' + getErrorMessage(err));
     } finally {
       setDeletingId(null);
     }
@@ -170,7 +172,7 @@ export default function WarehouseManagement() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {wh.locations && wh.locations.length > 0 ? (
-                          wh.locations.map((loc: any) => (
+                          wh.locations.map((loc) => (
                             <span key={loc.id} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-gray-200">
                               {loc.name}
                             </span>
@@ -233,7 +235,7 @@ export default function WarehouseManagement() {
                 <Input
                   placeholder="Nhập mã kho..."
                   value={formData.code}
-                  onChange={(e: any) => setFormData({ ...formData, code: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, code: e.target.value })}
                   className="font-mono text-sm uppercase"
                   autoFocus
                 />
@@ -244,7 +246,7 @@ export default function WarehouseManagement() {
                 <Input
                   placeholder="Nhập tên kho..."
                   value={formData.name}
-                  onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
                   className="text-sm"
                 />
               </div>
@@ -254,7 +256,7 @@ export default function WarehouseManagement() {
                 <textarea
                   placeholder="Nhập tên các vị trí, cách nhau bởi dấu phẩy (VD: Kệ A, Kệ B, Khu 1)..."
                   value={formData.locationNames}
-                  onChange={(e: any) => setFormData({ ...formData, locationNames: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, locationNames: e.target.value })}
                   className="w-full text-sm min-h-[80px] p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="text-[10px] text-gray-500">
