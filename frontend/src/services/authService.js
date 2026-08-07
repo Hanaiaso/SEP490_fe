@@ -1,7 +1,38 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
 const API_BASE = '/api'  // Vite proxy → http://localhost:5112
 
-export async function fetchWithToken(method, url, body) {
+// Gộp các lần refresh chạy song song (nhiều request 401 cùng lúc) thành 1 lần gọi API.
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') }),
+      });
+      if (!res.ok) throw new Error('Không thể làm mới phiên đăng nhập');
+      const json = await res.json();
+      localStorage.setItem('accessToken', json.data.accessToken);
+      localStorage.setItem('refreshToken', json.data.refreshToken);
+    })();
+  }
+  try {
+    await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+function clearSessionAndRedirectToLogin() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
+
+export async function fetchWithToken(method, url, body, _isRetry = false) {
   const accessToken = localStorage.getItem('accessToken');
   const headers = { 'Content-Type': 'application/json' };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
@@ -16,10 +47,17 @@ export async function fetchWithToken(method, url, body) {
   const json = text ? JSON.parse(text) : {};
 
   if (!res.ok) {
+    if (res.status === 401 && !_isRetry) {
+      try {
+        await refreshAccessToken();
+      } catch {
+        clearSessionAndRedirectToLogin();
+        throw new Error(json.message || `Lỗi ${res.status}`);
+      }
+      return fetchWithToken(method, url, body, true);
+    }
     if (res.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      clearSessionAndRedirectToLogin();
     }
     throw new Error(json.message || `Lỗi ${res.status}`);
   }

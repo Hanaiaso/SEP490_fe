@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../../context/AuthContext.jsx'
 import { CartProvider } from '../../context/CartContext.jsx'
+import { server } from '../../test/msw/server.js'
 import Profile from '../Profile.jsx'
 
 vi.mock('../../services/authService.js', () => ({
@@ -67,21 +69,54 @@ describe('Profile', () => {
     expect(screen.getByText(/Lưu thông tin MST thành công/i)).toBeInTheDocument()
   })
 
-  it('filters order history by search keyword', () => {
+  it('filters order history by search keyword', async () => {
+    const ORDERS = [
+      { id: 'O1', orderCode: 'VT-2024-10039', orderStatus: 'Delivered', paymentStatus: 'Paid', createdAt: '2024-10-01T00:00:00Z', itemCount: 1, finalPayment: 500_000, paymentMethod: 'SePay' },
+      { id: 'O2', orderCode: 'VT-2024-10042', orderStatus: 'Delivered', paymentStatus: 'Paid', createdAt: '2024-10-02T00:00:00Z', itemCount: 1, finalPayment: 300_000, paymentMethod: 'COD' },
+    ]
+
+    server.use(
+      http.get('/api/orders/my-history', ({ request }) => {
+        const search = new URL(request.url).searchParams.get('search') || ''
+        const items = search
+          ? ORDERS.filter((o) => o.orderCode.toLowerCase().includes(search.toLowerCase()))
+          : ORDERS
+        return HttpResponse.json({ items, totalCount: items.length, page: 1, pageSize: 10, totalPages: 1 })
+      }),
+    )
+
     renderProfile('/profile?tab=orders')
 
-    fireEvent.change(screen.getByPlaceholderText(/Tìm theo mã đơn hoặc sản phẩm/i), {
+    expect((await screen.findAllByText('VT-2024-10039')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('VT-2024-10042').length).toBeGreaterThan(0)
+
+    fireEvent.change(screen.getByPlaceholderText(/Tìm theo mã đơn hàng/i), {
       target: { value: 'VT-2024-10039' },
     })
 
-    expect(screen.getByText('VT-2024-10039')).toBeInTheDocument()
-    expect(screen.queryByText('VT-2024-10042')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByText('VT-2024-10039').length).toBeGreaterThan(0)
+      expect(screen.queryByText('VT-2024-10042')).not.toBeInTheDocument()
+    })
   })
 
-  it('renders personal stats tab from the profile query param', () => {
+  it('renders personal stats tab from the profile query param', async () => {
+    server.use(
+      http.get('/api/orders/my-stats', () =>
+        HttpResponse.json({
+          totalOrders: 5,
+          totalSpent: 12_000_000,
+          topProductName: 'Bộ Văn Phòng Phẩm Tối Giản',
+          vatInvoiceCount: 2,
+          spendingByMonth: [{ label: 'T1', value: 4_000_000 }, { label: 'T2', value: 8_000_000 }],
+          topProducts: [{ name: 'Bộ Văn Phòng Phẩm Tối Giản', value: 5 }],
+        }),
+      ),
+    )
+
     renderProfile('/profile?tab=stats')
 
-    expect(screen.getByText(/Tổng đơn hàng/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Tổng đơn hàng/i)).toBeInTheDocument()
     expect(screen.getByText(/Chi tiêu theo tháng/i)).toBeInTheDocument()
     expect(screen.getAllByText(/Sản phẩm đặt nhiều nhất/i)).toHaveLength(2)
   })

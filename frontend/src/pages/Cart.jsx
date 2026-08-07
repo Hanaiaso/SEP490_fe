@@ -115,10 +115,10 @@ export default function Cart() {
     setIsSubmittingQuotation(true)
     try {
       const { createFromCart } = await import('../services/quotationService.js');
-      const newQuotation = await createFromCart(quotationNote);
+      await createFromCart(quotationNote);
       setShowQuotationModal(false);
       setQuotationNote('');
-      navigate(`/negotiation/${newQuotation.id}`);
+      setQuotationSent(true);
     } catch (err) {
       alert(err.message || 'Lỗi khi gửi báo giá');
     } finally {
@@ -423,14 +423,16 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  <Button
-                    size="lg"
-                    className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"
-                    onClick={goToCheckout}
-                  >
-                    Đặt Hàng & Xem Hóa Đơn
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  {!(subtotal >= 100000000 && !hasNegotiatedPrices) && (
+                    <Button
+                      size="lg"
+                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"
+                      onClick={goToCheckout}
+                    >
+                      Đặt Hàng & Xem Hóa Đơn
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
 
                   <Link to="/negotiations" className="block mb-3">
                     <Button

@@ -2,17 +2,31 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { AuthProvider } from '../../context/AuthContext.jsx'
+import { CartProvider } from '../../context/CartContext.jsx'
 import Checkout from '../Checkout.jsx'
 
 describe('Checkout', () => {
   it('updates VAT information after editing MST details', async () => {
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={['/checkout']}>
-          <Routes>
-            <Route path="/checkout" element={<Checkout />} />
-          </Routes>
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter
+            initialEntries={[
+              {
+                pathname: '/checkout',
+                state: {
+                  cartItems: [
+                    { productId: 'P1', productName: 'Ống PVC D21', imageUrl: '', quantity: 2, unitPrice: 50_000 },
+                  ],
+                },
+              },
+            ]}
+          >
+            <Routes>
+              <Route path="/checkout" element={<Checkout />} />
+            </Routes>
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>,
     )
 

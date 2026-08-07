@@ -34,7 +34,11 @@ export default function PhoneVerificationModal({ isOpen, onClose, currentPhone }
       setErrorMsg('Vui lòng nhập số điện thoại')
       return
     }
-    
+    if (!/^0\d{9}$/.test(phoneNumber)) {
+      setErrorMsg('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng (10 số, bắt đầu bằng 0).')
+      return
+    }
+
     setLoading(true)
     try {
       const result = await requestPhoneOtp(phoneNumber)
