@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getNotifications, markAsRead, markAllAsRead } from '../services/notificationService';
 import { Check, MailOpen, Bell } from 'lucide-react';
 import * as signalR from '@microsoft/signalr';
+import { HUB_BASE } from '../services/apiBase';
 import type { Notification } from '../types/notification';
 
 export default function NotificationsPage() {
@@ -36,7 +37,7 @@ export default function NotificationsPage() {
     if (!accessToken) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/notifications', { accessTokenFactory: () => accessToken })
+      .withUrl(`${HUB_BASE}/notifications`, { accessTokenFactory: () => accessToken })
       .withAutomaticReconnect()
       .build();
 

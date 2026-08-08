@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+import { API_BASE } from './apiBase';
 
 async function fetchWithToken(method, url, body) {
   const accessToken = localStorage.getItem('accessToken');

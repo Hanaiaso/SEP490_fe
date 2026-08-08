@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Trash2, Printer, FileText, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { getProducts } from '../../services/productService';
 import { placeDirectOrder } from '../../services/directOrderService';
+import { API_BASE } from '../../services/apiBase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { Product } from '../../types/catalog';
@@ -130,7 +131,7 @@ export default function DirectPurchasePage() {
     setConfirmingCash(true);
     setErrorMsg('');
     try {
-      const response = await fetch(`/api/orders/${successOrder.orderId}/confirm-payment`, {
+      const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/confirm-payment`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -162,7 +163,7 @@ export default function DirectPurchasePage() {
 
     const fetchSePayQr = async () => {
       try {
-        const response = await fetch(`/api/orders/${successOrder.orderId}/sepay-qr`, {
+        const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/sepay-qr`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           }
@@ -180,7 +181,7 @@ export default function DirectPurchasePage() {
 
     const checkPaymentStatus = async () => {
       try {
-        const response = await fetch(`/api/orders/${successOrder.orderId}/payment-status`, {
+        const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/payment-status`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           }
@@ -268,7 +269,7 @@ export default function DirectPurchasePage() {
     // Fetch existing customer details (AC-01)
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/customer-profile/by-phone/${cleanPhone}`, {
+        const response = await fetch(`${API_BASE}/customer-profile/by-phone/${cleanPhone}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           }
@@ -695,7 +696,7 @@ export default function DirectPurchasePage() {
 
               {successOrder.invoicePdfUrl && (
                 <a
-                  href={`/api${successOrder.invoicePdfUrl}`}
+                  href={`${API_BASE}${successOrder.invoicePdfUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex text-xs text-blue-600 hover:underline font-semibold"

@@ -4,7 +4,7 @@
  * Chỉ dành cho role: SalesManager
  */
 
-const API_BASE = '/api'
+import { API_BASE } from './apiBase';
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')

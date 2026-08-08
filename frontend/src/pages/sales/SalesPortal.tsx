@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
+import { HUB_BASE } from '../../services/apiBase';
 import { Avatar, AvatarFallback } from '../../components/sales-ui/avatar';
 import {
   DropdownMenu,
@@ -269,7 +270,7 @@ export default function SalesPortal() {
     if (!accessToken) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/sales', { accessTokenFactory: () => accessToken })
+      .withUrl(`${HUB_BASE}/sales`, { accessTokenFactory: () => accessToken })
       .withAutomaticReconnect()
       .build();
 

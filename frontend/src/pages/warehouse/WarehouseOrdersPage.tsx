@@ -2,6 +2,7 @@ import { getErrorMessage } from '../../lib/errors';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
+import { HUB_BASE } from '../../services/apiBase';
 import { getWarehouseOrders } from '../../services/warehouseService';
 import { PackageSearch, Clock, ChevronRight } from 'lucide-react';
 import type { WarehouseOrderListItem } from '../../types/warehouse';
@@ -41,7 +42,7 @@ export default function WarehouseOrdersPage() {
     if (!token) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/api/hubs/warehouse', {
+      .withUrl(`${HUB_BASE}/warehouse`, {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()

@@ -1,6 +1,6 @@
 import { fetchWithToken } from './authService.js';
 
-const API_BASE = '/api';
+import { API_BASE } from './apiBase';
 
 function buildQuery({ page = 1, pageSize = 20, entityName, action, actorUserId, searchQuery, fromDate, toDate } = {}) {
   const params = new URLSearchParams();

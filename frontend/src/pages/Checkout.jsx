@@ -42,6 +42,7 @@ import { Input } from '../components/ui/Input.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getAddresses, createAddress, updateAddress, setDefaultAddress } from '../services/userService.js'
+import { API_BASE } from '../services/apiBase'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -387,7 +388,7 @@ export default function Checkout() {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch('/api/customer-profile', {
+        const res = await fetch(`${API_BASE}/customer-profile`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
         })
         let profile = null
@@ -489,7 +490,7 @@ export default function Checkout() {
     let isMounted = true
     const intervalId = setInterval(async () => {
       try {
-        const res = await fetch(`/api/orders/${createdOrder.orderId}/payment-status`, {
+        const res = await fetch(`${API_BASE}/orders/${createdOrder.orderId}/payment-status`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
         })
         if (res.ok && isMounted) {
@@ -555,7 +556,7 @@ export default function Checkout() {
       pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210)
       const pdfBase64 = pdf.output('datauristring')
 
-      const res = await fetch(`/api/orders/${orderId}/upload-pdf`, {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/upload-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -588,7 +589,7 @@ export default function Checkout() {
         }
       }
 
-      const res = await fetch('/api/orders/place-order', {
+      const res = await fetch(`${API_BASE}/orders/place-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -619,7 +620,7 @@ export default function Checkout() {
       if (paymentMethod === 'sepay') {
         // Fetch QR
         try {
-          const qrRes = await fetch(`/api/orders/${orderData.orderId}/sepay-qr`, {
+          const qrRes = await fetch(`${API_BASE}/orders/${orderData.orderId}/sepay-qr`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
           })
           if (qrRes.ok) setQrDetails(await qrRes.json())

@@ -1,4 +1,4 @@
-const API_BASE = '/api'
+import { API_BASE } from './apiBase';
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')
@@ -171,7 +171,7 @@ export function getOrderTimeline(orderStatus, deliveryStatus) {
 
 export async function createExchangeRequest(orderId, data) {
   const token = localStorage.getItem('accessToken');
-  const res = await fetch(`/api/orders/${orderId}/exchange-request`, {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/exchange-request`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -188,7 +188,7 @@ export async function createExchangeRequest(orderId, data) {
 
 export async function processReturnExchangeRequest(id, data) {
   const token = localStorage.getItem('accessToken');
-  const res = await fetch(`/api/orders/exchange-request/${id}/process`, {
+  const res = await fetch(`${API_BASE}/orders/exchange-request/${id}/process`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

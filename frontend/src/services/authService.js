@@ -1,5 +1,5 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
-const API_BASE = '/api'  // Vite proxy → http://localhost:5112
+import { API_BASE } from './apiBase';
 
 async function doFetchWithToken(method, url, body) {
   const accessToken = localStorage.getItem('accessToken');

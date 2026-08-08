@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
+import { API_BASE } from '../../services/apiBase';
 import type {
   SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
   DashboardQuoteRequest, DashboardOrder,
@@ -131,7 +132,7 @@ export default function SalesDashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/orders/sales-dashboard', {
+      const response = await fetch(`${API_BASE}/orders/sales-dashboard`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
@@ -443,7 +444,7 @@ export default function SalesDashboard() {
                       <td className="px-3 py-2 text-center">
                         {o.invoicePdfUrl ? (
                           <a 
-                            href={`/api${o.invoicePdfUrl}`} 
+                            href={`${API_BASE}${o.invoicePdfUrl}`}
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-[#9CA3AF] hover:text-[#1F3B64] transition-colors inline-block"

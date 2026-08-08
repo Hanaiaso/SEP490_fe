@@ -1,4 +1,4 @@
-const API_BASE = '/api'  // Vite proxy → backend ASP.NET Core
+import { API_BASE } from './apiBase';
 
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')

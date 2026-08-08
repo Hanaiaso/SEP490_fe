@@ -6,6 +6,7 @@ import { ReturnExchangeRequestDetailModal, ReturnExchangeRequestsSection } from 
 import type { ReturnExchangeRequest } from '../../components/ReturnExchangeRequests';
 import { useAuth } from '../../context/AuthContext';
 import type { SalesOrderDetail } from '../../types/order';
+import { API_BASE } from '../../services/apiBase';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, Building2,
@@ -146,7 +147,7 @@ export default function SalesOrderDetailPage() {
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/orders/sales/${id}`, {
+        const res = await fetch(`${API_BASE}/orders/sales/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
         });
         if (!res.ok) throw new Error('Không thể tải chi tiết đơn hàng.');
@@ -180,7 +181,7 @@ export default function SalesOrderDetailPage() {
     if (!order) return;
     setIsConfirming(true);
     try {
-      const response = await fetch(`/api/orders/sales/${order.id}/confirm`, {
+      const response = await fetch(`${API_BASE}/orders/sales/${order.id}/confirm`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
@@ -191,7 +192,7 @@ export default function SalesOrderDetailPage() {
       }
 
       alert('Xác nhận thành công!');
-      const res = await fetch(`/api/orders/sales/${id}`, {
+      const res = await fetch(`${API_BASE}/orders/sales/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
       const data = await res.json();
@@ -207,7 +208,7 @@ export default function SalesOrderDetailPage() {
   const handleProcessCancelRequest = async (isApproved: boolean, reason: string) => {
     if (!order) return;
     try {
-      const response = await fetch(`/api/orders/sales/${order.id}/process-cancel-request`, {
+      const response = await fetch(`${API_BASE}/orders/sales/${order.id}/process-cancel-request`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -223,7 +224,7 @@ export default function SalesOrderDetailPage() {
 
       alert('Đã xử lý yêu cầu hủy đơn thành công!');
       // Reload order
-      const res = await fetch(`/api/orders/sales/${id}`, {
+      const res = await fetch(`${API_BASE}/orders/sales/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
       const data = await res.json();
