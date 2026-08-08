@@ -343,12 +343,28 @@ function InvoicePreview({ cartProducts, selectedAddress, discountRate, discountA
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { clearCart } = useCart()
+  const { clearCart, items: contextCartItems, cart: contextCart } = useCart()
   const { user } = useAuth()
 
-  const sourceCart = Array.isArray(location.state?.cartItems) && location.state.cartItems.length > 0
-    ? location.state.cartItems
-    : []
+  const routeCartItems = location.state?.cartItems
+  const hasRouteCartItems = Array.isArray(routeCartItems) && routeCartItems.length > 0
+
+  // Vào thẳng URL /checkout (gõ tay, F5, mở link) không có location.state — fallback đọc
+  // giỏ hàng thật từ CartContext (đã tự fetch sẵn) thay vì luôn coi giỏ hàng là rỗng.
+  const sourceCart = hasRouteCartItems
+    ? routeCartItems
+    : contextCartItems.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        imageUrl: item.imageUrl,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      }))
+
+  // contextCart === null nghĩa là CartProvider chưa fetch xong lần đầu (bất đồng bộ) —
+  // phân biệt với "đã fetch xong và giỏ hàng thật sự rỗng" để không nháy "Giỏ hàng trống"
+  // sai trước khi dữ liệu thật kịp về.
+  const cartStillLoading = !hasRouteCartItems && contextCart === null
 
   // ── Steps ──────────────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(0) // 0=Address 1=Invoice 2=Payment 3=Done
@@ -722,6 +738,22 @@ export default function Checkout() {
     } catch (err) {
       alert(err.message || 'Lỗi khi lưu địa chỉ')
     }
+  }
+
+  // ── Guard: cart chưa tải xong (vào thẳng URL, chưa kịp fetch) ──────────────
+  if (cartStillLoading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="flex min-h-[60vh] items-center justify-center pt-20">
+          <div className="text-center">
+            <Loader2 className="mx-auto mb-6 h-10 w-10 animate-spin text-gray-400" />
+            <p className="text-gray-600">Đang tải giỏ hàng...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
   }
 
   // ── Guard: no cart items ───────────────────────────────────────────────────
