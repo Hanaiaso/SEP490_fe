@@ -33,3 +33,10 @@ export async function getCeoDashboard(range = {}) {
   const qs = buildQuery(range);
   return fetchWithToken('GET', `/dashboards/ceo${qs ? `?${qs}` : ''}`);
 }
+
+/**
+ * Dashboard tổng quan Warehouse Staff (KPI xuất/nhập/tồn kho toàn kho).
+ */
+export async function getWarehouseStaffDashboard() {
+  return fetchWithToken('GET', '/dashboards/warehouse-staff');
+}
