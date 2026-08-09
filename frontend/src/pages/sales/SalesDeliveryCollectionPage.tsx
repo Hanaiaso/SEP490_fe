@@ -33,7 +33,7 @@ type ModalState = {
 
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(`${API_BASE}${path.startsWith('/api') ? path.slice(4) : path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });
