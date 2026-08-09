@@ -628,10 +628,8 @@ export default function Checkout() {
       setCreatedOrder(orderData)
       await clearCart().catch(() => {})
 
-      // Generate & upload PDF in the background after setting createdOrder
-      setTimeout(async () => {
-        await generateAndUploadPdf(orderData.orderId, orderData.orderCode)
-      }, 500)
+      // Upload PDF: xem useEffect [createdOrder] phía trên — chỉ 1 noi gọi generateAndUploadPdf
+      // de tranh 2 request PATCH Order gan nhau ghi de RowVersion cua nhau (DbUpdateConcurrencyException).
 
       if (paymentMethod === 'sepay') {
         // Fetch QR
