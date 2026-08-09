@@ -1,4 +1,5 @@
 import { getErrorMessage } from '../../lib/errors';
+import { API_BASE } from '../../services/apiBase';
 import { AlertCircle, Camera, CheckCircle, DollarSign, MapPin, Pen, Phone, RefreshCw, Truck, X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeliveryOrderListItem } from '../../types/delivery';
@@ -32,7 +33,7 @@ type ModalState = {
 
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
-  return fetch(path, {
+  return fetch(`${API_BASE}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });

@@ -1,4 +1,5 @@
 import { getErrorMessage } from '../../lib/errors';
+import { API_BASE } from '../../services/apiBase';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Lock, MapPin, Package, RefreshCw, Truck, User, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
@@ -85,7 +86,7 @@ function groupOrdersByLocation(orders: DeliveryOrder[]): LocationGroup[] {
 
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
-  return fetch(path, {
+  return fetch(`${API_BASE}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });

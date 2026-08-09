@@ -1,3 +1,4 @@
+import { API_BASE } from '../../services/apiBase';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, MessageSquare, Package, RefreshCw, Truck, User } from 'lucide-react';
@@ -38,7 +39,7 @@ const STATUS_CONFIG = {
 
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
-  return fetch(path, {
+  return fetch(`${API_BASE}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });

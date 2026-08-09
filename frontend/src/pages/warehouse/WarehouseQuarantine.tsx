@@ -1,4 +1,5 @@
 import { getErrorMessage } from '../../lib/errors';
+import { API_BASE } from '../../services/apiBase';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
@@ -37,7 +38,7 @@ interface QuarantineItem {
 
 function api(path: string, opts?: RequestInit) {
   const token = localStorage.getItem('accessToken');
-  return fetch(path, {
+  return fetch(`${API_BASE}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });
