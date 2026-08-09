@@ -1,38 +1,108 @@
+import { useEffect, useState } from 'react';
 import { ChevronRight, DollarSign, Package, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../services/apiBase';
+import type { DeliveryOrderListItem, PendingPickup } from '../../types/delivery';
+import type { SalesOrderListItem } from '../../types/order';
 
-const DELIVERY_SECTIONS = [
+function api(path: string, opts?: RequestInit) {
+  const token = localStorage.getItem('accessToken');
+  return fetch(`${API_BASE}${path.startsWith('/api') ? path.slice(4) : path}`, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
+  });
+}
+
+const DONE_FULFILLMENT_STATUSES = ['Ready', 'Consolidating', 'Consolidated', 'HandedOver', 'Fulfilled'];
+const UNSCHEDULED_STATUSES = ['NotScheduled', 'Rescheduled'];
+const PENDING_COLLECTION_STATUSES = ['Scheduled', 'InDelivery', 'Rescheduled', 'Failed'];
+
+interface DeliveryMetrics {
+  warehousePending: number;
+  arrangementPending: number;
+  collectionPending: number;
+}
+
+const SECTION_META = [
   {
     id: 'warehouse',
     title: 'Phối hợp kho',
     description: 'Theo doi tien do dong goi, xac nhan kho va chuan bi hang truoc khi giao.',
-    metric: '6 don dang xu ly',
     path: '/sales/delivery/warehouse',
     icon: Package,
     accent: '#2563EB',
+    metricLabel: (n: number) => `${n} đơn đang xử lý`,
   },
   {
     id: 'arrangement',
     title: 'Sắp xếp vận chuyển',
     description: 'Phân xe, gom đơn theo ca giao và cân bằng tải trọng cho từng chuyến.',
-    metric: '5 xe sẵn sàng',
     path: '/sales/delivery/arrangement',
     icon: Truck,
     accent: '#F97316',
+    metricLabel: (n: number) => `${n} đơn chờ xếp xe`,
   },
   {
     id: 'collection',
     title: 'Giao hàng và thu tiền',
     description: 'Cập nhật thu COD, đơn còn nợ và đối soát nhanh trạng thái thanh toán.',
-    metric: '3 đơn COD cần xử lý',
     path: '/sales/delivery/collection',
     icon: DollarSign,
     accent: '#16A34A',
+    metricLabel: (n: number) => `${n} đơn COD cần xử lý`,
   },
-];
+] as const;
 
 export default function SalesDeliveryPage() {
   const navigate = useNavigate();
+  const [metrics, setMetrics] = useState<DeliveryMetrics | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [resSalesOrders, resDeliveryOrders, resPickups] = await Promise.all([
+          api('/api/orders/sales?page=1&pageSize=100'),
+          api('/api/delivery/orders'),
+          api('/api/delivery/pickups'),
+        ]);
+
+        let warehousePending = 0;
+        if (resSalesOrders.ok) {
+          const data = await resSalesOrders.json();
+          const items: SalesOrderListItem[] = data.items || [];
+          warehousePending = items.filter(
+            (o) => !DONE_FULFILLMENT_STATUSES.includes(o.fulfillmentStatus || 'Unallocated')
+          ).length;
+        }
+
+        let arrangementPending = 0;
+        let collectionPending = 0;
+        if (resDeliveryOrders.ok) {
+          const orders: DeliveryOrderListItem[] = await resDeliveryOrders.json();
+          arrangementPending += orders.filter((o) => UNSCHEDULED_STATUSES.includes(o.deliveryStatus)).length;
+          collectionPending = orders.filter(
+            (o) => o.paymentMethod !== 'Transfer' && PENDING_COLLECTION_STATUSES.includes(o.deliveryStatus)
+          ).length;
+        }
+        if (resPickups.ok) {
+          const pickups: PendingPickup[] = await resPickups.json();
+          arrangementPending += pickups.filter((p) => p.pickupStatus === 'NotScheduled').length;
+        }
+
+        if (!cancelled) setMetrics({ warehousePending, arrangementPending, collectionPending });
+      } catch {
+        if (!cancelled) setMetrics({ warehousePending: 0, arrangementPending: 0, collectionPending: 0 });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const metricValue: Record<string, number> = {
+    warehouse: metrics?.warehousePending ?? 0,
+    arrangement: metrics?.arrangementPending ?? 0,
+    collection: metrics?.collectionPending ?? 0,
+  };
 
   return (
     <div className="flex h-full flex-col bg-[#F5F7FA]">
@@ -45,7 +115,7 @@ export default function SalesDeliveryPage() {
 
       <div className="flex-1 overflow-auto p-4">
         <div className="grid gap-4 lg:grid-cols-3">
-          {DELIVERY_SECTIONS.map((section) => {
+          {SECTION_META.map((section) => {
             const Icon = section.icon;
             return (
               <button
@@ -64,7 +134,7 @@ export default function SalesDeliveryPage() {
                     className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
                     style={{ backgroundColor: `${section.accent}12`, color: section.accent }}
                   >
-                    {section.metric}
+                    {metrics === null ? '...' : section.metricLabel(metricValue[section.id])}
                   </span>
                 </div>
 
