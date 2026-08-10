@@ -32,6 +32,30 @@ async function tryRefreshAccessToken() {
   }
 }
 
+function extractErrorMessage(status, json, text) {
+  if (json && typeof json === 'object') {
+    if (json.message) return json.message;
+    if (json.Message) return json.Message;
+    if (json.detail) return json.detail;
+    if (json.errors && typeof json.errors === 'object') {
+      const msgs = [];
+      for (const k of Object.keys(json.errors)) {
+        const val = json.errors[k];
+        if (Array.isArray(val)) msgs.push(...val);
+        else if (typeof val === 'string') msgs.push(val);
+      }
+      if (msgs.length > 0) return msgs.join(', ');
+    }
+    if (json.title && json.title !== 'Bad Request' && json.title !== 'One or more validation errors occurred.') {
+      return json.title;
+    }
+  }
+  if (typeof text === 'string' && text.trim().length > 0 && text.trim().length < 250 && !text.includes('<html')) {
+    return text.trim();
+  }
+  return `Lỗi ${status}`;
+}
+
 export async function fetchWithToken(method, url, body) {
   let res = await doFetchWithToken(method, url, body);
 
@@ -41,7 +65,12 @@ export async function fetchWithToken(method, url, body) {
   }
 
   const text = await res.text();
-  const json = text ? JSON.parse(text) : {};
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
 
   if (!res.ok) {
     if (res.status === 401) {
@@ -50,7 +79,7 @@ export async function fetchWithToken(method, url, body) {
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    throw new Error(extractErrorMessage(res.status, json, text));
   }
   return json;
 }
@@ -67,7 +96,12 @@ export async function fetchFormDataWithToken(method, url, formData) {
   });
 
   const text = await res.text();
-  const json = text ? JSON.parse(text) : {};
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
 
   if (!res.ok) {
     if (res.status === 401) {
@@ -75,7 +109,7 @@ export async function fetchFormDataWithToken(method, url, formData) {
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    throw new Error(extractErrorMessage(res.status, json, text));
   }
   return json;
 }
@@ -92,10 +126,16 @@ async function request(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   })
 
-  const json = await res.json().catch(() => ({}))
+  const text = await res.text();
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
 
   if (!res.ok) {
-    throw new Error(json.message || `Lỗi ${res.status}`)
+    throw new Error(extractErrorMessage(res.status, json, text));
   }
 
   return json

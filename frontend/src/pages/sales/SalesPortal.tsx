@@ -38,7 +38,6 @@ import SalesDeliveryPage from './SalesDeliveryPage';
 import SalesWarehouseCoordPage from './SalesWarehouseCoordPage';
 import SalesWarehouseHandoverPage from './SalesWarehouseHandoverPage';
 import SalesDeliveryArrangementPage from './SalesDeliveryArrangementPage';
-import SalesPickupArrangementPage from './SalesPickupArrangementPage';
 import SalesDeliveryCollectionPage from './SalesDeliveryCollectionPage';
 import SalesMyCustomersPage from './SalesMyCustomersPage';
 import SalesReviewsPage from './SalesReviewsPage';
@@ -139,12 +138,6 @@ const NAV_ITEMS: NavItem[] = [
         label: 'Sắp xếp vận chuyển',
         icon: <Truck className="w-3.5 h-3.5" />,
         path: '/sales/delivery/arrangement',
-      },
-      {
-        id: 'pickup-arrangement',
-        label: 'Điều xe Thu hồi',
-        icon: <Archive className="w-3.5 h-3.5" />,
-        path: '/sales/pickup-arrangement',
       },
       {
         id: 'delivery-collection',
@@ -427,7 +420,6 @@ export default function SalesPortal() {
             <Route path="delivery/handover" element={<SalesWarehouseHandoverPage />} />
             <Route path="delivery/warehouse" element={<SalesWarehouseCoordPage />} />
             <Route path="delivery/arrangement" element={<SalesDeliveryArrangementPage />} />
-            <Route path="pickup-arrangement" element={<SalesPickupArrangementPage />} />
             <Route path="delivery/collection" element={<SalesDeliveryCollectionPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="*" element={<SalesDashboardPage />} />
