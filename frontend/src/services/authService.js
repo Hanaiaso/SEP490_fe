@@ -56,6 +56,12 @@ function extractErrorMessage(status, json, text) {
   return `Lỗi ${status}`;
 }
 
+/**
+ * @param {string} method
+ * @param {string} url
+ * @param {any} [body]
+ * @returns {Promise<any>}
+ */
 export async function fetchWithToken(method, url, body) {
   let res = await doFetchWithToken(method, url, body);
 
@@ -84,6 +90,12 @@ export async function fetchWithToken(method, url, body) {
   return json;
 }
 
+/**
+ * @param {string} method
+ * @param {string} url
+ * @param {FormData} formData
+ * @returns {Promise<any>}
+ */
 export async function fetchFormDataWithToken(method, url, formData) {
   const accessToken = localStorage.getItem('accessToken');
   const headers = {};
@@ -114,6 +126,12 @@ export async function fetchFormDataWithToken(method, url, formData) {
   return json;
 }
 
+/**
+ * @param {string} method
+ * @param {string} url
+ * @param {any} [body]
+ * @returns {Promise<any>}
+ */
 async function request(method, url, body) {
   const accessToken = localStorage.getItem('accessToken')
 
