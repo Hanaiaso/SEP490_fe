@@ -384,6 +384,24 @@ export default function Checkout() {
   const [isEditingVat, setIsEditingVat] = useState(false)
   const [searchingMst, setSearchingMst] = useState(false)
 
+  // ── Checkout summary thật từ backend (chiết khấu theo DiscountTiers do Admin cấu hình) ────
+  // Trước đây trang nay tinh chiet khau bang ham getAutomaticDiscount() hardcode 2 moc co dinh
+  // (10tr:7%/50tr:10%), khong khop voi bang DiscountTiers thuc te Admin da cau hinh (vd 10-31tr:5%...),
+  // khien so tien khach "xac nhan & chot gia" tren man hinh nay khac voi so tien Order that duoc tao
+  // (OrderService.CalculateDiscountAsync doc dung DiscountTiers). Goi thang API server tinh san de
+  // dam bao 2 con so luon khop nhau.
+  const [checkoutSummary, setCheckoutSummary] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE}/orders/checkout-summary`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled) setCheckoutSummary(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   // ── Payment ────────────────────────────────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState('cod')
 
@@ -473,8 +491,11 @@ export default function Checkout() {
 
   // ── Calculations ───────────────────────────────────────────────────────────
   const subtotal = useMemo(() => cartProducts.reduce((s, i) => s + (i.product?.price || 0) * i.quantity, 0), [cartProducts])
-  const discountRate = getAutomaticDiscount(subtotal)
-  const discountAmount = Math.round(subtotal * discountRate)
+  // Uu tien so tien that tu backend (checkoutSummary) — chi fallback ve uoc tinh client khi
+  // chua tai xong, de khong bao gio "chot gia" bang mot con so khac voi Order that duoc tao.
+  const hasServerSummary = checkoutSummary != null
+  const discountRate = hasServerSummary ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
+  const discountAmount = hasServerSummary ? checkoutSummary.discountAmount : Math.round(subtotal * discountRate)
   const afterDiscount = subtotal - discountAmount
   const vat = vatRequested ? Math.round(afterDiscount * 0.1) : 0
   const total = afterDiscount + vat
