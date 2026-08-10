@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button.jsx'
 import { formatPrice } from '../services/productService.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { API_BASE } from '../services/apiBase.js'
 
 // Lấy giá đàm phán đã được chấp thuận từ quotation CustomerAccepted
 async function fetchNegotiatedPrices() {
@@ -45,12 +46,6 @@ function getAutomaticDiscount(total) {
   return 0
 }
 
-function getDiscountBadgeText(total) {
-  if (total >= 50000000 && total < 100000000) return 'Giảm 10% cho đơn từ 50 triệu'
-  if (total >= 10000000 && total < 50000000) return 'Giảm 7% cho đơn từ 10 triệu'
-  return ''
-}
-
 export default function Cart() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
@@ -58,11 +53,30 @@ export default function Cart() {
   const [showQuotationModal, setShowQuotationModal] = useState(false)
   const [quotationSent, setQuotationSent] = useState(false)
   const [negotiatedPrices, setNegotiatedPrices] = useState({}) // productId -> negotiated price
+  const [checkoutSummary, setCheckoutSummary] = useState(null) // chiet khau that tu backend (DiscountTiers)
 
   // Fetch giá đàm phán khi cart load
   useEffect(() => {
     fetchNegotiatedPrices().then(setNegotiatedPrices);
   }, []);
+
+  // Chiet khau tu dong hien thi truoc day dung ham getAutomaticDiscount() hardcode 2 moc co dinh
+  // (10tr:7%/50tr:10%), khong khop bang DiscountTiers thuc te Admin cau hinh (co the doi bat ky luc
+  // nao) -> so tien hien o day co the khac so tien Order that duoc tao (OrderService.CalculateDiscountAsync
+  // doc dung DiscountTiers). Khach vang lai khong goi duoc endpoint nay (yeu cau dang nhap) nen van
+  // fallback ve uoc tinh hardcode, se duoc sua dung ngay khi ho dang nhap/vao Checkout.
+  useEffect(() => {
+    // Backend tra 400 "Giỏ hàng trống" khi cart rỗng — chỉ gọi khi thực sự có sản phẩm.
+    if (!isAuthenticated || cartItems.length === 0) { setCheckoutSummary(null); return }
+    let cancelled = false
+    fetch(`${API_BASE}/orders/checkout-summary`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled) setCheckoutSummary(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isAuthenticated, cartItems]);
 
   function handleQuantityChange(cartItemId, delta, currentQuantity) {
     const newQty = currentQuantity + delta
@@ -150,8 +164,10 @@ export default function Cart() {
     Object.keys(negotiatedPrices).length > 0 &&
     cartItems.some(item => negotiatedPrices[item.productId]);
 
-  const automaticDiscountRate = getAutomaticDiscount(subtotal)
-  const automaticDiscountAmount = subtotal * automaticDiscountRate
+  // checkoutSummary chi ap dung khi khong co gia dam phan rieng (negotiation co logic gia khac han).
+  const hasServerDiscount = checkoutSummary != null && !applyNegotiation
+  const automaticDiscountRate = hasServerDiscount ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
+  const automaticDiscountAmount = hasServerDiscount ? checkoutSummary.discountAmount : subtotal * automaticDiscountRate
   const shippingFee = 0
   const total = subtotal + shippingFee - automaticDiscountAmount
 
@@ -318,8 +334,11 @@ export default function Cart() {
                     Chính Sách Giảm Giá
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <p className="text-gray-700">Đơn từ 10 triệu đến dưới 50 triệu: giảm 7%</p>
-                    <p className="text-gray-700">Đơn từ 50 triệu đến dưới 100 triệu: giảm 10%</p>
+                    {hasServerDiscount && automaticDiscountAmount > 0 ? (
+                      <p className="text-gray-700">Đơn hàng của bạn đang được giảm {Math.round(automaticDiscountRate * 100)}% theo chính sách chiết khấu đơn lớn.</p>
+                    ) : (
+                      <p className="text-gray-700">Đơn hàng giá trị lớn được tự động áp dụng chiết khấu theo bậc — mức giảm chính xác hiển thị ngay bên dưới.</p>
+                    )}
                     <p className="text-gray-700">Đơn từ 100 triệu trở lên: gửi yêu cầu để Sales báo giá đặc biệt</p>
                   </div>
                 </div>
@@ -394,10 +413,10 @@ export default function Cart() {
                 <div className="rounded-[1.75rem] border border-gray-100 bg-gray-50 p-8">
                   <h2 className="mb-6 text-2xl font-bold text-gray-900">Tổng Đơn Hàng</h2>
 
-                  {getDiscountBadgeText(subtotal) && (
+                  {automaticDiscountAmount > 0 && !applyNegotiation && (
                     <div className="mb-4">
                       <Badge className="bg-green-100 px-3 py-1 text-sm text-green-800 hover:bg-green-100">
-                        {getDiscountBadgeText(subtotal)}
+                        Đã áp dụng giảm {Math.round(automaticDiscountRate * 100)}% cho đơn hàng
                       </Badge>
                     </div>
                   )}
