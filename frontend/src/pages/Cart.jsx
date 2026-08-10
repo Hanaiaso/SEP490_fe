@@ -66,7 +66,8 @@ export default function Cart() {
   // doc dung DiscountTiers). Khach vang lai khong goi duoc endpoint nay (yeu cau dang nhap) nen van
   // fallback ve uoc tinh hardcode, se duoc sua dung ngay khi ho dang nhap/vao Checkout.
   useEffect(() => {
-    if (!isAuthenticated) { setCheckoutSummary(null); return }
+    // Backend tra 400 "Giỏ hàng trống" khi cart rỗng — chỉ gọi khi thực sự có sản phẩm.
+    if (!isAuthenticated || cartItems.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
     fetch(`${API_BASE}/orders/checkout-summary`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },

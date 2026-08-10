@@ -392,6 +392,9 @@ export default function Checkout() {
   // dam bao 2 con so luon khop nhau.
   const [checkoutSummary, setCheckoutSummary] = useState(null)
   useEffect(() => {
+    // Backend tra 400 "Giỏ hàng trống" khi cart rỗng — chỉ gọi khi thực sự có sản phẩm
+    // (vd. tránh gọi trong khoảnh khắc cartStillLoading trước khi context cart kịp tải xong).
+    if (sourceCart.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
     fetch(`${API_BASE}/orders/checkout-summary`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
@@ -400,7 +403,7 @@ export default function Checkout() {
       .then((data) => { if (!cancelled) setCheckoutSummary(data) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [])
+  }, [sourceCart.length])
 
   // ── Payment ────────────────────────────────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState('cod')
