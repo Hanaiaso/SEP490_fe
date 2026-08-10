@@ -40,3 +40,12 @@ export async function getCeoDashboard(range = {}) {
 export async function getWarehouseStaffDashboard() {
   return fetchWithToken('GET', '/dashboards/warehouse-staff');
 }
+
+/**
+ * Dashboard tổng quan Admin (doanh thu, đơn hàng theo trạng thái, tồn kho, top sản phẩm/khách hàng).
+ * @param {{ from?: string, to?: string }} [range]
+ */
+export async function getAdminDashboard(range = {}) {
+  const qs = buildQuery(range);
+  return fetchWithToken('GET', `/dashboards/admin${qs ? `?${qs}` : ''}`);
+}

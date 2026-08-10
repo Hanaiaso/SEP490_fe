@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CEODashboard from './CEODashboard';
 import CEOPriceNegotiation from './CEOPriceNegotiation';
 import CEOPriceNegotiationDetail from './CEOPriceNegotiationDetail';
@@ -15,6 +15,7 @@ import {
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
+import { getQuotations } from '../../services/quotationService.js';
 
 // ─── Sidebar primitives (Same as Admin) ───────────────────────────────────────
 function SidebarHeader() {
@@ -77,7 +78,7 @@ function NavGroup({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function CEOSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+function CEOSidebar({ activeTab, setActiveTab, pendingQuotationCount }: { activeTab: string; setActiveTab: (tab: string) => void; pendingQuotationCount: number }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto flex-shrink-0" style={{ backgroundColor: '#1f3b64', width: 213 }}>
       <SidebarHeader />
@@ -87,7 +88,7 @@ function CEOSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveT
 
         <NavGroup title="Phê duyệt Báo Giá (≥100M)">
           <NavItem icon={<DollarSign className="w-4 h-4" />} label="Báo giá đàm phán"
-            active={activeTab === 'price-negotiation'} onClick={() => setActiveTab('price-negotiation')} badge={2} />
+            active={activeTab === 'price-negotiation'} onClick={() => setActiveTab('price-negotiation')} badge={pendingQuotationCount} />
         </NavGroup>
 
         <NavGroup title="Mua hàng & Nhà cung cấp">
@@ -113,8 +114,21 @@ export default function CEOPortal() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectPOId, setSelectPOId] = useState<string | null>(null);
   const [selectNegotiationId, setSelectNegotiationId] = useState<string | null>(null);
+  const [pendingQuotationCount, setPendingQuotationCount] = useState(0);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    getQuotations()
+      .then((data) => {
+        if (cancelled) return;
+        const rows = Array.isArray(data) ? data : [];
+        setPendingQuotationCount(rows.filter((q: { status?: string }) => q.status === 'PendingCeo').length);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
   const handleLogout = async () => {
     await logout();
@@ -151,7 +165,7 @@ export default function CEOPortal() {
 
   return (
     <div className="flex h-screen bg-[#f5f7fa] overflow-hidden">
-      <CEOSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <CEOSidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingQuotationCount={pendingQuotationCount} />
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
