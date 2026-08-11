@@ -19,7 +19,6 @@ import WarehouseDashboard from './WarehouseDashboard';
 import WarehouseShiftInventory from './WarehouseShiftInventory';
 import WarehouseMaterials from './WarehouseMaterials';
 import WarehouseMaterialReceiving from './WarehouseMaterialReceiving';
-import WarehouseMaterialIssue from './WarehouseMaterialIssue';
 import WarehouseMaterialHistory from './WarehouseMaterialHistory';
 import WarehouseGoods from './WarehouseGoods';
 import WarehouseGoodsReceive from './WarehouseGoodsReceive';
@@ -285,7 +284,6 @@ export default function WarehousePortal() {
               <Route path="shift-inventory" element={<WarehouseShiftInventory />} />
               <Route path="materials" element={<WarehouseMaterials />} />
               <Route path="materials/receive" element={<WarehouseMaterialReceiving />} />
-              <Route path="materials/issue" element={<WarehouseMaterialIssue />} />
               <Route path="materials/history" element={<WarehouseMaterialHistory />} />
               <Route path="goods" element={<WarehouseGoods />} />
               <Route path="goods/receive" element={<WarehouseGoodsReceive />} />

@@ -44,6 +44,32 @@ export interface ReplacementOrderResponse {
   message: string;
 }
 
+// UC-34: GET /api/delivery/conflicts
+export interface DeliveryScheduleConflict {
+  id: string;
+  vehicleId: number;
+  shift: string;
+  requestedDate: string;
+  orderCodes: string[];
+  status: string;
+  raisedByUserId: string;
+  raisedByUserName?: string;
+  raisedAt: string;
+  resolvedByUserId?: string;
+  resolvedByUserName?: string;
+  resolvedAt?: string;
+  resolutionAction?: string;
+  resolutionNote?: string;
+}
+
+export interface ResolveDeliveryConflictRequest {
+  action: 'Reassign' | 'Override' | 'Reject';
+  newVehicleId?: number;
+  newShift?: string;
+  newDate?: string;
+  note: string;
+}
+
 // GET /api/delivery/pickups
 export interface PendingPickupItem {
   productId: string;
