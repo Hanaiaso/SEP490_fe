@@ -83,7 +83,7 @@ export default function Home() {
               <div className="relative">
                 <button
                   type="submit"
-                  className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition cursor-pointer"
+                  className="absolute left-6 top-1/2 z-10 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition cursor-pointer"
                   aria-label="Tìm kiếm"
                 >
                   <Search className="h-5 w-5" />
