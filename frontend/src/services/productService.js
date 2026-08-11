@@ -68,6 +68,48 @@ export async function createProduct(data) {
   return request('POST', '/products', data)
 }
 
+/**
+ * Lấy danh sách sản phẩm cho trang quản lý (CEO/Admin) - bao gồm cả sản phẩm ngừng kinh doanh.
+ * @param {{ page?, pageSize?, categoryId?, search?, isDiscontinued? }} params
+ * @returns {Promise<{ items, totalCount, page, pageSize, totalPages }>}
+ */
+export async function getProductsForManagement({ page = 1, pageSize = 12, categoryId, search, isDiscontinued } = {}) {
+  const params = new URLSearchParams({ page, pageSize })
+  if (categoryId)               params.set('categoryId', categoryId)
+  if (search)                   params.set('search', search)
+  if (isDiscontinued !== undefined && isDiscontinued !== null) params.set('isDiscontinued', isDiscontinued)
+  return request('GET', `/products/management?${params.toString()}`)
+}
+
+/**
+ * Cập nhật sản phẩm.
+ * @param {string} id
+ * @param {{ name, sku, standardListedPrice, categoryId, unit, isDiscontinued } | FormData} data
+ */
+export async function updateProduct(id, data) {
+  return request('PUT', `/products/${id}`, data)
+}
+
+/**
+ * Xóa (ngừng kinh doanh) sản phẩm.
+ * @param {string} id
+ */
+export async function deleteProduct(id) {
+  return request('DELETE', `/products/${id}`)
+}
+
+/**
+ * Thống kê bán hàng theo sản phẩm: tổng quan, top bán chạy, top bán chậm.
+ * @param {{ from?: string, to?: string }} params
+ */
+export async function getProductStats({ from, to } = {}) {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to)   params.set('to', to)
+  const qs = params.toString()
+  return request('GET', `/products/stats${qs ? `?${qs}` : ''}`)
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**

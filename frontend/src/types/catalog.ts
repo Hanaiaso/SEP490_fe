@@ -24,6 +24,61 @@ export interface ProductDetail extends Omit<Product, 'availableStock'> {
   availableStock?: number;
 }
 
+// ProductManagementItemDto - dùng cho trang quản lý sản phẩm CEO/Admin
+export interface ProductManagementItem {
+  id: string;
+  name: string;
+  sku: string;
+  standardListedPrice: number;
+  imageUrl?: string;
+  categoryId: string;
+  categoryName: string;
+  unit: string;
+  availableStock?: number;
+  isDiscontinued: boolean;
+  averageRating: number;
+  reviewCount: number;
+  unitsSoldTotal: number;
+}
+
+export interface ProductManagementPagedResult {
+  items: ProductManagementItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ProductStatsSummary {
+  totalProducts: number;
+  activeProducts: number;
+  discontinuedProducts: number;
+  totalUnitsSold: number;
+  totalRevenue: number;
+  totalGrossProfit: number;
+}
+
+export interface ProductSalesStat {
+  productId: string;
+  name: string;
+  sku: string;
+  imageUrl?: string;
+  categoryName: string;
+  unitsSold: number;
+  revenue: number;
+  grossProfit: number;
+  orderCount: number;
+  availableStock?: number;
+}
+
+export interface ProductStatsResult {
+  periodFrom: string;
+  periodTo: string;
+  summary: ProductStatsSummary;
+  bestSellers: ProductSalesStat[];
+  slowMovers: ProductSalesStat[];
+}
+
 // MaterialDto backend KHÔNG có trường sku — chỉ name/unit.
 export interface Material {
   id: string;

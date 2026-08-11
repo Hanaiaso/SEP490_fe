@@ -6,11 +6,12 @@ import CEOPurchaseOrderPage from './CEOPurchaseOrderPage';
 import CEOSupplierManagementPage from './CEOSupplierManagementPage';
 import CEOPurchaseOrderDetailPage from './CEOPurchaseOrderDetailPage';
 import CEOMaterialManagementPage from './CEOMaterialManagementPage';
+import CEOProductManagementPage from './CEOProductManagementPage';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign,
-  Package, Users, LogOut, Building, Layers
+  Package, Users, LogOut, Building, Layers, ShoppingBag
 } from 'lucide-react';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import NotificationBell from '../../components/NotificationBell';
@@ -86,6 +87,11 @@ function CEOSidebar({ activeTab, setActiveTab, pendingQuotationCount }: { active
         <NavItem icon={<LayoutDashboard className="w-4 h-4" />} label="Dashboard"
           active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
 
+        <NavGroup title="Sản phẩm">
+          <NavItem icon={<ShoppingBag className="w-4 h-4" />} label="Quản lý sản phẩm"
+            active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
+        </NavGroup>
+
         <NavGroup title="Phê duyệt Báo Giá (≥100M)">
           <NavItem icon={<DollarSign className="w-4 h-4" />} label="Báo giá đàm phán"
             active={activeTab === 'price-negotiation'} onClick={() => setActiveTab('price-negotiation')} badge={pendingQuotationCount} />
@@ -154,6 +160,8 @@ export default function CEOPortal() {
         return <CEOSupplierManagementPage />;
       case 'materials':
         return <CEOMaterialManagementPage />;
+      case 'products':
+        return <CEOProductManagementPage />;
       case 'warehouses':
         return <WarehouseManagement />;
       case 'notifications':
