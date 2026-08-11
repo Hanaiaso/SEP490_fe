@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, Loader2, Minus, Package, Plus, RotateCcw, Shield, ShoppingCart, Truck } from 'lucide-react'
+import { Headphones, Loader2, Minus, Package, Plus, Shield, ShoppingCart, Truck } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, useParams } from 'react-router-dom'
 import Footer from '../components/Footer.jsx'
@@ -343,18 +343,15 @@ export default function ProductDetail() {
                   <ShoppingCart className="h-5 w-5" />
                   {addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ'}
                 </Button>
-                <Button size="lg" variant="outline" className="rounded-full px-6">
-                  <Heart className="h-5 w-5" />
-                </Button>
               </div>
 
               {/* Features */}
               <div className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2">
                 {[
-                  { icon: Truck, title: 'Miễn Phí Vận Chuyển', description: 'Đơn hàng trên 500.000 đ' },
-                  { icon: RotateCcw, title: 'Đổi Trả Dễ Dàng', description: 'Chính sách 30 ngày' },
-                  { icon: Package, title: 'Đóng Gói Cẩn Thận', description: 'Xử lý cẩn trọng' },
-                  { icon: Shield, title: 'Bảo Hành Chất Lượng', description: 'Sản phẩm cao cấp' },
+                  { icon: Truck, title: 'Giao Hàng Tận Nơi', description: 'Theo lịch & thỏa thuận đơn hàng' },
+                  { icon: Shield, title: 'Chuẩn Quy Cách', description: 'Đúng sóng, kích thước & định lượng' },
+                  { icon: Package, title: 'Đóng Kiện Chắc Chắn', description: 'Đai nẹp pallet & màng PE bảo vệ' },
+                  { icon: Headphones, title: 'Hỗ Trợ Kỹ Thuật', description: 'Tư vấn & tiếp nhận xử lý trong 24h' },
                 ].map((feature) => (
                   <div key={feature.title} className="flex items-start gap-3">
                     <div className="rounded-lg bg-gray-100 p-2">

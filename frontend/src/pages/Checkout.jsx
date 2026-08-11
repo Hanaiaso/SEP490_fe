@@ -680,7 +680,11 @@ export default function Checkout() {
   // ── Address modal helpers ──────────────────────────────────────────────────
   function openCreateAddressModal() {
     setEditingAddressId(null)
-    setAddressForm({ ...emptyAddressForm })
+    setAddressForm({
+      ...emptyAddressForm,
+      name: user?.fullName || user?.name || 'Khách hàng',
+      phone: user?.phoneNumber || user?.phone || '',
+    })
     setShowAddressModal(true)
   }
 
@@ -688,8 +692,8 @@ export default function Checkout() {
     setEditingAddressId(addr.id)
     setAddressForm({
       id: addr.id,
-      name: addr.name,
-      phone: addr.phone,
+      name: addr.name || user?.fullName || user?.name || 'Khách hàng',
+      phone: addr.phone || user?.phoneNumber || user?.phone || '',
       city: addr.city,
       district: addr.district,
       ward: addr.ward || '',
@@ -719,8 +723,8 @@ export default function Checkout() {
     event.preventDefault()
     
     const payload = {
-      name: addressForm.name,
-      phone: addressForm.phone,
+      name: addressForm.name || user?.fullName || user?.name || 'Khách hàng',
+      phone: addressForm.phone || user?.phoneNumber || user?.phone || '0901234567',
       city: addressForm.city,
       district: addressForm.district,
       ward: addressForm.ward || '',
@@ -1152,8 +1156,8 @@ export default function Checkout() {
                         />
                         <div className="flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-gray-900">{addr.name}</span>
-                            <span className="text-sm text-gray-500">{addr.phone}</span>
+                            <span className="font-semibold text-gray-900">{addr.name || user?.fullName}</span>
+                            <span className="text-sm text-gray-500">{addr.phone || user?.phoneNumber}</span>
                             <Badge className={`px-2.5 py-1 text-[11px] font-medium hover:opacity-90 ${
                               addr.type === 'Công ty' ? 'bg-blue-50 text-blue-700'
                               : addr.type === 'Nhà riêng' ? 'bg-green-100 text-green-700'

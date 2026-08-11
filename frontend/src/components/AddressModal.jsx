@@ -200,30 +200,6 @@ export default function AddressModal({
         <h3 className="mb-5 text-lg font-bold text-gray-900">{title}</h3>
 
         <form onSubmit={onSubmit} className="space-y-3">
-          {/* Tên + SĐT */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Họ tên người nhận</label>
-              <Input
-                placeholder="Nguyễn Văn A"
-                className="rounded-xl text-sm"
-                value={form.name}
-                onChange={(e) => onChange('name', e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Số điện thoại</label>
-              <Input
-                placeholder="0901 234 567"
-                className="rounded-xl text-sm"
-                value={form.phone}
-                onChange={(e) => onChange('phone', e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
           {/* Nút lấy vị trí */}
           <div>
             <Button

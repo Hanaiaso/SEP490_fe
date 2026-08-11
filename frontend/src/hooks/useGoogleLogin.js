@@ -5,7 +5,7 @@ import { useEffect, useCallback } from 'react'
  * @param {(idToken: string) => void} onSuccess - Callback nhận Google ID Token
  * @param {(error: string) => void} onError - Callback khi có lỗi
  */
-export function useGoogleLogin(onSuccess, onError) {
+export function useGoogleLogin(onSuccess, onError, containerId = 'google-login-btn') {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   useEffect(() => {
@@ -26,8 +26,8 @@ export function useGoogleLogin(onSuccess, onError) {
           cancel_on_tap_outside: true,
         })
 
-        // Tự động render nút Google chính thức vào div có id="google-login-btn"
-        const btnContainer = document.getElementById('google-login-btn')
+        // Tự động render nút Google chính thức vào div có containerId
+        const btnContainer = document.getElementById(containerId)
         if (btnContainer) {
           window.google.accounts.id.renderButton(btnContainer, {
             theme: 'outline',
@@ -44,7 +44,7 @@ export function useGoogleLogin(onSuccess, onError) {
     }, 100)
 
     return () => clearInterval(intervalId)
-  }, [clientId, onSuccess, onError])
+  }, [clientId, onSuccess, onError, containerId])
 
   // Hàm dự phòng (prompt) nếu nút chính thức không thể render
   const triggerGoogleLogin = useCallback(() => {

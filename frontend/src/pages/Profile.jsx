@@ -148,8 +148,10 @@ function ToggleRow({ checked, label, onToggle }) {
       <span className="text-sm text-gray-700">{label}</span>
       <button
         type="button"
+        role="switch"
+        aria-checked={checked}
         onClick={onToggle}
-        className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
+        className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
       >
         <span
           className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${checked ? 'left-6' : 'left-1'}`}
@@ -188,12 +190,30 @@ function PersonalInfoTab({ user, onSuccess }) {
   const [savingInfo, setSavingInfo] = useState(false)
   const [updatingPassword, setUpdatingPassword] = useState(false)
 
-  const [notifications, setNotifications] = useState({
-    orderConfirm: true,
-    shipStatus: true,
-    vatInvoice: false,
-    promotions: true,
+  const notificationStorageKey = `user_email_notifications_${user?.id || user?.email || 'default'}`
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`user_email_notifications_${user?.id || user?.email || 'default'}`)
+      if (saved) return JSON.parse(saved)
+    } catch (e) {}
+    return {
+      orderConfirm: true,
+      shipStatus: true,
+      vatInvoice: true,
+      promotions: true,
+    }
   })
+
+  const handleToggleNotification = (key) => {
+    setNotifications((prev) => {
+      const updated = { ...prev, [key]: !prev[key] }
+      try {
+        localStorage.setItem(notificationStorageKey, JSON.stringify(updated))
+      } catch (e) {}
+      onSuccess?.('Đã lưu cài đặt thông báo email')
+      return updated
+    })
+  }
 
   const isPhoneMatchedAndVerified = !phoneNumber || (user?.isPhoneVerified && user?.phoneNumber === phoneNumber);
 
@@ -472,24 +492,24 @@ function PersonalInfoTab({ user, onSuccess }) {
         </div>
         <div className="space-y-4">
           <ToggleRow
-            checked={notifications.orderConfirm}
+            checked={Boolean(notifications.orderConfirm)}
             label="Nhận email xác nhận đơn hàng"
-            onToggle={() => setNotifications((value) => ({ ...value, orderConfirm: !value.orderConfirm }))}
+            onToggle={() => handleToggleNotification('orderConfirm')}
           />
           <ToggleRow
-            checked={notifications.shipStatus}
+            checked={Boolean(notifications.shipStatus)}
             label="Nhận email trạng thái giao hàng"
-            onToggle={() => setNotifications((value) => ({ ...value, shipStatus: !value.shipStatus }))}
+            onToggle={() => handleToggleNotification('shipStatus')}
           />
           <ToggleRow
-            checked={notifications.vatInvoice}
+            checked={Boolean(notifications.vatInvoice)}
             label="Nhận email hóa đơn VAT"
-            onToggle={() => setNotifications((value) => ({ ...value, vatInvoice: !value.vatInvoice }))}
+            onToggle={() => handleToggleNotification('vatInvoice')}
           />
           <ToggleRow
-            checked={notifications.promotions}
+            checked={Boolean(notifications.promotions)}
             label="Nhận email khuyến mãi"
-            onToggle={() => setNotifications((value) => ({ ...value, promotions: !value.promotions }))}
+            onToggle={() => handleToggleNotification('promotions')}
           />
         </div>
       </section>
@@ -504,7 +524,7 @@ function PersonalInfoTab({ user, onSuccess }) {
 }
 
 function AddressesTab({ onSuccess, needAddress }) {
-  const { refreshProfileStatus } = useAuth()
+  const { user, refreshProfileStatus } = useAuth()
   const [addresses, setAddresses] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -561,7 +581,11 @@ function AddressesTab({ onSuccess, needAddress }) {
 
   function openCreateModal() {
     setEditingAddressId(null)
-    setAddressForm({ ...emptyAddressForm })
+    setAddressForm({
+      ...emptyAddressForm,
+      name: user?.fullName || user?.name || 'Khách hàng',
+      phone: user?.phoneNumber || user?.phone || '',
+    })
     setShowModal(true)
   }
 
@@ -569,8 +593,8 @@ function AddressesTab({ onSuccess, needAddress }) {
     setEditingAddressId(address.id)
     setAddressForm({
       id: address.id,
-      name: address.name,
-      phone: address.phone,
+      name: address.name || user?.fullName || user?.name || 'Khách hàng',
+      phone: address.phone || user?.phoneNumber || user?.phone || '',
       city: address.city,
       district: address.district,
       ward: address.ward || '',
@@ -596,8 +620,8 @@ function AddressesTab({ onSuccess, needAddress }) {
     event.preventDefault()
 
     const payload = {
-      name: addressForm.name,
-      phone: addressForm.phone,
+      name: addressForm.name || user?.fullName || user?.name || 'Khách hàng',
+      phone: addressForm.phone || user?.phoneNumber || user?.phone || '0901234567',
       city: addressForm.city,
       district: addressForm.district,
       ward: addressForm.ward || '',
@@ -685,8 +709,8 @@ function AddressesTab({ onSuccess, needAddress }) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-gray-900">{address.name}</span>
-                <span className="text-sm text-gray-500">{address.phone}</span>
+                <span className="font-semibold text-gray-900">{address.name || user?.fullName}</span>
+                <span className="text-sm text-gray-500">{address.phone || user?.phoneNumber}</span>
                 <Badge
                   className={`${typeColor[address.type] ?? 'bg-gray-100 text-gray-600'} px-2.5 py-1 text-[11px] font-medium hover:opacity-90`}
                 >

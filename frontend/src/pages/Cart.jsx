@@ -436,7 +436,7 @@ export default function Cart() {
                       <span>Vận Chuyển</span>
                       <span className="font-medium">{shippingFee === 0 ? 'Miễn Phí' : formatPrice(shippingFee)}</span>
                     </div>
-                    <div className="text-xs text-gray-500">Miễn phí vận chuyển cho mọi đơn hàng</div>
+                    <div className="text-xs text-gray-500">Giao hàng tận nơi theo thỏa thuận đơn hàng</div>
                   </div>
 
                   <div className="mb-6 border-t border-gray-200 pt-4">
@@ -473,9 +473,9 @@ export default function Cart() {
 
                 <div className="space-y-3">
                   {[
-                    'Miễn phí vận chuyển cho đơn hàng trên 500.000 đ',
-                    'Đổi trả dễ dàng trong 30 ngày',
-                    'Thanh toán an toàn bảo mật',
+                    'Giao hàng tận nơi theo thỏa thuận đơn hàng',
+                    'Đảm bảo quy cách chất lượng & định lượng bao bì',
+                    'Thanh toán an toàn, minh bạch & xuất hóa đơn VAT',
                   ].map((text) => (
                     <div key={text} className="flex items-center gap-3 text-sm text-gray-600">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">

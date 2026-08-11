@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Heart, ShoppingCart } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { Button } from './ui/Button.jsx'
@@ -8,8 +8,6 @@ import { formatPrice } from '../services/productService.js'
 import { useCart } from '../context/CartContext.jsx'
 
 export default function ProductListCard({ product }) {
-  const [isWishlisted, setIsWishlisted] = useState(false)
-
   const imageUrl = product.imageUrl
     || product.image
     || `https://placehold.co/600x600/f3f4f6/9ca3af?text=${encodeURIComponent(product.name)}`
@@ -58,16 +56,6 @@ export default function ProductListCard({ product }) {
               <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white">Hết hàng</span>
             </div>
           )}
-
-          <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsWishlisted((v) => !v)}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md transition hover:bg-gray-50"
-            aria-label="Thêm vào yêu thích"
-          >
-            <Heart className={isWishlisted ? 'h-4 w-4 fill-red-500 text-red-500' : 'h-4 w-4 text-gray-600'} />
-          </motion.button>
         </div>
 
         <div className="flex flex-1 flex-col justify-between gap-5 py-1">

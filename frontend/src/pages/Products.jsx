@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Grid3x3, List, Loader2, SlidersHorizontal } from 'lucide-react'
 import { motion } from 'motion/react'
+import { useSearchParams } from 'react-router-dom'
 import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 import Pagination from '../components/Pagination.jsx'
@@ -12,17 +13,37 @@ import { Label } from '../components/ui/Label.jsx'
 import { getCategories, getProducts } from '../services/productService.js'
 
 const PAGE_SIZE = 6
-const MAX_PRICE = 2000000
+
+const PRICE_PRESETS = [
+  { id: 'all', label: 'Tất cả mức giá', min: null, max: null },
+  { id: 'under-100k', label: 'Dưới 100.000 đ', min: 0, max: 100000 },
+  { id: '100k-500k', label: '100.000 đ – 500.000 đ', min: 100000, max: 500000 },
+  { id: '500k-2m', label: '500.000 đ – 2.000.000 đ', min: 500000, max: 2000000 },
+  { id: '2m-10m', label: '2.000.000 đ – 10.000.000 đ', min: 2000000, max: 10000000 },
+  { id: 'above-10m', label: 'Trên 10.000.000 đ', min: 10000000, max: null },
+]
 
 export default function Products() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSearch = searchParams.get('search') || searchParams.get('q') || ''
+
   // ─── Filter / UI state ─────────────────────────────────────────────────────
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
-  const [priceLimit, setPriceLimit]                 = useState(MAX_PRICE)
+  const [minPrice, setMinPrice]                     = useState('')
+  const [maxPrice, setMaxPrice]                     = useState('')
+  const [activePreset, setActivePreset]             = useState('all')
   const [sortBy, setSortBy]                         = useState('featured')
   const [viewMode, setViewMode]                     = useState('list')
   const [showFilters, setShowFilters]               = useState(true)
   const [currentPage, setCurrentPage]               = useState(1)
-  const [searchText, setSearchText]                 = useState('')
+  const [searchText, setSearchText]                 = useState(initialSearch)
+
+  // Sync if URL search query changes (e.g., navigated from Home search)
+  useEffect(() => {
+    const q = searchParams.get('search') || searchParams.get('q') || ''
+    setSearchText(q)
+    setCurrentPage(1)
+  }, [searchParams])
 
   // ─── API state ─────────────────────────────────────────────────────────────
   const [products, setProducts]     = useState([])
@@ -70,14 +91,31 @@ export default function Products() {
     setCurrentPage(1)
   }
 
+  function handleSelectPreset(preset) {
+    setActivePreset(preset.id)
+    setMinPrice(preset.min !== null ? preset.min.toString() : '')
+    setMaxPrice(preset.max !== null ? preset.max.toString() : '')
+    setCurrentPage(1)
+  }
+
+  function handleCustomPriceChange(type, rawVal) {
+    const clean = rawVal.replace(/\D/g, '')
+    setActivePreset('custom')
+    if (type === 'min') setMinPrice(clean)
+    if (type === 'max') setMaxPrice(clean)
+    setCurrentPage(1)
+  }
+
   function resetFilters() {
     setSelectedCategoryId(null)
-    setPriceLimit(MAX_PRICE)
+    setMinPrice('')
+    setMaxPrice('')
+    setActivePreset('all')
     setSearchText('')
     setCurrentPage(1)
   }
 
-  // Client-side sort (price sort needs data already fetched; name sort is local)
+  // Client-side sort & price filtering
   const displayedProducts = [...products].sort((a, b) => {
     switch (sortBy) {
       case 'price-low':
@@ -89,7 +127,14 @@ export default function Products() {
       default:
         return 0
     }
-  }).filter((p) => p.standardListedPrice <= priceLimit)
+  }).filter((p) => {
+    const price = p.standardListedPrice ?? 0
+    const min = minPrice ? Number(minPrice) : null
+    const max = maxPrice ? Number(maxPrice) : null
+    if (min !== null && price < min) return false
+    if (max !== null && price > max) return false
+    return true
+  })
 
   return (
     <div className="min-h-screen bg-white">
@@ -125,7 +170,19 @@ export default function Products() {
                 <input
                   type="text"
                   value={searchText}
-                  onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1) }}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setSearchText(val)
+                    setCurrentPage(1)
+                    const newParams = new URLSearchParams(searchParams)
+                    if (val.trim()) {
+                      newParams.set('search', val.trim())
+                    } else {
+                      newParams.delete('search')
+                      newParams.delete('q')
+                    }
+                    setSearchParams(newParams, { replace: true })
+                  }}
                   placeholder="Tìm kiếm sản phẩm..."
                   className="h-11 w-52 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
                 />
@@ -203,25 +260,58 @@ export default function Products() {
                   {/* Price filter */}
                   <div>
                     <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-900">Khoảng Giá</h3>
-                    <div className="space-y-4">
-                      <div className="space-y-3">
-                        <input
-                          type="range"
-                          min="0"
-                          max={MAX_PRICE}
-                          step="50000"
-                          value={priceLimit}
-                          onChange={(e) => { setPriceLimit(Number(e.target.value)); setCurrentPage(1) }}
-                          className="price-slider w-full"
-                        />
-                        <div className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                          Lọc đến {priceLimit.toLocaleString('vi-VN')} đ
+                    
+                    {/* Presets */}
+                    <div className="space-y-2 mb-4">
+                      {PRICE_PRESETS.map((preset) => {
+                        const isSelected = activePreset === preset.id
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset)}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                              isSelected
+                                ? 'bg-gray-900 text-white shadow-xs'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Custom Min - Max inputs */}
+                    <div className="pt-3 border-t border-gray-100">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Hoặc nhập khoảng giá (đ):</p>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Từ đ"
+                            value={minPrice ? Number(minPrice).toLocaleString('vi-VN') : ''}
+                            onChange={(e) => handleCustomPriceChange('min', e.target.value)}
+                            className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Đến đ"
+                            value={maxPrice ? Number(maxPrice).toLocaleString('vi-VN') : ''}
+                            onChange={(e) => handleCustomPriceChange('max', e.target.value)}
+                            className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                          />
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>0 đ</span>
-                        <span>{MAX_PRICE.toLocaleString('vi-VN')} đ</span>
-                      </div>
+                      {(minPrice || maxPrice) && (
+                        <div className="text-[11px] text-gray-500 italic mb-2">
+                          Đang lọc: {minPrice ? `${Number(minPrice).toLocaleString('vi-VN')} đ` : '0 đ'} → {maxPrice ? `${Number(maxPrice).toLocaleString('vi-VN')} đ` : 'Không giới hạn'}
+                        </div>
+                      )}
                     </div>
                   </div>
 
