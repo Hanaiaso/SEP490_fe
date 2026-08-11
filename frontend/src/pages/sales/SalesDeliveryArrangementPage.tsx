@@ -292,7 +292,9 @@ export default function SalesDeliveryArrangementPage() {
           }).then(async (res) => {
             if (!res.ok) {
               const err = await res.json();
-              throw new Error(getErrorMessage(err));
+              const error = new Error(getErrorMessage(err)) as Error & { code?: string };
+              error.code = err.code;
+              throw error;
             }
           })
         );
@@ -324,7 +326,17 @@ export default function SalesDeliveryArrangementPage() {
       toast.success(`Lập lịch thành công cho các đơn giao/thu hồi ca ${shiftKey} ngày ${fmtDate}!`);
       await fetchOrders();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Có lỗi xảy ra khi lập lịch.'));
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'SCHEDULE_CONFLICT') {
+        // UC-34: xe/ca đã có lịch trùng — backend đã tự tạo yêu cầu xử lý cho Sales Manager,
+        // không phải lỗi cần Sales tự sửa ngay.
+        toast.error('Xe/ca đã có lịch trùng. Yêu cầu xử lý xung đột đã được gửi tới Sales Manager.');
+      } else {
+        toast.error(getErrorMessage(err, 'Có lỗi xảy ra khi lập lịch.'));
+      }
+      // Vẫn làm mới danh sách: các xe khác trong cùng lượt xác nhận có thể đã lập lịch thành công
+      // trước khi 1 xe gặp xung đột (Promise.all dừng sớm nhưng các promise khác vẫn chạy nền).
+      await fetchOrders();
     } finally {
       setSaving(false);
     }

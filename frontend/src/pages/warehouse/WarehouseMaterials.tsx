@@ -111,8 +111,7 @@ export default function WarehouseMaterials() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button className="px-2 py-1 rounded text-[10px] border border-gray-200 hover:bg-gray-50 text-gray-600" onClick={() => navigate('/warehouse/materials/receive')}>Nhập</button>
-                      <button className="px-2 py-1 rounded text-[10px] border border-gray-200 hover:bg-gray-50 text-gray-600" onClick={() => navigate('/warehouse/materials/issue')}>Xuất</button>
+                      <button className="px-2 py-1 rounded text-[10px] border border-gray-200 hover:bg-gray-50 text-gray-600" onClick={() => navigate('/warehouse/production/issue')}>Xuất</button>
                       {m.status !== 'ok' && (
                         <button className="px-2 py-1 rounded text-[10px] border border-red-200 hover:bg-red-50 text-red-600">Báo</button>
                       )}

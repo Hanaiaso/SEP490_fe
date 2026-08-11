@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AddressModal, { buildFullAddress, emptyAddressForm } from '../components/AddressModal.jsx'
+import PhoneVerificationModal from '../components/PhoneVerificationModal.jsx'
 import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 
@@ -416,6 +417,9 @@ export default function Checkout() {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false)
   const [countdown, setCountdown] = useState(5)
 
+  // UC-13: đơn hàng đầu tiên + SĐT chưa xác thực -> bắt buộc verify OTP trước khi đặt hàng.
+  const [showPhoneOtpModal, setShowPhoneOtpModal] = useState(false)
+
   // ── UI ─────────────────────────────────────────────────────────────────────
   const [successToast, setSuccessToast] = useState(null)
   const invoiceRef = useRef(null)
@@ -645,7 +649,9 @@ export default function Checkout() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}))
-        throw new Error(errJson.message || 'Lỗi khi tạo đơn hàng')
+        const err = new Error(errJson.message || 'Lỗi khi tạo đơn hàng')
+        err.code = errJson.code
+        throw err
       }
 
       const orderData = await res.json()
@@ -671,10 +677,25 @@ export default function Checkout() {
         showSuccess('Đặt đơn hàng thành công!')
       }
     } catch (err) {
-      alert(err.message || 'Có lỗi xảy ra khi tạo đơn hàng')
+      if (err.code === 'PHONE_OTP_REQUIRED') {
+        // Lớp an toàn dự phòng: state FE lệch (vd checkoutSummary cũ chưa kịp làm mới) nhưng
+        // backend vẫn từ chối -> mở modal OTP thay vì chỉ báo lỗi chung chung.
+        setShowPhoneOtpModal(true)
+      } else {
+        alert(err.message || 'Có lỗi xảy ra khi tạo đơn hàng')
+      }
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  // UC-13: chặn trước khi gọi handleConfirmOrder nếu chưa xác thực OTP cho đơn đầu tiên.
+  function handleConfirmClick() {
+    if (checkoutSummary?.requiresPhoneOtp && !user?.isPhoneVerified) {
+      setShowPhoneOtpModal(true)
+      return
+    }
+    handleConfirmOrder()
   }
 
   // ── Address modal helpers ──────────────────────────────────────────────────
@@ -1514,7 +1535,7 @@ export default function Checkout() {
                     <Button
                       size="lg"
                       className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"
-                      onClick={handleConfirmOrder}
+                      onClick={handleConfirmClick}
                       disabled={isProcessing}
                     >
                       {isProcessing
@@ -1546,6 +1567,21 @@ export default function Checkout() {
           />
         )}
       </AnimatePresence>
+
+      {/* UC-13: xác thực OTP bắt buộc cho đơn hàng đầu tiên */}
+      <PhoneVerificationModal
+        isOpen={showPhoneOtpModal}
+        currentPhone={user?.phoneNumber || user?.phone || ''}
+        onClose={() => {
+          setShowPhoneOtpModal(false)
+          // verifyPhoneOtp (trong PhoneVerificationModal) đã cập nhật user.isPhoneVerified trước khi
+          // gọi onClose -> nếu đúng là vừa xác thực thành công thì tiếp tục đặt hàng luôn, khỏi bắt
+          // khách bấm lại nút "Xác nhận & Đặt hàng" lần 2.
+          if (user?.isPhoneVerified) {
+            handleConfirmOrder()
+          }
+        }}
+      />
 
       <Footer />
     </div>
