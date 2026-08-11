@@ -7,6 +7,7 @@ import {
   deleteProduct,
   getProductStats,
   getCategories,
+  getProductById,
   formatPrice,
 } from '../../services/productService';
 import { Search, Plus, Package, TrendingUp, TrendingDown, Ban, ImageOff } from 'lucide-react';
@@ -105,10 +106,12 @@ export default function CEOProductManagementPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [loadProducts]);
 
-  const handleOpenModal = (product: ProductManagementItem | null = null) => {
+  const handleOpenModal = async (product: ProductManagementItem | null = null) => {
     setImageFile(null);
     if (product) {
       setEditingProduct(product);
+      // Danh sách quản lý không trả về description/specifications -> phải lấy chi tiết,
+      // nếu không form sẽ luôn gửi rỗng và xóa mất 2 trường này khi lưu.
       setFormData({
         name: product.name,
         sku: product.sku,
@@ -120,12 +123,23 @@ export default function CEOProductManagementPage() {
         isDiscontinued: product.isDiscontinued,
       });
       setImagePreview(product.imageUrl || null);
+      setIsModalOpen(true);
+      try {
+        const detail = await getProductById(product.id);
+        setFormData((prev) => ({
+          ...prev,
+          description: detail.description || '',
+          specifications: detail.specifications || '',
+        }));
+      } catch {
+        // Giữ nguyên form nếu không lấy được chi tiết; người dùng vẫn có thể lưu các trường khác.
+      }
     } else {
       setEditingProduct(null);
       setFormData(emptyForm);
       setImagePreview(null);
+      setIsModalOpen(true);
     }
-    setIsModalOpen(true);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
