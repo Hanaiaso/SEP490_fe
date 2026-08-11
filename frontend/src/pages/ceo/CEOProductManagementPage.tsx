@@ -158,8 +158,9 @@ export default function CEOProductManagementPage() {
       fd.append('CategoryId', formData.categoryId);
       fd.append('StandardListedPrice', formData.standardListedPrice);
       fd.append('Unit', formData.unit);
-      if (formData.description) fd.append('Description', formData.description);
-      if (formData.specifications) fd.append('Specifications', formData.specifications);
+      // Luon gui (ke ca rong) - backend coi thieu truong = "khong doi", chuoi rong = "xoa".
+      fd.append('Description', formData.description);
+      fd.append('Specifications', formData.specifications);
       if (imageFile) fd.append('ImageFile', imageFile);
 
       if (editingProduct) {
