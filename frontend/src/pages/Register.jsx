@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { ArrowLeft, Building2, Gift, Lock, Mail, Phone, User } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useGoogleLogin } from '../hooks/useGoogleLogin.js'
+import PolicyModal from '../components/PolicyModal.jsx'
 import { Button } from '../components/ui/Button.jsx'
 import { Input } from '../components/ui/Input.jsx'
 import { Label } from '../components/ui/Label.jsx'
 
 export default function Register() {
   const navigate = useNavigate()
-  const { register, loading } = useAuth()
+  const { register, loginWithGoogle, loading } = useAuth()
+  const [policyModal, setPolicyModal] = useState({ isOpen: false, type: 'privacy' })
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -20,6 +23,46 @@ export default function Register() {
     referralCode: '',
   })
   const [errorMsg, setErrorMsg] = useState('')
+
+  const handleRedirect = useCallback((user) => {
+    // Nếu profile chưa hoàn chỉnh (chưa có địa chỉ) → yêu cầu thêm địa chỉ
+    if (user?.isProfileCompleted === false && (!user?.role || user?.role === 'Customer')) {
+      navigate('/profile?tab=addresses', { state: { needAddress: true } })
+      return
+    }
+    // Redirect theo role
+    if (user?.role === 'SalesStaff') {
+      navigate('/sales')
+    } else if (user?.role === 'SalesManager') {
+      navigate('/sales-manager/dashboard')
+    } else if (user?.role === 'WarehouseStaff') {
+      navigate('/warehouse')
+    } else if (user?.role === 'AccountingStaff') {
+      navigate('/accounting')
+    } else if (user?.role === 'CEO') {
+      navigate('/ceo')
+    } else if (user?.role === 'Admin') {
+      navigate('/admin')
+    } else {
+      navigate('/home')
+    }
+  }, [navigate])
+
+  const handleGoogleSuccess = useCallback(async (idToken) => {
+    setErrorMsg('')
+    const result = await loginWithGoogle(idToken)
+    if (result.success) {
+      handleRedirect(result.user)
+    } else {
+      setErrorMsg(result.message)
+    }
+  }, [loginWithGoogle, handleRedirect])
+
+  useGoogleLogin(
+    handleGoogleSuccess,
+    (err) => setErrorMsg(err),
+    'google-register-btn'
+  )
 
   const handleChange = (field, value) => {
     setFormData((current) => ({ ...current, [field]: value }))
@@ -209,13 +252,21 @@ export default function Register() {
 
             <p className="text-sm text-gray-600">
               Bằng việc tạo tài khoản, bạn đồng ý với{' '}
-              <a href="#" className="text-gray-900 hover:underline">
+              <button
+                type="button"
+                onClick={() => setPolicyModal({ isOpen: true, type: 'terms' })}
+                className="text-gray-900 font-medium hover:underline cursor-pointer"
+              >
                 Điều khoản dịch vụ
-              </a>{' '}
+              </button>{' '}
               và{' '}
-              <a href="#" className="text-gray-900 hover:underline">
+              <button
+                type="button"
+                onClick={() => setPolicyModal({ isOpen: true, type: 'privacy' })}
+                className="text-gray-900 font-medium hover:underline cursor-pointer"
+              >
                 Chính sách bảo mật
-              </a>
+              </button>
               .
             </p>
 
@@ -232,9 +283,38 @@ export default function Register() {
               </div>
             </div>
 
-            <Button type="button" variant="outline" className="h-12 w-full border-gray-300">
-              Tiếp tục với Google
-            </Button>
+            <div className="relative w-full h-12">
+              <Button
+                type="button"
+                variant="outline"
+                className="absolute inset-0 flex items-center justify-center w-full h-full border-gray-300 pointer-events-none"
+                disabled={loading}
+              >
+                <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.47 15.02 1 12 1 7.35 1 3.39 3.67 1.4 7.56l3.89 3.02C6.21 7.42 8.87 5.04 12 5.04z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.29 1.48-1.14 2.73-2.4 3.58l3.73 2.89c2.18-2.01 3.7-4.99 3.7-8.62z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.29 14.54a7.13 7.13 0 0 1 0-4.54L1.4 6.98A11.96 11.96 0 0 0 0 12c0 1.8.4 3.51 1.4 5.02l3.89-3.02z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.73-2.89c-1.1.74-2.51 1.18-4.23 1.18-3.13 0-5.79-2.38-6.71-5.54l-3.89 3.02C3.39 20.33 7.35 23 12 23z"
+                  />
+                </svg>
+                Tiếp tục với Google
+              </Button>
+              <div
+                id="google-register-btn"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&>div]:w-full [&>div]:h-full [&_iframe]:w-full [&_iframe]:h-full"
+              ></div>
+            </div>
           </form>
 
           <p className="mt-8 text-center text-gray-600">
@@ -245,6 +325,13 @@ export default function Register() {
           </p>
         </motion.div>
       </div>
+
+      {/* Policy Popup Modal */}
+      <PolicyModal
+        isOpen={policyModal.isOpen}
+        type={policyModal.type}
+        onClose={() => setPolicyModal({ isOpen: false, type: 'privacy' })}
+      />
     </div>
   )
 }

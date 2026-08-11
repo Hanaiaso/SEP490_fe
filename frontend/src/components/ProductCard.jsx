@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, Heart, ShoppingCart } from 'lucide-react'
+import { Eye, ShoppingCart } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { formatPrice } from '../services/productService.js'
@@ -7,7 +7,6 @@ import { StarRating } from './ui/StarRating.jsx'
 import { useCart } from '../context/CartContext.jsx'
 
 export default function ProductCard({ product }) {
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const { addToCart } = useCart()
   const [adding, setAdding] = useState(false)
 
@@ -56,20 +55,6 @@ export default function ProductCard({ product }) {
             <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-medium text-white">Hết hàng</span>
           </div>
         )}
-
-        {/* Wishlist button */}
-        <div className="absolute right-4 top-4">
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsWishlisted((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md transition hover:bg-gray-50"
-            aria-label="Toggle wishlist"
-          >
-            <Heart className={isWishlisted ? 'h-4 w-4 fill-red-500 text-red-500' : 'h-4 w-4 text-gray-600'} />
-          </motion.button>
-        </div>
 
         {/* Hover actions */}
         <div className="absolute bottom-4 right-4 flex flex-col gap-2 opacity-0 transition duration-300 group-hover:opacity-100">

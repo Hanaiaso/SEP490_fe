@@ -63,27 +63,40 @@ export default function Home() {
             transition={{ duration: 0.7 }}
           >
             <h1 className="mb-6 text-4xl font-bold text-white md:text-6xl lg:text-7xl">
-              Khám Phá Văn Phòng Phẩm
+              Bao Bì & Thùng Carton
               <br />
-              Cao Cấp
+              Chất Lượng Cao
             </h1>
             <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-200 md:text-xl">
-              Bộ sưu tập văn phòng phẩm tinh gọn, chất lượng cao dành cho doanh nghiệp và đội ngũ hiện đại.
+              Giải pháp đóng gói toàn diện, sản xuất theo yêu cầu chuẩn kích thước và định lượng cho doanh nghiệp.
             </p>
 
-            <div className="mx-auto max-w-2xl">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (searchQuery.trim()) {
+                  navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+                }
+              }}
+              className="mx-auto max-w-2xl"
+            >
               <div className="relative">
-                <Search className="absolute left-6 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <button
+                  type="submit"
+                  className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition cursor-pointer"
+                  aria-label="Tìm kiếm"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
                 <Input
                   type="text"
-                  placeholder="Tìm kiếm sản phẩm (Nhấn Enter để tìm)..."
+                  placeholder="Tìm kiếm sản phẩm (vd: Thùng carton, Hộp nắp gài...)..."
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={handleSearch}
-                  className="rounded-full border-0 bg-white/95 py-6 pl-14 pr-6 text-base backdrop-blur-sm"
+                  className="rounded-full border-0 bg-white/95 py-6 pl-14 pr-6 text-base text-gray-900 placeholder:text-gray-500 backdrop-blur-sm shadow-xl"
                 />
               </div>
-            </div>
+            </form>
           </motion.div>
         </div>
       </section>
@@ -108,36 +121,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-gradient-to-r from-blue-900 to-blue-800 py-20 text-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-2 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="mb-4 text-4xl font-bold md:text-5xl">Ưu đãi đặc biệt</h2>
-            <p className="mb-6 text-xl text-blue-100">
-              Giảm 20% cho đơn hàng số lượng lớn từ 1.000.000 VNĐ trở lên.
-            </p>
-            <Button size="lg" className="rounded-full bg-white px-8 !text-blue-900 hover:bg-gray-100">
-              Mua ngay
-            </Button>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="relative h-80 overflow-hidden rounded-[1.75rem]"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1692521248559-c3434d0baa81?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwc3RhdGlvbmVyeSUyMGJyYW5kaW5nJTIwbWluaW1hbHxlbnwxfHx8fDE3ODAwNTY2NTR8MA&ixlib=rb-4.1.0&q=80&w=1080"
-              alt="Bộ nhận diện văn phòng phẩm cao cấp"
-              className="h-full w-full object-cover"
-            />
-          </motion.div>
-        </div>
-      </section>
 
       <section className="bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">

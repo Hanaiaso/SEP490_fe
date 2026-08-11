@@ -111,7 +111,8 @@ export default function Header() {
         <div className="hidden items-center gap-2.5 md:flex">
           <button
             type="button"
-            className="rounded-full p-2 text-slate-500 transition hover:text-slate-900"
+            onClick={() => navigate('/products')}
+            className="rounded-full p-2 text-slate-500 transition hover:text-slate-900 cursor-pointer"
             aria-label="Tìm kiếm sản phẩm"
           >
             <Search className="h-5 w-5 stroke-[1.8]" />
