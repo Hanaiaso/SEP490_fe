@@ -1,0 +1,5 @@
+# Bo test L4 tu chua: node_modules va ket qua chay khong commit.
+# Dat .gitignore RIENG o day de KHONG phai sua .gitignore goc cua repo.
+node_modules/
+playwright-report/
+test-results/
