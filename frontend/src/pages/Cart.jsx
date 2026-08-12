@@ -99,16 +99,13 @@ export default function Cart() {
     }
     navigate('/checkout', {
       state: {
-        cartItems: cartItems.map(item => {
-          const price = (applyNegotiation && negotiatedPrices[item.productId]) ? negotiatedPrices[item.productId] : item.unitPrice;
-          return {
-            productId: item.productId,
-            productName: item.productName,
-            imageUrl: item.imageUrl,
-            quantity: item.quantity,
-            unitPrice: price
-          };
-        }),
+        cartItems: cartItems.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          imageUrl: item.imageUrl,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
       },
     })
   }
@@ -140,7 +137,7 @@ export default function Cart() {
     }
   }
 
-  // Tổng theo giá gốc (không đàm phán)
+  // Tổng theo giá gốc niêm yết (không trừ chiết khấu)
   const originalSubtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   }, [cartItems])
@@ -150,24 +147,17 @@ export default function Cart() {
     Object.keys(negotiatedPrices).length > 0 &&
     cartItems.some(item => negotiatedPrices[item.productId]);
 
-  // Tính subtotal hiển thị
-  const subtotal = useMemo(() => {
-    if (!applyNegotiation) return originalSubtotal;
-    return cartItems.reduce((sum, item) => {
-      const price = negotiatedPrices[item.productId] ?? item.unitPrice;
-      return sum + price * item.quantity;
-    }, 0)
-  }, [cartItems, negotiatedPrices, applyNegotiation, originalSubtotal])
-
   const hasNegotiatedPrices = applyNegotiation;
   const hasPendingNegotiationUnder100m = !applyNegotiation &&
     Object.keys(negotiatedPrices).length > 0 &&
     cartItems.some(item => negotiatedPrices[item.productId]);
 
-  // checkoutSummary chi ap dung khi khong co gia dam phan rieng (negotiation co logic gia khac han).
-  const hasServerDiscount = checkoutSummary != null && !applyNegotiation
+  // Subtotal hiển thị theo giá niêm yết chuẩn B2B, phần giảm đàm phán được thể hiện qua Chiết khấu
+  const subtotal = originalSubtotal;
+
+  const hasServerDiscount = checkoutSummary != null
   const automaticDiscountRate = hasServerDiscount ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
-  const automaticDiscountAmount = hasServerDiscount ? checkoutSummary.discountAmount : subtotal * automaticDiscountRate
+  const automaticDiscountAmount = hasServerDiscount ? checkoutSummary.discountAmount : Math.round(subtotal * automaticDiscountRate)
   const shippingFee = 0
   const total = subtotal + shippingFee - automaticDiscountAmount
 
@@ -296,14 +286,13 @@ export default function Cart() {
                           {(() => {
                             const isItemNegotiated = applyNegotiation && !!negotiatedPrices[item.productId];
                             const negotiatedPrice = negotiatedPrices[item.productId];
-                            const displayPrice = isItemNegotiated ? negotiatedPrice : item.unitPrice;
                             return (
                               <>
-                                <div className="text-xl font-bold text-gray-900">{formatPrice(displayPrice * item.quantity)}</div>
+                                <div className="text-xl font-bold text-gray-900">{formatPrice(item.unitPrice * item.quantity)}</div>
                                 {isItemNegotiated ? (
                                   <>
-                                    <div className="text-sm text-gray-400 line-through">{formatPrice(item.unitPrice)} mỗi sp</div>
-                                    <div className="text-sm font-semibold text-green-600">{formatPrice(negotiatedPrice)} mỗi sp (đàm phán)</div>
+                                    <div className="text-sm font-semibold text-green-600">Đàm phán: {formatPrice(negotiatedPrice)} / sp</div>
+                                    <div className="text-xs text-gray-400">Niêm yết: {formatPrice(item.unitPrice)} / sp</div>
                                   </>
                                 ) : (
                                   <div className="text-sm text-gray-500">{formatPrice(item.unitPrice)} mỗi sản phẩm</div>
@@ -413,10 +402,12 @@ export default function Cart() {
                 <div className="rounded-[1.75rem] border border-gray-100 bg-gray-50 p-8">
                   <h2 className="mb-6 text-2xl font-bold text-gray-900">Tổng Đơn Hàng</h2>
 
-                  {automaticDiscountAmount > 0 && !applyNegotiation && (
+                  {automaticDiscountAmount > 0 && (
                     <div className="mb-4">
                       <Badge className="bg-green-100 px-3 py-1 text-sm text-green-800 hover:bg-green-100">
-                        Đã áp dụng giảm {Math.round(automaticDiscountRate * 100)}% cho đơn hàng
+                        {applyNegotiation
+                          ? `Đã áp dụng chiết khấu đàm phán ${Math.round(automaticDiscountRate * 100)}%`
+                          : `Đã áp dụng giảm ${Math.round(automaticDiscountRate * 100)}% cho đơn hàng`}
                       </Badge>
                     </div>
                   )}
@@ -428,7 +419,7 @@ export default function Cart() {
                     </div>
                     {automaticDiscountAmount > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>Giảm Tự Động ({Math.round(automaticDiscountRate * 100)}%)</span>
+                        <span>{applyNegotiation ? `Chiết Khấu Đàm Phán (${Math.round(automaticDiscountRate * 100)}%)` : `Giảm Tự Động (${Math.round(automaticDiscountRate * 100)}%)`}</span>
                         <span className="font-medium">-{formatPrice(automaticDiscountAmount)}</span>
                       </div>
                     )}
