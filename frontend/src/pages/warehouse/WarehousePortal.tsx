@@ -18,17 +18,14 @@ import NotificationBell from '../../components/NotificationBell';
 import WarehouseDashboard from './WarehouseDashboard';
 import WarehouseShiftInventory from './WarehouseShiftInventory';
 import WarehouseMaterials from './WarehouseMaterials';
-import WarehouseMaterialReceiving from './WarehouseMaterialReceiving';
-import WarehouseMaterialIssue from './WarehouseMaterialIssue';
 import WarehouseMaterialHistory from './WarehouseMaterialHistory';
 import WarehouseGoods from './WarehouseGoods';
-import WarehouseGoodsReceive from './WarehouseGoodsReceive';
 import WarehouseGoodsHistory from './WarehouseGoodsHistory';
 import WarehouseLowStock from './WarehouseLowStock';
 import WarehouseSlowMoving from './WarehouseSlowMoving';
 import WarehouseReport from './WarehouseReport';
 import WarehouseAuditLog from './WarehouseAuditLog';
-import NotificationsPage from '../NotificationsPage';
+import WarehouseNotifications from './WarehouseNotifications';
 import WarehouseFulfillmentOrders from './WarehouseFulfillmentOrders';
 import WarehousePickPacking from './WarehousePickPacking';
 import WarehouseConsolidation from './WarehouseConsolidation';
@@ -36,14 +33,12 @@ import WarehouseHandover from './WarehouseHandover';
 import WarehousePurchaseOrders from './WarehousePurchaseOrders';
 import WarehouseGoodsReceipt from './WarehouseGoodsReceipt';
 import WarehouseReceivingComparison from './WarehouseReceivingComparison';
-import WarehouseQualityInspection from './WarehouseQualityInspection';
 import WarehouseStockTransfer from './WarehouseStockTransfer';
 import WarehouseQuarantine from './WarehouseQuarantine';
 import WarehouseInventoryCount from './WarehouseInventoryCount';
 import WarehouseStockAdjustment from './WarehouseStockAdjustment';
 import WarehouseProductionIssue from './WarehouseProductionIssue';
 import WarehouseGoodsIssue from './WarehouseGoodsIssue';
-import WarehouseManagement from './WarehouseManagement';
 import WarehousePickupReceiving from './WarehousePickupReceiving';
 
 interface NavItem {
@@ -68,9 +63,8 @@ const buildNavItems = (role?: string): NavItem[] => [
     id: 'purchase', label: 'Nhập hàng (PO & GR)', icon: <ArrowDownToLine className="w-4 h-4" />, path: '/warehouse/purchase',
     children: [
       { id: 'purchase-orders', label: 'PO chờ nhập kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/purchase/orders' },
-      { id: 'goods-receipt', label: 'Phiếu nhập hàng', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/purchase/goods-receipt' },
-      { id: 'receiving-compare', label: 'Đối chiếu nhập hàng', icon: <GitMerge className="w-3.5 h-3.5" />, path: '/warehouse/purchase/receiving-comparison' },
-      { id: 'quality-inspect', label: 'Kiểm tra CL', icon: <FlaskConical className="w-3.5 h-3.5" />, path: '/warehouse/purchase/quality-inspection' },
+      { id: 'goods-receipt', label: 'Lịch sử phiếu nhập (GRN)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/purchase/goods-receipt' },
+      { id: 'receiving-comparison', label: 'Đối chiếu chênh lệch PO', icon: <GitMerge className="w-3.5 h-3.5" />, path: '/warehouse/purchase/receiving-comparison' },
     ],
   },
   { id: 'stock-transfer', label: 'Chuyển kho nội bộ', icon: <ArrowRightLeft className="w-3.5 h-3.5" />, path: '/warehouse/transfer/stock-transfer' },
@@ -83,12 +77,6 @@ const buildNavItems = (role?: string): NavItem[] => [
     ],
   },
   { id: 'pickup-receiving', label: 'Tiếp nhận xe hoàn hàng', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/pickup-receiving' },
-  ...(role !== 'WarehouseStaff' ? [{
-    id: 'management', label: 'Cấu hình Hệ thống', icon: <Settings className="w-4 h-4" />, path: '/warehouse/management',
-    children: [
-      { id: 'warehouse-list', label: 'Quản lý Kho (CEO)', icon: <Building className="w-3.5 h-3.5" />, path: '/warehouse/management/warehouses' },
-    ]
-  }] : []),
   {
     id: 'materials', label: 'Nguyên vật liệu SX', icon: <Layers className="w-4 h-4" />, path: '/warehouse/materials',
     children: [
@@ -102,7 +90,6 @@ const buildNavItems = (role?: string): NavItem[] => [
     id: 'goods', label: 'Hàng thương mại', icon: <ShoppingBag className="w-4 h-4" />, path: '/warehouse/goods',
     children: [
       { id: 'goods-list', label: 'Danh sách hàng hóa', icon: <ShoppingBag className="w-3.5 h-3.5" />, path: '/warehouse/goods' },
-      { id: 'goods-receive', label: 'Nhập hàng thương mại', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/goods/receive' },
       { id: 'goods-history', label: 'Lịch sử nhập xuất', icon: <History className="w-3.5 h-3.5" />, path: '/warehouse/goods/history' },
     ],
   },
@@ -272,29 +259,22 @@ export default function WarehousePortal() {
               <Route path="purchase/orders" element={<WarehousePurchaseOrders />} />
               <Route path="purchase/goods-receipt" element={<WarehouseGoodsReceipt />} />
               <Route path="purchase/receiving-comparison" element={<WarehouseReceivingComparison />} />
-              <Route path="purchase/quality-inspection" element={<WarehouseQualityInspection />} />
-              <Route path="quarantine" element={<WarehouseQuarantine />} />
               <Route path="pickup-receiving" element={<WarehousePickupReceiving />} />
-              <Route path="quality-inspection" element={<WarehouseQualityInspection />} />
               <Route path="transfer/stock-transfer" element={<WarehouseStockTransfer />} />
               <Route path="inv-management/quarantine" element={<WarehouseQuarantine />} />
               <Route path="inv-management/inventory-count" element={<WarehouseInventoryCount />} />
               <Route path="inv-management/stock-adjustment" element={<WarehouseStockAdjustment />} />
-              <Route path="management/warehouses" element={<WarehouseManagement />} />
               <Route path="production/issue" element={<WarehouseProductionIssue />} />
               <Route path="shift-inventory" element={<WarehouseShiftInventory />} />
               <Route path="materials" element={<WarehouseMaterials />} />
-              <Route path="materials/receive" element={<WarehouseMaterialReceiving />} />
-              <Route path="materials/issue" element={<WarehouseMaterialIssue />} />
               <Route path="materials/history" element={<WarehouseMaterialHistory />} />
               <Route path="goods" element={<WarehouseGoods />} />
-              <Route path="goods/receive" element={<WarehouseGoodsReceive />} />
               <Route path="goods/history" element={<WarehouseGoodsHistory />} />
               <Route path="inventory/low-stock" element={<WarehouseLowStock />} />
               <Route path="inventory/slow-moving" element={<WarehouseSlowMoving />} />
               <Route path="inventory/report" element={<WarehouseReport />} />
               <Route path="audit-log" element={<WarehouseAuditLog />} />
-              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="notifications" element={<WarehouseNotifications />} />
               <Route path="*" element={<WarehouseDashboard />} />
             </Routes>
           </div>

@@ -37,6 +37,7 @@ export interface SystemConfig {
   unit?: string;
   ownerLevel: string;
   isActive: boolean;
+  isSecret: boolean;
   effectiveValue?: string;
   effectiveDate?: string;
   versionCount: number;

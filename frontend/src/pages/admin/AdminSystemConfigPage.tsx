@@ -4,6 +4,7 @@ import { History as HistoryIcon, Pencil } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { getAllConfigs, getConfigHistory, updateConfig } from '../../services/adminSystemConfigService.js';
 import type { SystemConfig, SystemConfigVersion } from '../../types/admin';
+import { isIntegrationConfigKey } from './integrationConfigKeys';
 
 function formatDate(iso: string | undefined) {
   if (!iso) return '-';
@@ -11,9 +12,12 @@ function formatDate(iso: string | undefined) {
 }
 
 // ─── Modal: Sửa giá trị cấu hình ─────────────────────────────────────────────
-function EditConfigModal({ config, onClose, onSaved }: { config: SystemConfig; onClose: () => void; onSaved: () => void }) {
+// Xuất để AdminIntegrationsPage.tsx tái dùng nguyên trạng cho các key IsSecret (UC-59).
+export function EditConfigModal({ config, onClose, onSaved }: { config: SystemConfig; onClose: () => void; onSaved: () => void }) {
   const { toast } = useToast();
-  const [value, setValue] = useState(config.effectiveValue ?? '');
+  // Key bí mật: KHÔNG prefill giá trị che (••••••••) vào ô nhập — nếu không sửa gì mà lưu sẽ
+  // ghi đè secret thật bằng chuỗi mask. Bắt buộc Admin gõ giá trị mới hoàn toàn (write-only).
+  const [value, setValue] = useState(config.isSecret ? '' : (config.effectiveValue ?? ''));
   const [effectiveDate, setEffectiveDate] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -57,8 +61,9 @@ function EditConfigModal({ config, onClose, onSaved }: { config: SystemConfig; o
             </select>
           ) : (
             <input
-              type={config.valueType === 'Int' || config.valueType === 'Decimal' ? 'number' : 'text'}
+              type={config.isSecret ? 'password' : (config.valueType === 'Int' || config.valueType === 'Decimal' ? 'number' : 'text')}
               className="border rounded px-2.5 py-1.5 text-sm outline-none focus:border-blue-500"
+              placeholder={config.isSecret ? 'Nhập giá trị mới (bắt buộc, không hiện lại giá trị cũ)' : undefined}
               value={value} onChange={e => setValue(e.target.value)}
             />
           )}
@@ -89,7 +94,7 @@ function EditConfigModal({ config, onClose, onSaved }: { config: SystemConfig; o
 }
 
 // ─── Modal: Lịch sử phiên bản ────────────────────────────────────────────────
-function HistoryModal({ configKey, onClose }: { configKey: string; onClose: () => void }) {
+export function HistoryModal({ configKey, onClose }: { configKey: string; onClose: () => void }) {
   const { toast } = useToast();
   const [versions, setVersions] = useState<SystemConfigVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +152,8 @@ export default function AdminSystemConfigPage() {
     setLoading(true);
     try {
       const data = await getAllConfigs();
-      setConfigs(data || []);
+      // Key Integrations hiển thị riêng ở trang "Tích hợp hệ thống" (UC-59), không lặp lại ở đây.
+      setConfigs((data || []).filter((c: SystemConfig) => !isIntegrationConfigKey(c.key)));
     } catch (err: unknown) {
       toast.error(getErrorMessage(err));
     } finally {

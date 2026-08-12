@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
 import AdminUsersPage from './AdminUsersPage';
 import AdminSystemConfigPage from './AdminSystemConfigPage';
+import AdminIntegrationsPage from './AdminIntegrationsPage';
 import AdminAuditLogPage from './AdminAuditLogPage';
 import AdminSystemHealthPage from './AdminSystemHealthPage';
 import AdminVehiclesPage from './AdminVehiclesPage';
@@ -17,7 +18,7 @@ import {
   Package, XCircle, AlertTriangle, Users, ShieldCheck,
   LogOut, BarChart2, Sparkles, History, Settings,
   CreditCard, Wallet, ScrollText, Activity, Truck, Percent,
-  Warehouse, Building2, Clock
+  Warehouse, Building2, Clock, Plug
 } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -81,6 +82,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
   ] },
   { title: 'Cấu hình hệ thống', items: [
     { id: 'settings', label: 'Thiết lập SePay & Ngưỡng giá', icon: <Settings className="w-4 h-4" />, path: '/admin/settings' },
+    { id: 'integrations', label: 'Tích hợp hệ thống', icon: <Plug className="w-4 h-4" />, path: '/admin/integrations' },
     { id: 'audit-log', label: 'Nhật ký kiểm toán', icon: <ScrollText className="w-4 h-4" />, path: '/admin/audit-log' },
     { id: 'system-health', label: 'Giám sát hệ thống', icon: <Activity className="w-4 h-4" />, path: '/admin/system-health' },
     { id: 'payment-confirm', label: 'Xác nhận thanh toán', icon: <CreditCard className="w-4 h-4" />, path: '/admin/payment-confirm', badge: 2 },
@@ -95,7 +97,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
 ];
 
 // Các nav id đã có trang thật — phần còn lại vẫn hiển thị ComingSoon như trước (chưa có API backend).
-const WIRED_IDS = new Set(['dashboard', 'users', 'settings', 'audit-log', 'system-health', 'vehicles', 'discount-tiers', 'products', 'warehouses', 'suppliers', 'shifts']);
+const WIRED_IDS = new Set(['dashboard', 'users', 'settings', 'integrations', 'audit-log', 'system-health', 'vehicles', 'discount-tiers', 'products', 'warehouses', 'suppliers', 'shifts']);
 
 function NavItemButton({ item, onNavigate }: { item: AdminNavItem; onNavigate: (path: string) => void }) {
   const location = useLocation();
@@ -202,6 +204,7 @@ export default function AdminPortal() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="settings" element={<AdminSystemConfigPage />} />
+            <Route path="integrations" element={<AdminIntegrationsPage />} />
             <Route path="audit-log" element={<AdminAuditLogPage />} />
             <Route path="system-health" element={<AdminSystemHealthPage />} />
             <Route path="vehicles" element={<AdminVehiclesPage />} />

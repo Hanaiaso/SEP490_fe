@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   UserCog,
   Lock,
+  Truck,
 } from 'lucide-react';
 import SalesManagerDashboardPage from './SalesManagerDashboardPage';
 import SalesManagerRoundRobinPage from './SalesManagerRoundRobinPage';
@@ -21,6 +22,7 @@ import SalesManagerOrdersPage from './SalesManagerOrdersPage';
 import SalesManagerOrderDetailPage from './SalesManagerOrderDetailPage';
 import SalesManagerChangeRequestsPage from './SalesManagerChangeRequestsPage';
 import SalesManagerChangeRequestDetailPage from './SalesManagerChangeRequestDetailPage';
+import SalesManagerDeliveryConflictsPage from './SalesManagerDeliveryConflictsPage';
 import SalesManagerMarketingApproval from './SalesManagerMarketingApproval';
 import DirectPurchasePage from '../sales/DirectPurchasePage';
 import { useAuth } from '../../context/AuthContext';
@@ -80,6 +82,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Duyệt yêu cầu đổi Sale',
     icon: <UserCog className="w-4 h-4" />,
     path: '/sales-manager/change-requests',
+  },
+  {
+    id: 'delivery-conflicts',
+    label: 'Xung đột lịch xe/ca',
+    icon: <Truck className="w-4 h-4" />,
+    path: '/sales-manager/delivery-conflicts',
   },
   {
     id: 'ai-marketing-approval',
@@ -223,6 +231,7 @@ export default function SalesManagerPortal() {
             <Route path="blocked-deliveries" element={<SalesManagerBlockedDeliveriesPage />} />
             <Route path="change-requests" element={<SalesManagerChangeRequestsPage />} />
             <Route path="change-requests/:id" element={<SalesManagerChangeRequestDetailPage />} />
+            <Route path="delivery-conflicts" element={<SalesManagerDeliveryConflictsPage />} />
             <Route path="ai-marketing-approval" element={<SalesManagerMarketingApproval />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="*" element={<SalesManagerDashboardPage />} />
