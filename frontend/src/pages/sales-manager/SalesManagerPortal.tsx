@@ -9,10 +9,12 @@ import {
   Shuffle,
   AlertTriangle,
   UserCog,
+  Lock,
 } from 'lucide-react';
 import SalesManagerDashboardPage from './SalesManagerDashboardPage';
 import SalesManagerRoundRobinPage from './SalesManagerRoundRobinPage';
 import SalesManagerSePayExceptionPage from './SalesManagerSePayExceptionPage';
+import SalesManagerBlockedDeliveriesPage from './SalesManagerBlockedDeliveriesPage';
 import SalesManagerPriceNegotiation from './SalesManagerPriceNegotiation';
 import SalesManagerPriceNegotiationDetail from './SalesManagerPriceNegotiationDetail';
 import SalesManagerOrdersPage from './SalesManagerOrdersPage';
@@ -66,6 +68,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Ngoại lệ SePay',
     icon: <AlertTriangle className="w-4 h-4" />,
     path: '/sales-manager/sepay-exceptions',
+  },
+  {
+    id: 'blocked-deliveries',
+    label: 'Giao thất bại & Công nợ',
+    icon: <Lock className="w-4 h-4" />,
+    path: '/sales-manager/blocked-deliveries',
   },
   {
     id: 'change-requests',
@@ -212,6 +220,7 @@ export default function SalesManagerPortal() {
             <Route path="orders/:id" element={<SalesManagerOrderDetailPage />} />
             <Route path="direct-purchase" element={<DirectPurchasePage />} />
             <Route path="sepay-exceptions" element={<SalesManagerSePayExceptionPage />} />
+            <Route path="blocked-deliveries" element={<SalesManagerBlockedDeliveriesPage />} />
             <Route path="change-requests" element={<SalesManagerChangeRequestsPage />} />
             <Route path="change-requests/:id" element={<SalesManagerChangeRequestDetailPage />} />
             <Route path="ai-marketing-approval" element={<SalesManagerMarketingApproval />} />

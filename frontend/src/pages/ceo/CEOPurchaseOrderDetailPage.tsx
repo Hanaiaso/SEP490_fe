@@ -9,11 +9,12 @@ import {
   closePurchaseOrder,
   getGoodsReceipts
 } from '../../services/purchaseOrderService.js';
-import { ArrowLeft, Package, Truck, User, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Package, Truck, User, Image as ImageIcon, Pencil } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import { Button } from '../../components/sales-ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { useToast } from '../../context/ToastContext';
+import CEOPurchaseOrderCreateModal from './CEOPurchaseOrderCreateModal';
 import type { PurchaseOrder, GoodsReceipt, DiscrepancyResolutionRequest } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -48,6 +49,8 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Discrepancy Modal
   const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
@@ -164,6 +167,7 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
         {po.status === 'Draft' && (
           <>
             <Button size="sm" style={{ backgroundColor: PRIMARY }} onClick={() => handleAction(issuePurchaseOrder)}>Phát hành (Issue)</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowEditModal(true)}><Pencil className="w-3.5 h-3.5 mr-1.5" /> Sửa PO</Button>
             <Button size="sm" variant="destructive" onClick={() => handleAction(cancelPurchaseOrder, 'Bạn chắc chắn muốn hủy?')}>Hủy PO</Button>
           </>
         )}
@@ -340,7 +344,7 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
               onChange={e => setResData({ ...resData, resolutionType: e.target.value as DiscrepancyResolutionRequest['resolutionType'] })}
             >
               <option value="AcceptExcess">Chấp nhận hàng thừa</option>
-              <option value="ReturnExcess">Yêu cầu trả hàng thừa/hỏng</option>
+              <option value="ReturnExcess">Yêu cầu trả hàng thừa cho NCC</option>
               <option value="RequestSupplemental">Yêu cầu giao bổ sung</option>
               <option value="CloseShort">Chấp nhận đóng thiếu (Close Short)</option>
             </select>
@@ -366,6 +370,14 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
         onConfirm={handleConfirmExecute}
         onCancel={() => setConfirmConfig(null)}
       />
+
+      {showEditModal && (
+        <CEOPurchaseOrderCreateModal
+          editingPO={po}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => { setShowEditModal(false); loadData(); }}
+        />
+      )}
     </div>
   );
 }

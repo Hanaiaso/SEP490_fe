@@ -54,10 +54,33 @@ export async function getProductById(id) {
 
 /**
  * Lấy danh sách danh mục đang hoạt động.
- * @returns {Promise<{ id, name, description }[]>}
+ * @returns {Promise<{ id, name, description, isActive }[]>}
  */
 export async function getCategories() {
   return request('GET', '/products/categories')
+}
+
+/**
+ * P2-8: Lấy TOÀN BỘ danh mục (kể cả đã tắt) cho trang quản lý CEO/Admin.
+ * @returns {Promise<{ id, name, description, isActive }[]>}
+ */
+export async function getCategoriesForManagement() {
+  return request('GET', '/products/categories/management')
+}
+
+/** P2-8: Tạo danh mục mới. @param {{ name, description? }} data */
+export async function createCategory(data) {
+  return request('POST', '/products/categories', data)
+}
+
+/** P2-8: Cập nhật danh mục. @param {string} id @param {{ name, description?, isActive }} data */
+export async function updateCategory(id, data) {
+  return request('PUT', `/products/categories/${id}`, data)
+}
+
+/** P2-8: Xóa mềm danh mục (tắt IsActive). @param {string} id */
+export async function deleteCategory(id) {
+  return request('DELETE', `/products/categories/${id}`)
 }
 
 /**

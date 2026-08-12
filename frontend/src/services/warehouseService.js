@@ -175,22 +175,6 @@ export async function receiveStockTransfer(id, formData) {
   return res.json();
 }
 
-export async function getHandoverById(id) {
-  return request('GET', `/handover-records/${id}`);
-}
-
-export async function createHandover(data) {
-  return request('POST', `/handover-records`, data);
-}
-
-export async function warehouseConfirmHandover(id) {
-  return request('POST', `/handover-records/${id}/warehouse-confirm`);
-}
-
-export async function salesConfirmHandover(id) {
-  return request('POST', `/handover-records/${id}/sales-confirm`);
-}
-
 export async function getGoodsIssueById(id) {
   return request('GET', `/goods-issues/${id}`);
 }
@@ -222,12 +206,40 @@ export async function getWarehouseShifts() {
   return request('GET', `/warehouse-shifts`);
 }
 
+export async function createWarehouseShift(data) {
+  return request('POST', `/warehouse-shifts`, data);
+}
+
+export async function updateWarehouseShift(id, data) {
+  return request('PUT', `/warehouse-shifts/${id}`, data);
+}
+
+export async function deleteWarehouseShift(id) {
+  return request('DELETE', `/warehouse-shifts/${id}`);
+}
+
 export async function submitShiftInventoryCount(data) {
   return request('POST', `/inventory/shift-count`, data);
 }
 
-// Dummy for backward compatibility with WarehouseStockAdjustment
-export async function ceoDecisionStockAdjustment(id, data) {
+// ─── P0-1: Đề xuất điều chỉnh tồn kho (Warehouse Staff -> CEO duyệt) ───────────
+
+export async function getStockAdjustments(params) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request('GET', `/stock-adjustments${qs ? `?${qs}` : ''}`);
+}
+
+export async function getStockAdjustmentById(id) {
+  return request('GET', `/stock-adjustments/${id}`);
+}
+
+// data: { inventoryId, physicalQuantity, reason }
+export async function createStockAdjustment(data) {
+  return request('POST', `/stock-adjustments`, data);
+}
+
+// data: { decision: 'Approved' | 'Rejected', note }
+export async function decideStockAdjustment(id, data) {
   return request('POST', `/stock-adjustments/${id}/decision`, data);
 }
 
@@ -237,10 +249,6 @@ export async function ceoDecisionStockAdjustment(id, data) {
 
 export async function getWarehouses() {
   return request('GET', `/warehouse-management`);
-}
-
-export async function getWarehouse(id) {
-  return request('GET', `/warehouse-management/${id}`);
 }
 
 export async function createWarehouse(data) {
@@ -267,6 +275,8 @@ export async function getQuarantineList() {
   return request('GET', `/warehouse-management/quarantine`);
 }
 
-export async function dispatchQuarantine(id, decision) {
-  return request('POST', `/warehouse-management/quarantine/${id}/dispatch`, { decision });
+// P0-2: BE (QuarantineDispatchDto) đọc field "action", không phải "decision" — trước đây lệch tên
+// khiến quyết định "damaged" luôn bị bỏ qua và tự động mặc định về "available".
+export async function dispatchQuarantine(id, action) {
+  return request('POST', `/warehouse-management/quarantine/${id}/dispatch`, { action });
 }

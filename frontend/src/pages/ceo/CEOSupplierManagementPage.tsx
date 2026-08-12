@@ -114,7 +114,7 @@ export default function CEOSupplierManagementPage() {
   return (
     <div className="flex flex-col gap-[20px] p-[24px]">
       <div className="flex justify-between items-center">
-        <h1 className="font-semibold text-[20px] text-[#1f3b64]">Quản lý Nhà cung cấp (CEO)</h1>
+        <h1 className="font-semibold text-[20px] text-[#1f3b64]">Quản lý Nhà cung cấp</h1>
         <button 
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 bg-[#1f3b64] text-white px-[16px] py-[8px] rounded-[4px] text-[12px] font-medium hover:bg-[#162a4a]"

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { getNotifications, markAsRead, markAllAsRead } from '../services/notificationService';
-import { Check, MailOpen, Bell } from 'lucide-react';
+import { getNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllRead } from '../services/notificationService';
+import { Check, MailOpen, Bell, Trash2 } from 'lucide-react';
 import * as signalR from '@microsoft/signalr';
 import { HUB_BASE } from '../services/apiBase';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import type { Notification } from '../types/notification';
 
 export default function NotificationsPage() {
@@ -10,6 +11,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [showDeleteReadConfirm, setShowDeleteReadConfirm] = useState(false);
 
   const fetchNotifications = async (pageNumber: number, append = false) => {
     setLoading(true);
@@ -72,6 +74,26 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch (err) {
+      console.error('Error deleting notification', err);
+    }
+  };
+
+  const handleDeleteAllRead = async () => {
+    try {
+      await deleteAllRead();
+      setNotifications((prev) => prev.filter((n) => !n.isRead));
+    } catch (err) {
+      console.error('Error deleting read notifications', err);
+    } finally {
+      setShowDeleteReadConfirm(false);
+    }
+  };
+
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -85,13 +107,22 @@ export default function NotificationsPage() {
           <Bell className="w-6 h-6 text-[#1f3b64]" />
           Danh sách thông báo
         </h1>
-        <button
-          onClick={handleMarkAllAsRead}
-          className="flex items-center gap-2 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-md hover:bg-blue-100 transition-colors"
-        >
-          <Check className="w-4 h-4" />
-          Đánh dấu tất cả đã đọc
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleMarkAllAsRead}
+            className="flex items-center gap-2 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Check className="w-4 h-4" />
+            Đánh dấu tất cả đã đọc
+          </button>
+          <button
+            onClick={() => setShowDeleteReadConfirm(true)}
+            className="flex items-center gap-2 text-sm font-medium text-red-600 bg-red-50 px-3 py-2 rounded-md hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Xóa thông báo đã đọc
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
@@ -130,15 +161,24 @@ export default function NotificationsPage() {
                     {notif.body}
                   </p>
                   
-                  {!notif.isRead && (
-                    <button 
-                      onClick={() => handleMarkAsRead(notif.id)}
-                      className="mt-3 text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  <div className="flex items-center gap-3 mt-3">
+                    {!notif.isRead && (
+                      <button
+                        onClick={() => handleMarkAsRead(notif.id)}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3" />
+                        Đánh dấu đã đọc
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(notif.id)}
+                      className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
                     >
-                      <Check className="w-3 h-3" />
-                      Đánh dấu đã đọc
+                      <Trash2 className="w-3 h-3" />
+                      Xóa
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -157,6 +197,16 @@ export default function NotificationsPage() {
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteReadConfirm}
+        title="Xóa thông báo đã đọc"
+        message="Toàn bộ thông báo đã đọc sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn tiếp tục?"
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={handleDeleteAllRead}
+        onCancel={() => setShowDeleteReadConfirm(false)}
+      />
     </div>
   );
 }

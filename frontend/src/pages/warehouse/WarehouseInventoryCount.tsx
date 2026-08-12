@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, AlertCircle, PackageSearch, ArrowLeftRight, Clock, User, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { getWarehouseInventory, adjustInventory, getWarehouses, addInventory } from '../../services/warehouseService';
+import { getWarehouseInventory, createStockAdjustment, getWarehouses, addInventory } from '../../services/warehouseService';
 import { getProducts, getCategories, createProduct } from '../../services/productService';
 import { getMaterials } from '../../services/materialService';
 import type { InventoryItem, PaginatedList, Warehouse } from '../../types/warehouse';
@@ -127,17 +127,23 @@ export default function WarehouseInventoryCount() {
       alert('Số lượng mới không hợp lệ!');
       return;
     }
+    if (!adjustNote.trim()) {
+      alert('Vui lòng nhập lý do chênh lệch!');
+      return;
+    }
     try {
       setSubmitting(true);
-      await adjustInventory(editingItem.id, {
-        newQuantity: parseInt(newQuantity as string, 10),
-        note: adjustNote
+      // P0-1: không còn ghi thẳng vào tồn kho — tạo đề xuất, chờ CEO duyệt mới thực sự thay đổi số liệu.
+      await createStockAdjustment({
+        inventoryId: editingItem.id,
+        physicalQuantity: parseInt(newQuantity as string, 10),
+        reason: adjustNote.trim()
       });
-      alert('Cập nhật tồn kho thành công!');
+      alert('Đã gửi đề xuất điều chỉnh tồn kho, chờ CEO duyệt.');
       setEditingItem(null);
       fetchInventory(); // Reload current page
     } catch (err: unknown) {
-      alert('Lỗi khi cập nhật tồn kho: ' + getErrorMessage(err));
+      alert('Lỗi khi gửi đề xuất điều chỉnh: ' + getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -408,31 +414,34 @@ export default function WarehouseInventoryCount() {
             <div className="p-4 border-b border-gray-100">
               <h3 className="text-base font-bold flex items-center gap-2 text-gray-900">
                 <ArrowLeftRight className="w-5 h-5 text-blue-600" />
-                Cập Nhật / Điều Chỉnh Tồn Kho
+                Đề Xuất Điều Chỉnh Tồn Kho
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 {editingItem.productName || editingItem.itemName} ({editingItem.productSku || editingItem.itemSku || '-'})
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Đề xuất sẽ chờ CEO duyệt, tồn kho sẽ chưa thay đổi ngay.
               </p>
             </div>
 
             <div className="p-4 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700">Tồn kho thực tế (đã đếm)</label>
-                <Input 
-                  type="number" 
-                  value={newQuantity} 
-                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setNewQuantity(e.target.value)} 
+                <Input
+                  type="number"
+                  value={newQuantity}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setNewQuantity(e.target.value)}
                   className="font-mono text-lg font-bold text-blue-600"
                   autoFocus
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Ghi chú (Tùy chọn)</label>
-                <Input 
-                  placeholder="Ví dụ: Kiểm kê định kỳ, sai lệch do hàng hỏng..." 
-                  value={adjustNote} 
-                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setAdjustNote(e.target.value)} 
+                <label className="text-xs font-semibold text-gray-700">Lý do chênh lệch (Bắt buộc)</label>
+                <Input
+                  placeholder="Ví dụ: Kiểm kê định kỳ, sai lệch do hàng hỏng..."
+                  value={adjustNote}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setAdjustNote(e.target.value)}
                   className="text-sm"
                 />
               </div>
@@ -440,7 +449,7 @@ export default function WarehouseInventoryCount() {
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setEditingItem(null)} disabled={submitting}>Hủy bỏ</Button>
                 <Button style={{ backgroundColor: PRIMARY }} onClick={handleAdjustSubmit} disabled={submitting} className="gap-2">
-                  <Check className="w-4 h-4" /> {submitting ? 'Đang lưu...' : 'Lưu điều chỉnh'}
+                  <Check className="w-4 h-4" /> {submitting ? 'Đang gửi...' : 'Gửi đề xuất'}
                 </Button>
               </div>
             </div>

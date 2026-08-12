@@ -7,12 +7,17 @@ import AdminAuditLogPage from './AdminAuditLogPage';
 import AdminSystemHealthPage from './AdminSystemHealthPage';
 import AdminVehiclesPage from './AdminVehiclesPage';
 import AdminDiscountTiersPage from './AdminDiscountTiersPage';
+import AdminWarehouseShiftsPage from './AdminWarehouseShiftsPage';
+import CEOProductManagementPage from '../ceo/CEOProductManagementPage';
+import CEOSupplierManagementPage from '../ceo/CEOSupplierManagementPage';
+import WarehouseManagement from '../warehouse/WarehouseManagement';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, FileText, CheckSquare,
   Package, XCircle, AlertTriangle, Users, ShieldCheck,
   LogOut, BarChart2, Sparkles, History, Settings,
-  CreditCard, Wallet, ScrollText, Activity, Truck, Percent
+  CreditCard, Wallet, ScrollText, Activity, Truck, Percent,
+  Warehouse, Building2, Clock
 } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -83,11 +88,14 @@ const NAV_GROUPS: AdminNavGroup[] = [
   { title: 'Dữ liệu chủ', items: [
     { id: 'vehicles', label: 'Xe giao hàng', icon: <Truck className="w-4 h-4" />, path: '/admin/vehicles' },
     { id: 'discount-tiers', label: 'Khung chiết khấu', icon: <Percent className="w-4 h-4" />, path: '/admin/discount-tiers' },
+    { id: 'warehouses', label: 'Kho bãi', icon: <Warehouse className="w-4 h-4" />, path: '/admin/warehouses' },
+    { id: 'suppliers', label: 'Nhà cung cấp', icon: <Building2 className="w-4 h-4" />, path: '/admin/suppliers' },
+    { id: 'shifts', label: 'Ca làm việc', icon: <Clock className="w-4 h-4" />, path: '/admin/shifts' },
   ] },
 ];
 
 // Các nav id đã có trang thật — phần còn lại vẫn hiển thị ComingSoon như trước (chưa có API backend).
-const WIRED_IDS = new Set(['dashboard', 'users', 'settings', 'audit-log', 'system-health', 'vehicles', 'discount-tiers']);
+const WIRED_IDS = new Set(['dashboard', 'users', 'settings', 'audit-log', 'system-health', 'vehicles', 'discount-tiers', 'products', 'warehouses', 'suppliers', 'shifts']);
 
 function NavItemButton({ item, onNavigate }: { item: AdminNavItem; onNavigate: (path: string) => void }) {
   const location = useLocation();
@@ -198,6 +206,10 @@ export default function AdminPortal() {
             <Route path="system-health" element={<AdminSystemHealthPage />} />
             <Route path="vehicles" element={<AdminVehiclesPage />} />
             <Route path="discount-tiers" element={<AdminDiscountTiersPage />} />
+            <Route path="products" element={<CEOProductManagementPage />} />
+            <Route path="warehouses" element={<WarehouseManagement />} />
+            <Route path="suppliers" element={<CEOSupplierManagementPage />} />
+            <Route path="shifts" element={<AdminWarehouseShiftsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             {stubItems.map(item => (
               <Route key={item.id} path={item.id} element={<ComingSoon label={item.label} />} />

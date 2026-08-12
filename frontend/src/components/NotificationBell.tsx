@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   Bell, Check, X, Clock, ShoppingCart, AlertTriangle, CreditCard, Package,
-  Truck, Users, FileText, ArrowRight, CheckCircle, MailOpen
+  Truck, Users, FileText, ArrowRight, CheckCircle, MailOpen, Trash2
 } from 'lucide-react';
 import * as signalR from '@microsoft/signalr';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '../services/notificationService';
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '../services/notificationService';
 import { HUB_BASE } from '../services/apiBase';
 import type { Notification } from '../types/notification';
 
@@ -125,6 +125,20 @@ export default function NotificationBell({ onViewAll }: { role?: string; onViewA
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Error marking as read', err);
+    }
+  };
+
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const target = notifications.find((n) => n.id === id);
+    try {
+      await deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (target && !target.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error('Error deleting notification', err);
     }
   };
 
@@ -271,8 +285,8 @@ export default function NotificationBell({ onViewAll }: { role?: string; onViewA
                         </div>
                       </div>
 
-                      {/* Unread dot / Mark read */}
-                      <div className="flex-shrink-0 flex items-start pt-1">
+                      {/* Unread dot / Mark read / Delete */}
+                      <div className="flex-shrink-0 flex items-start gap-1 pt-1">
                         {!notif.isRead ? (
                           <button
                             onClick={(e) => handleMarkAsRead(notif.id, e)}
@@ -284,6 +298,13 @@ export default function NotificationBell({ onViewAll }: { role?: string; onViewA
                         ) : (
                           <MailOpen className="w-3.5 h-3.5 text-slate-300 mt-0.5" />
                         )}
+                        <button
+                          onClick={(e) => handleDelete(notif.id, e)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-100 transition-all"
+                          title="Xóa thông báo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        </button>
                       </div>
                     </div>
                   );

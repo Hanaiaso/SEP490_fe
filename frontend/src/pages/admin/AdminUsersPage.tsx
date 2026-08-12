@@ -1,9 +1,9 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, ShieldCheck, Lock, Unlock } from 'lucide-react';
+import { Plus, Search, ShieldCheck, Lock, Unlock, LogOut } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import {
-  searchUsers, createUser, changeUserRole, setUserStatus, ASSIGNABLE_ROLES,
+  searchUsers, createUser, changeUserRole, setUserStatus, revokeUserSession, ASSIGNABLE_ROLES,
 } from '../../services/adminUserService.js';
 import type { AdminUser } from '../../types/admin';
 
@@ -155,6 +155,7 @@ export default function AdminUsersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null);
   const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
+  const [sessionTarget, setSessionTarget] = useState<AdminUser | null>(null);
   const [newRole, setNewRole] = useState('');
 
   const load = useCallback(async () => {
@@ -231,15 +232,16 @@ export default function AdminUsersPage() {
               <th className="text-left px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">SĐT</th>
               <th className="text-left px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">Vai trò</th>
               <th className="text-left px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">Trạng thái</th>
+              <th className="text-left px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">Phiên đăng nhập</th>
               <th className="text-left px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">Ngày tạo</th>
               <th className="text-center px-[16px] py-[12px] text-[11px] font-medium text-[#64748b] uppercase">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-4 text-sm text-gray-500">Đang tải...</td></tr>
+              <tr><td colSpan={8} className="text-center py-4 text-sm text-gray-500">Đang tải...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-4 text-sm text-gray-500">Chưa có dữ liệu</td></tr>
+              <tr><td colSpan={8} className="text-center py-4 text-sm text-gray-500">Chưa có dữ liệu</td></tr>
             ) : users.map(u => (
               <tr key={u.id} className="border-b border-[#f5f7fa] hover:bg-[#f5f7fa]">
                 <td className="px-[16px] py-[12px] text-[12px] font-medium text-[#1f3b64]">{u.fullName}</td>
@@ -253,6 +255,16 @@ export default function AdminUsersPage() {
                     {u.isActive ? 'Hoạt động' : 'Đã khóa'}
                   </span>
                 </td>
+                <td className="px-[16px] py-[12px] text-[12px]">
+                  {u.hasActiveSession ? (
+                    <span className="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700"
+                      title={u.sessionExpiresAt ? `Hết hạn: ${formatDate(u.sessionExpiresAt)}` : undefined}>
+                      Đang đăng nhập
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500">Không có phiên</span>
+                  )}
+                </td>
                 <td className="px-[16px] py-[12px] text-[12px] text-[#64748b]">{formatDate(u.createdAt)}</td>
                 <td className="px-[16px] py-[12px]">
                   <div className="flex items-center justify-center gap-2">
@@ -264,6 +276,12 @@ export default function AdminUsersPage() {
                       className={u.isActive ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'}>
                       {u.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                     </button>
+                    {u.hasActiveSession && (
+                      <button onClick={() => setSessionTarget(u)} title="Đăng xuất từ xa"
+                        className="text-orange-500 hover:text-orange-700">
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -326,6 +344,24 @@ export default function AdminUsersPage() {
             {statusTarget.isActive
               ? 'Tài khoản sẽ không thể đăng nhập cho đến khi được mở khóa lại.'
               : 'Tài khoản sẽ có thể đăng nhập trở lại bình thường.'}
+          </p>
+        </ReasonActionModal>
+      )}
+
+      {sessionTarget && (
+        <ReasonActionModal
+          title={`Đăng xuất từ xa: ${sessionTarget.fullName}`}
+          confirmLabel="Đăng xuất từ xa"
+          onClose={() => setSessionTarget(null)}
+          onConfirm={async (reason) => {
+            await revokeUserSession(sessionTarget.id, reason);
+            toast.success('Đã đăng xuất tài khoản khỏi phiên hiện tại.');
+            load();
+          }}
+        >
+          <p className="text-sm text-gray-500">
+            Người dùng sẽ bị buộc đăng nhập lại ở mọi thiết bị đang dùng access token hiện tại
+            (access token hết hạn tự nhiên sau vài phút; refresh token bị thu hồi ngay).
           </p>
         </ReasonActionModal>
       )}

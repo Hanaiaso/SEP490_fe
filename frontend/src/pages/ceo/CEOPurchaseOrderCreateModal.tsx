@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { getSuppliers } from '../../services/supplierService.js';
 import { getProducts } from '../../services/productService.js';
 import { getMaterials } from '../../services/materialService.js';
-import { createPurchaseOrder, getWarehouses, importPOFromExcel, importPOFromImage } from '../../services/purchaseOrderService.js';
+import { createPurchaseOrder, updateDraftPurchaseOrder, getWarehouses, importPOFromExcel, importPOFromImage } from '../../services/purchaseOrderService.js';
 import { X, Plus, Trash2, FileSpreadsheet, Image as ImageIcon } from 'lucide-react';
 import type { Supplier } from '../../types/supplier';
-import type { WarehouseOption, CreatePurchaseOrderRequest } from '../../types/warehouse';
+import type { WarehouseOption, CreatePurchaseOrderRequest, PurchaseOrder } from '../../types/warehouse';
 import type { Product, Material } from '../../types/catalog';
 
 interface POItemDraft {
@@ -21,9 +21,11 @@ interface POItemDraft {
 interface CEOPurchaseOrderCreateModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  editingPO?: PurchaseOrder | null;
 }
 
-export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOPurchaseOrderCreateModalProps) {
+export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editingPO = null }: CEOPurchaseOrderCreateModalProps) {
+  const isEdit = !!editingPO;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,19 +35,30 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const [poType, setPoType] = useState<'Product' | 'Material'>('Product');
+  const [poType, setPoType] = useState<'Product' | 'Material'>(
+    editingPO?.items?.some(i => i.materialId) ? 'Material' : 'Product'
+  );
 
   const [formData, setFormData] = useState({
-    supplierId: '',
-    warehouseId: '',
-    expectedDeliveryDate: '',
-    note: '',
-    deliveryTerms: '',
+    supplierId: editingPO?.supplierId || '',
+    warehouseId: editingPO?.warehouseId || '',
+    expectedDeliveryDate: editingPO?.expectedDeliveryDate ? editingPO.expectedDeliveryDate.slice(0, 10) : '',
+    note: editingPO?.note || '',
+    deliveryTerms: editingPO?.deliveryTerms || '',
   });
 
-  const [items, setItems] = useState<POItemDraft[]>([
-    { itemId: '', itemName: '', expectedQuantity: 1, unitPrice: 0, unit: 'Cái', note: '' }
-  ]);
+  const [items, setItems] = useState<POItemDraft[]>(
+    editingPO?.items?.length
+      ? editingPO.items.map(i => ({
+          itemId: i.productId || i.materialId || '',
+          itemName: i.itemName,
+          expectedQuantity: i.expectedQuantity,
+          unitPrice: i.unitPrice,
+          unit: i.unit,
+          note: i.note || '',
+        }))
+      : [{ itemId: '', itemName: '', expectedQuantity: 1, unitPrice: 0, unit: 'Cái', note: '' }]
+  );
 
   // Khi thay đổi loại PO, reset danh sách mặt hàng — set state trực tiếp trong render
   // (thay vì useEffect) để tránh 1 frame hiển thị danh sách cũ trước khi effect kịp xoá.
@@ -77,11 +90,13 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
         setProducts(loadedProducts);
         setMaterials(loadedMaterials);
 
-        setFormData(prev => ({
-          ...prev,
-          supplierId: loadedSuppliers.find((s) => s.isActive)?.id || loadedSuppliers[0]?.id || '',
-          warehouseId: loadedWarehouses[0]?.id || ''
-        }));
+        if (!isEdit) {
+          setFormData(prev => ({
+            ...prev,
+            supplierId: loadedSuppliers.find((s) => s.isActive)?.id || loadedSuppliers[0]?.id || '',
+            warehouseId: loadedWarehouses[0]?.id || ''
+          }));
+        }
       } catch (err) {
         console.error("Error loading PO initial data:", err);
       } finally {
@@ -98,6 +113,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
 
     const newItems = [...items];
     newItems[index].itemId = itemId;
+    newItems[index].note = '';
     if (selectedItem) {
       newItems[index].itemName = selectedItem.name;
       newItems[index].unitPrice = 'standardListedPrice' in selectedItem ? selectedItem.standardListedPrice : 0;
@@ -117,6 +133,13 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
         return alert("Vui lòng chọn Kho nhận hàng.");
       }
       
+      if (isEdit) {
+        const hasUnmatched = items.some(i => !i.itemId);
+        if (hasUnmatched) {
+          return alert('Còn dòng hàng chưa chọn sản phẩm/nguyên liệu (xem gợi ý OCR dưới mỗi dòng). Vui lòng chọn đúng mặt hàng trước khi lưu.');
+        }
+      }
+
       const validItems = items.filter(i => i.itemId && Number(i.expectedQuantity) > 0);
       if (validItems.length === 0) {
         return alert(`Vui lòng chọn ít nhất 1 ${poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'} với số lượng > 0.`);
@@ -138,8 +161,13 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
         }))
       };
       
-      await createPurchaseOrder(payload);
-      alert('Tạo Purchase Order (PO Draft) thành công!');
+      if (isEdit && editingPO) {
+        await updateDraftPurchaseOrder(editingPO.id, payload);
+        alert('Cập nhật PO Draft thành công!');
+      } else {
+        await createPurchaseOrder(payload);
+        alert('Tạo Purchase Order (PO Draft) thành công!');
+      }
       onSuccess();
     } catch (err: unknown) {
       alert(getErrorMessage(err, "Đã xảy ra lỗi khi tạo PO (400 Bad Request)"));
@@ -182,7 +210,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-[850px] max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-lg font-semibold text-[#1f3b64]">Tạo Purchase Order (CEO phát hành PO)</h2>
+          <h2 className="text-lg font-semibold text-[#1f3b64]">{isEdit ? `Sửa Purchase Order (Draft): ${editingPO?.code}` : 'Tạo Purchase Order (CEO phát hành PO)'}</h2>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-500 hover:text-gray-700" /></button>
         </div>
 
@@ -192,22 +220,26 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
           ) : (
             <>
               <div className="flex gap-3 pb-4 border-b">
-                <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
-                <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={handleImportImage} />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={importing}
-                  className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-600 rounded text-sm hover:bg-green-50 font-medium"
-                >
-                  <FileSpreadsheet className="w-4 h-4" /> {importing ? 'Đang xử lý...' : 'Import từ Excel'}
-                </button>
-                <button 
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={importing}
-                  className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 rounded text-sm hover:bg-purple-50 font-medium"
-                >
-                  <ImageIcon className="w-4 h-4" /> {importing ? 'Đang xử lý...' : 'Upload Hóa đơn (Ảnh)'}
-                </button>
+                {!isEdit && (
+                  <>
+                    <input type="file" accept=".xlsx" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
+                    <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={handleImportImage} />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={importing}
+                      className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-600 rounded text-sm hover:bg-green-50 font-medium"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" /> {importing ? 'Đang xử lý...' : 'Import từ Excel'}
+                    </button>
+                    <button
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={importing}
+                      className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 rounded text-sm hover:bg-purple-50 font-medium"
+                    >
+                      <ImageIcon className="w-4 h-4" /> {importing ? 'Đang xử lý...' : 'Upload Hóa đơn (Ảnh)'}
+                    </button>
+                  </>
+                )}
 
                 <div className="ml-auto flex items-center gap-4 bg-gray-50 px-4 py-1.5 rounded-full border">
                   <span className="text-sm font-medium text-gray-700">Loại đơn:</span>
@@ -322,17 +354,20 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
                     {items.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="p-2 border-b">
-                          <select 
+                          <select
                             className="w-full border rounded px-2 py-1 text-sm outline-none focus:border-blue-500"
                             value={item.itemId}
                             onChange={e => handleItemChange(index, e.target.value)}
                           >
                             <option value="">-- Chọn {poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'} --</option>
-                            {poType === 'Product' 
+                            {poType === 'Product'
                               ? products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)
                               : materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
                             }
                           </select>
+                          {!item.itemId && item.note && (
+                            <p className="text-[10px] text-purple-600 mt-1">🔎 Từ ảnh hóa đơn: "{item.note.replace(/^OCR: /, '')}" — chưa khớp mặt hàng nào, vui lòng chọn ở trên.</p>
+                          )}
                         </td>
                         <td className="p-2 border-b">
                           <input 
@@ -392,7 +427,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess }: CEOP
 
         <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 rounded-b-lg">
           <button onClick={onClose} className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-100 font-medium">Hủy bỏ</button>
-          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm">Lưu PO Nháp (Draft)</button>
+          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm">{isEdit ? 'Lưu thay đổi' : 'Lưu PO Nháp (Draft)'}</button>
         </div>
       </div>
     </div>

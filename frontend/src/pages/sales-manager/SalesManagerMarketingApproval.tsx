@@ -36,7 +36,6 @@ interface MarketingPost {
 
 const STATUS_MAP: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
   Submitted:      { label: 'Chờ duyệt',     bg: 'bg-blue-50',     text: 'text-blue-700',    icon: <Clock className="w-3 h-3" /> },
-  Approved:       { label: 'Đã duyệt',      bg: 'bg-indigo-50',   text: 'text-indigo-700',  icon: <CheckCircle2 className="w-3 h-3" /> },
   Scheduled:      { label: 'Đã lên lịch',   bg: 'bg-indigo-50',   text: 'text-indigo-700',  icon: <CalendarIcon className="w-3 h-3" /> },
   Posting:        { label: 'Đang đăng',     bg: 'bg-emerald-50',  text: 'text-emerald-700', icon: <RefreshCw className="w-3 h-3 animate-spin" /> },
   Success:        { label: 'Đã đăng FB',    bg: 'bg-emerald-100', text: 'text-emerald-800', icon: <CheckCircle2 className="w-3 h-3" /> },
@@ -105,8 +104,8 @@ export default function SalesManagerMarketingApproval() {
   };
 
   const pendingPosts = posts.filter(p => p.status === 'Submitted');
-  const scheduledPosts = posts.filter(p => p.status === 'Scheduled' || p.status === 'Approved');
-  const historyPosts = posts.filter(p => !['Submitted', 'Scheduled', 'Approved'].includes(p.status));
+  const scheduledPosts = posts.filter(p => p.status === 'Scheduled');
+  const historyPosts = posts.filter(p => !['Submitted', 'Scheduled'].includes(p.status));
 
   const tabCounts = { PENDING: pendingPosts.length, SCHEDULED: scheduledPosts.length, HISTORY: historyPosts.length };
   const currentList = activeTab === 'PENDING' ? pendingPosts : activeTab === 'SCHEDULED' ? scheduledPosts : historyPosts;

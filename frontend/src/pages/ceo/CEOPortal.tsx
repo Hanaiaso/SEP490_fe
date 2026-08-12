@@ -7,11 +7,12 @@ import CEOSupplierManagementPage from './CEOSupplierManagementPage';
 import CEOPurchaseOrderDetailPage from './CEOPurchaseOrderDetailPage';
 import CEOMaterialManagementPage from './CEOMaterialManagementPage';
 import CEOProductManagementPage from './CEOProductManagementPage';
+import CEOStockAdjustmentPage from './CEOStockAdjustmentPage';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign,
-  Package, Users, LogOut, Building, Layers, ShoppingBag
+  Package, Users, LogOut, Building, Layers, ShoppingBag, SlidersHorizontal
 } from 'lucide-react';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import NotificationBell from '../../components/NotificationBell';
@@ -109,6 +110,8 @@ function CEOSidebar({ activeTab, setActiveTab, pendingQuotationCount }: { active
             active={activeTab === 'warehouses'} onClick={() => setActiveTab('warehouses')} />
           <NavItem icon={<Layers className="w-4 h-4" />} label="Quản lý Nguyên liệu"
             active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} />
+          <NavItem icon={<SlidersHorizontal className="w-4 h-4" />} label="Duyệt điều chỉnh tồn kho"
+            active={activeTab === 'stock-adjustments'} onClick={() => setActiveTab('stock-adjustments')} />
         </NavGroup>
       </div>
     </div>
@@ -162,6 +165,8 @@ export default function CEOPortal() {
         return <CEOMaterialManagementPage />;
       case 'products':
         return <CEOProductManagementPage />;
+      case 'stock-adjustments':
+        return <CEOStockAdjustmentPage />;
       case 'warehouses':
         return <WarehouseManagement />;
       case 'notifications':

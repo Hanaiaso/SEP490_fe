@@ -24,3 +24,11 @@ export async function markAsRead(notificationId) {
 export async function markAllAsRead() {
   return await fetchWithToken('PUT', '/notifications/read-all');
 }
+
+export async function deleteNotification(notificationId) {
+  return await fetchWithToken('DELETE', `/notifications/${notificationId}`);
+}
+
+export async function deleteAllRead() {
+  return await fetchWithToken('DELETE', '/notifications/read-all');
+}

@@ -79,7 +79,7 @@ const buildNavItems = (role?: string): NavItem[] => [
     children: [
       { id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine' },
       { id: 'inventory-count', label: 'Kiểm kê tồn kho', icon: <ClipboardCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/inventory-count' },
-      { id: 'stock-adjustment', label: 'Duyệt điều chỉnh TK', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/stock-adjustment' },
+      { id: 'stock-adjustment', label: 'Lịch sử điều chỉnh TK', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/stock-adjustment' },
     ],
   },
   { id: 'pickup-receiving', label: 'Tiếp nhận xe hoàn hàng', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/pickup-receiving' },

@@ -69,6 +69,7 @@ import { API_BASE } from '../services/apiBase.js'
 import { getQuotations } from '../services/quotationService.js'
 import {
   uploadAvatar,
+  deleteAvatar,
   updateUserProfile,
   changePassword,
   getAddresses,
@@ -253,6 +254,17 @@ function PersonalInfoTab({ user, onSuccess }) {
     }
   }
 
+  const handleDeleteAvatar = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh đại diện?')) return
+    try {
+      await deleteAvatar()
+      updateUser({ avatarUrl: null })
+      onSuccess('Đã xóa ảnh đại diện')
+    } catch (err) {
+      alert(err.message || 'Lỗi khi xóa ảnh đại diện')
+    }
+  }
+
   const handleSaveInfo = async () => {
     if (!fullName.trim()) {
       alert('Họ tên không được để trống')
@@ -340,6 +352,16 @@ function PersonalInfoTab({ user, onSuccess }) {
             >
               <Camera className="h-3 w-3 text-gray-600" />
             </button>
+            {user?.avatarUrl && (
+              <button
+                type="button"
+                onClick={handleDeleteAvatar}
+                title="Xóa ảnh đại diện"
+                className="absolute bottom-0 left-0 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition hover:bg-red-50"
+              >
+                <Trash2 className="h-3 w-3 text-red-500" />
+              </button>
+            )}
           </div>
 
           <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">

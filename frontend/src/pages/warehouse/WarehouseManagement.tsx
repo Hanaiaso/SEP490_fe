@@ -117,7 +117,7 @@ export default function WarehouseManagement() {
             <Building className="w-6 h-6 text-blue-600" />
             Cấu hình Danh mục Kho
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý danh sách các kho bãi trong hệ thống (Dành cho CEO)</p>
+          <p className="text-sm text-gray-500 mt-1">Quản lý danh sách các kho bãi trong hệ thống</p>
         </div>
 
         <Button

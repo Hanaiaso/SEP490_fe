@@ -7,10 +7,13 @@ import {
   deleteProduct,
   getProductStats,
   getCategories,
+  getCategoriesForManagement,
+  createCategory,
+  updateCategory,
   getProductById,
   formatPrice,
 } from '../../services/productService';
-import { Search, Plus, Package, TrendingUp, TrendingDown, Ban, ImageOff } from 'lucide-react';
+import { Search, Plus, Package, TrendingUp, TrendingDown, Ban, ImageOff, Tags, Pencil, X, Check } from 'lucide-react';
 import type { Category, ProductManagementItem, ProductStatsResult } from '../../types/catalog';
 
 const PRIMARY = '#1f3b64';
@@ -51,6 +54,7 @@ export default function CEOProductManagementPage() {
   const [statsLoading, setStatsLoading] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductManagementItem | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(emptyForm);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -204,12 +208,20 @@ export default function CEOProductManagementPage() {
             <h2 className="text-base font-bold text-gray-900">Quản lý sản phẩm</h2>
             <p className="text-xs text-gray-500 mt-0.5">{totalCount} sản phẩm</p>
           </div>
-          <button
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded bg-blue-600 hover:bg-blue-700"
-            onClick={() => handleOpenModal()}
-          >
-            <Plus className="w-3.5 h-3.5" /> Thêm sản phẩm
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-gray-700 rounded border border-gray-200 hover:bg-gray-50"
+              onClick={() => setIsCategoryModalOpen(true)}
+            >
+              <Tags className="w-3.5 h-3.5" /> Quản lý danh mục
+            </button>
+            <button
+              className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded bg-blue-600 hover:bg-blue-700"
+              onClick={() => handleOpenModal()}
+            >
+              <Plus className="w-3.5 h-3.5" /> Thêm sản phẩm
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -442,6 +454,160 @@ export default function CEOProductManagementPage() {
           </div>
         </div>
       )}
+
+      {isCategoryModalOpen && (
+        <CategoryManagerModal
+          onClose={() => setIsCategoryModalOpen(false)}
+          onCategoriesChanged={loadCategories}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── P2-8: Quản lý danh mục (Admin/CEO) ─────────────────────────────────────
+function CategoryManagerModal({ onClose, onCategoriesChanged }: { onClose: () => void; onCategoriesChanged: () => void }) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const data = await getCategoriesForManagement();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      alert('Lỗi khi tải danh mục: ' + getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return alert('Vui lòng nhập tên danh mục.');
+    try {
+      setSaving(true);
+      await createCategory({ name: newName.trim(), description: newDescription.trim() || undefined });
+      setNewName('');
+      setNewDescription('');
+      await load();
+      onCategoriesChanged();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (c: Category) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditDescription(c.description || '');
+  };
+
+  const handleSaveEdit = async (c: Category) => {
+    if (!editName.trim()) return alert('Vui lòng nhập tên danh mục.');
+    try {
+      setSaving(true);
+      await updateCategory(c.id, { name: editName.trim(), description: editDescription.trim() || undefined, isActive: c.isActive });
+      setEditingId(null);
+      await load();
+      onCategoriesChanged();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async (c: Category) => {
+    try {
+      await updateCategory(c.id, { name: c.name, description: c.description, isActive: !c.isActive });
+      await load();
+      onCategoriesChanged();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-lg shadow-xl w-[520px] max-h-[85vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b flex justify-between items-center">
+          <h2 className="text-lg font-bold" style={{ color: PRIMARY }}>Quản lý danh mục</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        </div>
+
+        <form onSubmit={handleCreate} className="px-6 py-4 border-b flex flex-col gap-2 bg-gray-50">
+          <label className="text-xs font-semibold text-gray-600">Thêm danh mục mới</label>
+          <div className="flex gap-2">
+            <input type="text" placeholder="Tên danh mục *" value={newName} onChange={e => setNewName(e.target.value)}
+              className="flex-1 border rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500" />
+            <input type="text" placeholder="Mô tả (tùy chọn)" value={newDescription} onChange={e => setNewDescription(e.target.value)}
+              className="flex-1 border rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500" />
+            <button type="submit" disabled={saving}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+              Thêm
+            </button>
+          </div>
+        </form>
+
+        <div className="p-3">
+          {loading ? (
+            <p className="text-center text-xs text-gray-500 py-6">Đang tải...</p>
+          ) : categories.length === 0 ? (
+            <p className="text-center text-xs text-gray-400 py-6">Chưa có danh mục nào.</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-gray-100">
+              {categories.map(c => (
+                <div key={c.id} className="py-2.5 flex items-center gap-2">
+                  {editingId === c.id ? (
+                    <>
+                      <div className="flex-1 flex flex-col gap-1">
+                        <input value={editName} onChange={e => setEditName(e.target.value)}
+                          className="border rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" />
+                        <input value={editDescription} onChange={e => setEditDescription(e.target.value)}
+                          placeholder="Mô tả" className="border rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <button onClick={() => handleSaveEdit(c)} disabled={saving} title="Lưu" className="text-green-600 hover:text-green-800">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingId(null)} title="Hủy" className="text-gray-400 hover:text-gray-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
+                        {c.description && <p className="text-xs text-gray-400 truncate">{c.description}</p>}
+                      </div>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {c.isActive ? 'Đang bật' : 'Đã tắt'}
+                      </span>
+                      <button onClick={() => startEdit(c)} title="Sửa" className="text-gray-400 hover:text-blue-600">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleToggleActive(c)} title={c.isActive ? 'Tắt danh mục' : 'Bật danh mục'}
+                        className={`px-2 py-1 rounded text-[10px] border whitespace-nowrap ${c.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
+                        {c.isActive ? 'Tắt' : 'Bật'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

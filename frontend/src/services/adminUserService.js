@@ -17,10 +17,6 @@ export async function searchUsers({ page = 1, pageSize = 20, searchQuery, role, 
   return fetchWithToken('GET', `/admin/users?${params.toString()}`);
 }
 
-export async function getUserById(id) {
-  return fetchWithToken('GET', `/admin/users/${id}`);
-}
-
 export async function createUser(payload) {
   return fetchWithToken('POST', '/admin/users', payload);
 }
@@ -31,4 +27,9 @@ export async function changeUserRole(id, { newRole, reason }) {
 
 export async function setUserStatus(id, { isActive, reason }) {
   return fetchWithToken('PUT', `/admin/users/${id}/status`, { isActive, reason });
+}
+
+// P2-7 (UC-55): đăng xuất từ xa — thu hồi refresh token hiện tại của user.
+export async function revokeUserSession(id, reason) {
+  return fetchWithToken('POST', `/admin/users/${id}/revoke-session`, { reason });
 }

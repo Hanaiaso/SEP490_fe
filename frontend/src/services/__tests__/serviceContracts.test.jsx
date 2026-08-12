@@ -4,6 +4,7 @@ import { server } from '../../test/msw/server.js'
 import * as cartService from '../cartService.js'
 import { getOrderTimeline } from '../orderService.js'
 import { formatPrice } from '../productService.js'
+import { dispatchQuarantine } from '../warehouseService.js'
 
 /**
  * Sheet: FE-Services — L1-FES-04..06 (payload correctness + hàm thuần).
@@ -55,5 +56,23 @@ describe('L1-FES · hợp đồng payload của service', () => {
     expect(formatted).toContain('₫')
     expect(formatted.replace(/\s| /g, '')).toContain('9.999.999')
     expect(formatted).not.toContain(',00')
+  })
+
+  // L1-FES-10 | EP-Valid | P0-2 regression: BE (QuarantineDispatchDto) doc field "action", khong phai
+  // "decision" -- truoc day lech ten khien quyet dinh "damaged" luon bi model binder bo qua va mac dinh
+  // ve "available". Test nay khoa body request lai dung { action } de chan tai phat.
+  it('L1-FES-10 dispatchQuarantine gui dung body { action } toi POST /api/warehouse-management/quarantine/:id/dispatch', async () => {
+    let capturedBody = null
+    server.use(
+      http.post('/api/warehouse-management/quarantine/Q1/dispatch', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({ message: 'ok' })
+      }),
+    )
+
+    await dispatchQuarantine('Q1', 'damaged')
+
+    expect(capturedBody).toEqual({ action: 'damaged' })
+    expect(capturedBody).not.toHaveProperty('decision')
   })
 })

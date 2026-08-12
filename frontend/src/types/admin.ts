@@ -113,6 +113,8 @@ export interface AdminUser {
   isActive: boolean;
   isEmailVerified: boolean;
   createdAt: string;
+  hasActiveSession: boolean;
+  sessionExpiresAt?: string;
 }
 
 export interface CreateStaffUserRequest {
