@@ -8,6 +8,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    // e2e/ là bộ test Playwright riêng (package.json/node_modules độc lập, chạy qua
+    // `npx playwright test`) — không phải test unit của vitest, phải loại khỏi glob mặc định
+    // nếu không vitest sẽ cố import "@playwright/test" (chưa cài ở gốc frontend) và báo lỗi.
+    exclude: ['**/node_modules/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
