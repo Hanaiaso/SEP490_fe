@@ -15,6 +15,13 @@ export default defineConfig({
   testDir: './specs',
   outputDir: './test-results',
 
+  // Duoi file la *.e2e.ts chu KHONG phai *.spec.ts.
+  // Ly do: vitest cua app (vite.config.ts) quet mac dinh '**/*.{test,spec}.ts' tren ca cay
+  // frontend/, nen neu de duoi .spec.ts thi `npm test` cua app se nap nham cac file nay va
+  // bao 6 file do ("Playwright Test did not expect test.describe() to be called here").
+  // Doi duoi la cach tach hai bo test ma KHONG phai sua vite.config.ts cua app.
+  testMatch: '**/*.e2e.ts',
+
   // Seed tien dieu kien (dia chi khach, du 10 san pham Active, nha cung cap SUP-01).
   globalSetup: './seed/seed-l4.ts',
 
