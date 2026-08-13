@@ -103,8 +103,10 @@ export default function WarehouseCountSessions() {
     }
   };
 
+  // Lưu ý: KHÔNG tự ép saved:false ở đây — handleSaveItem cũng gọi qua hàm này để set saved:true
+  // sau khi lưu thành công; nơi nào sửa giá trị (physicalQuantity/note) phải tự truyền saved:false.
   const updateDraft = (itemId: string, patch: Partial<DraftItem>) => {
-    setDrafts(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...patch, saved: false } }));
+    setDrafts(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...patch } }));
   };
 
   const handleSaveItem = async (itemId: string) => {
@@ -246,7 +248,7 @@ export default function WarehouseCountSessions() {
                           className="h-7 text-xs text-right w-24 ml-auto"
                           placeholder="Nhập..."
                           value={draft.physicalQuantity}
-                          onChange={e => updateDraft(item.id, { physicalQuantity: e.target.value })}
+                          onChange={e => updateDraft(item.id, { physicalQuantity: e.target.value, saved: false })}
                         />
                       </td>
                       <td className="px-4 py-2 text-right font-bold tabular-nums">
@@ -256,7 +258,7 @@ export default function WarehouseCountSessions() {
                       </td>
                       <td className="px-4 py-2">
                         <Input className="h-7 text-xs w-full" placeholder="Ghi chú..." maxLength={500}
-                          value={draft.note} onChange={e => updateDraft(item.id, { note: e.target.value })} />
+                          value={draft.note} onChange={e => updateDraft(item.id, { note: e.target.value, saved: false })} />
                       </td>
                       <td className="px-4 py-2 text-center">
                         <button
