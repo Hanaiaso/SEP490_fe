@@ -15,20 +15,38 @@ async function doFetchWithToken(method, url, body) {
 
 // Refresh token bằng RefreshToken lưu trong localStorage. Trả về true nếu accessToken mới
 // đã được lưu lại, false nếu refresh thất bại (RefreshToken thiếu hoặc hết hạn).
+//
+// Backend xoay vòng (rotate) refresh token ở mỗi lần refresh -> refresh token cũ bị vô hiệu
+// ngay sau lần refresh đầu tiên. Nếu nhiều request 401 cùng lúc đều tự gọi refresh riêng, các
+// lần refresh sau sẽ dùng refresh token cũ (đã bị thu hồi) và thất bại, khiến phiên hợp lệ bị
+// đăng xuất oan. Dùng một promise in-flight dùng chung để mọi request 401 đồng thời chờ chung
+// đúng một lần refresh.
+let refreshPromise = null;
+
 async function tryRefreshAccessToken() {
-  const storedRefreshToken = localStorage.getItem('refreshToken');
-  if (!storedRefreshToken) return false;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    if (!storedRefreshToken) return false;
+
+    try {
+      const res = await refreshToken({ refreshToken: storedRefreshToken });
+      const { accessToken, refreshToken: newRefreshToken } = res.data || {};
+      if (!accessToken) return false;
+
+      localStorage.setItem('accessToken', accessToken);
+      if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
 
   try {
-    const res = await refreshToken({ refreshToken: storedRefreshToken });
-    const { accessToken, refreshToken: newRefreshToken } = res.data || {};
-    if (!accessToken) return false;
-
-    localStorage.setItem('accessToken', accessToken);
-    if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
-    return true;
-  } catch {
-    return false;
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
 }
 
@@ -82,7 +100,7 @@ export async function fetchWithToken(method, url, body) {
     if (res.status === 401) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem('authUser');
       window.location.href = '/login';
     }
     throw new Error(extractErrorMessage(res.status, json, text));
@@ -118,7 +136,7 @@ export async function fetchFormDataWithToken(method, url, formData) {
   if (!res.ok) {
     if (res.status === 401) {
       localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem('authUser');
       window.location.href = '/login';
     }
     throw new Error(extractErrorMessage(res.status, json, text));

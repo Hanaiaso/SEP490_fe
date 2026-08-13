@@ -59,7 +59,7 @@ describe('L1-FES · authService.fetchWithToken', () => {
   // L1-FES-03 | BC-FALSE | Refresh cũng hỏng -> xoá session + chuyển về /login, KHÔNG lặp vô hạn
   it('L1-FES-03 refresh thất bại thì xoá session và chuyển về /login, không lặp vô hạn', async () => {
     localStorage.setItem('accessToken', 'jwt-expired')
-    localStorage.setItem('user', JSON.stringify({ id: 'U1' }))
+    localStorage.setItem('authUser', JSON.stringify({ id: 'U1' }))
 
     let ordersCalls = 0
     server.use(
@@ -101,11 +101,57 @@ describe('L1-FES · authService.fetchWithToken', () => {
       await expect(fetchWithToken('GET', '/orders')).rejects.toThrow()
 
       expect(localStorage.getItem('accessToken')).toBeNull()
-      expect(localStorage.getItem('user')).toBeNull()
+      expect(localStorage.getItem('authUser')).toBeNull()
       expect(redirects).toContain('/login')
       expect(ordersCalls).toBeLessThanOrEqual(2)
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, writable: true, value: realLocation })
     }
+  })
+
+  // L1-FES-04 | Race condition | Nhiều request 401 đồng thời chỉ được refresh MỘT lần (dùng
+  // chung 1 promise in-flight), tránh trường hợp refresh token bị rotate làm các lần refresh
+  // song song sau bị từ chối và đăng xuất oan một phiên còn hợp lệ.
+  it('L1-FES-04 nhiều request 401 đồng thời chỉ gọi refresh-token đúng 1 lần', async () => {
+    localStorage.setItem('accessToken', 'jwt-expired')
+    localStorage.setItem('refreshToken', 'rt-1')
+
+    let refreshCalls = 0
+    const orderCallCountByPath = { '/api/orders': 0, '/api/cart': 0, '/api/profile': 0 }
+    server.use(
+      http.get('/api/orders', () => {
+        orderCallCountByPath['/api/orders'] += 1
+        return orderCallCountByPath['/api/orders'] === 1
+          ? new HttpResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 })
+          : HttpResponse.json({ ok: true, from: 'orders' })
+      }),
+      http.get('/api/cart', () => {
+        orderCallCountByPath['/api/cart'] += 1
+        return orderCallCountByPath['/api/cart'] === 1
+          ? new HttpResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 })
+          : HttpResponse.json({ ok: true, from: 'cart' })
+      }),
+      http.get('/api/profile', () => {
+        orderCallCountByPath['/api/profile'] += 1
+        return orderCallCountByPath['/api/profile'] === 1
+          ? new HttpResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 })
+          : HttpResponse.json({ ok: true, from: 'profile' })
+      }),
+      http.post('/api/auth/refresh-token', () => {
+        refreshCalls += 1
+        return HttpResponse.json({ data: { accessToken: 'jwt-2', refreshToken: 'rt-2' } })
+      }),
+    )
+
+    const [r1, r2, r3] = await Promise.all([
+      fetchWithToken('GET', '/orders'),
+      fetchWithToken('GET', '/cart'),
+      fetchWithToken('GET', '/profile'),
+    ])
+
+    expect(refreshCalls).toBe(1)
+    expect(r1.ok && r2.ok && r3.ok).toBe(true)
+    expect(localStorage.getItem('accessToken')).toBe('jwt-2')
+    expect(localStorage.getItem('refreshToken')).toBe('rt-2')
   })
 })
