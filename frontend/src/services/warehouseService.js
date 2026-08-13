@@ -184,6 +184,10 @@ export async function getWarehouseInventory(warehouseId, params) {
   return request('GET', `/inventory/${warehouseId}?${qs}`);
 }
 
+export async function getLowStockAlerts() {
+  return request('GET', `/inventory/low-stock-alerts`);
+}
+
 export async function getInventoryReport(params) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/inventory/report${qs ? `?${qs}` : ''}`);

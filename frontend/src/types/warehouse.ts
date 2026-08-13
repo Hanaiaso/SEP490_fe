@@ -48,6 +48,18 @@ export interface InventoryItem {
   lastUpdatedAt?: string;
 }
 
+export interface LowStockAlert {
+  itemType: 'Product' | 'Material';
+  itemId: string;
+  itemName: string;
+  itemSku?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  availableQuantity: number;
+  threshold: number;
+  suggestedAction: string;
+}
+
 export interface CategoryStock {
   categoryName: string;
   itemCount: number;
