@@ -202,15 +202,16 @@ test.describe('L4-CriticalPaths', () => {
     await expect(page).toHaveURL(/\/sales\/delivery\/arrangement/);
 
     // BR-038 yeu cau: khong luu duoc khi thieu anh hoac chu ky.
-    // L3 (DEF-L3-004) da ghi nhan module Delivery Trip / POD chua co endpoint rieng.
-    // Kiem lai o day de xac nhan tren giao dien.
+    // DEF-L4-002 (dot L4 truoc) doan sai route "/api/delivery/trips" (khong ton tai) va ket luan
+    // nham module chua trien khai. Doi chieu code that: SalesDeliveryArrangementPage.tsx goi
+    // /api/delivery/orders, /pickups, /schedule — dung route nay de kiem tra dung.
     const ctx = await ctxTheoVaiTro('sales');
-    const trips = await ctx.get('/api/delivery/trips');
+    const orders = await ctx.get('/api/delivery/orders');
     await ctx.dispose();
 
     expect(
-      trips.status(),
-      `GET /api/delivery/trips tra ${trips.status()} — module chuyen giao hang chua trien khai (xac nhan lai DEF-L3-004)`,
+      orders.status(),
+      `GET /api/delivery/orders tra ${orders.status()} — man sap xep giao hang dua vao endpoint nay`,
     ).toBeLessThan(400);
   });
 });

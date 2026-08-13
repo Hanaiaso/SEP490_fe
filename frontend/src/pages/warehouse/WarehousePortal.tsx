@@ -1,7 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '../../components/sales-ui/avatar';
 import { useAuth } from '../../context/AuthContext';
+import ProtectedRouteImport from '../../components/ProtectedRoute';
+const ProtectedRoute = ProtectedRouteImport as ComponentType<{
+  children?: ReactNode;
+  allowedRoles?: string[];
+  allowGuest?: boolean;
+}>;
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../../components/sales-ui/dropdown-menu';
@@ -263,7 +269,11 @@ export default function WarehousePortal() {
               <Route path="transfer/stock-transfer" element={<WarehouseStockTransfer />} />
               <Route path="inv-management/quarantine" element={<WarehouseQuarantine />} />
               <Route path="inv-management/inventory-count" element={<WarehouseInventoryCount />} />
-              <Route path="inv-management/stock-adjustment" element={<WarehouseStockAdjustment />} />
+              {/* DEF-L4-005: duyệt điều chỉnh tồn kho là nghiệp vụ WarehouseStaff, backend inventory/adjust
+                  chặn Admin (403) — chặn luôn ở UI thay vì để Admin bấm rồi mới thấy lỗi. */}
+              <Route path="inv-management/stock-adjustment" element={
+                <ProtectedRoute allowedRoles={['WarehouseStaff']}><WarehouseStockAdjustment /></ProtectedRoute>
+              } />
               <Route path="production/issue" element={<WarehouseProductionIssue />} />
               <Route path="shift-inventory" element={<WarehouseShiftInventory />} />
               <Route path="materials" element={<WarehouseMaterials />} />

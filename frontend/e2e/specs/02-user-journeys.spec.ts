@@ -223,15 +223,17 @@ test.describe('L4-UserJourneys', () => {
     await page.waitForLoadState('networkidle');
     await expect(page).toHaveURL(/\/sales\/delivery\/collection/);
 
-    // L3 DEF-L3-004 ghi nhan chua co endpoint thu COD. Xac nhan lai.
+    // DEF-L4-002 (dot L4 truoc) doan sai route "/api/delivery/collections" (khong ton tai) va ket
+    // luan nham chua co endpoint thu COD. Doi chieu code that: SalesDeliveryCollectionPage.tsx doc
+    // danh sach don qua /api/delivery/orders roi ghi nhan thu tien qua POST /{orderId}/complete —
+    // dung route that de kiem tra.
     const ctx = await ctxTheoVaiTro('sales');
-    const res = await ctx.get('/api/delivery/collections');
+    const res = await ctx.get('/api/delivery/orders');
     await ctx.dispose();
 
     expect(
       res.status(),
-      `GET /api/delivery/collections tra ${res.status()} — chuc nang thu COD chua co endpoint `
-      + '(xac nhan lai DEF-L3-004), khong kiem duoc BR-039',
+      `GET /api/delivery/orders tra ${res.status()} — man thu COD dua vao endpoint nay, khong kiem duoc BR-039`,
     ).toBeLessThan(400);
   });
 

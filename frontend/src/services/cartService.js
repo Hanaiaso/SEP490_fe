@@ -70,6 +70,14 @@ export async function clearCart() {
   return request('DELETE', '/cart')
 }
 
+/**
+ * BR-025: xác nhận làm mới giá cho giỏ hàng đã hết hạn giữ giá 24h (isPriceExpired = true).
+ * @returns {Promise<any>}
+ */
+export async function refreshPrices() {
+  return request('POST', '/cart/refresh-price')
+}
+
 // ─── Giỏ hàng tạm cho khách chưa đăng nhập (localStorage) ────────────────────
 const GUEST_CART_KEY = 'guestCart'
 

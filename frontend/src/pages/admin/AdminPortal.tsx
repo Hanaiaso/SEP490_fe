@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, FileText, CheckSquare,
   Package, XCircle, AlertTriangle, Users, ShieldCheck,
-  LogOut, BarChart2, Sparkles, History, Settings,
+  LogOut, BarChart2, Settings,
   CreditCard, Wallet, ScrollText, Activity, Truck, Percent,
   Warehouse, Building2, Clock, Plug
 } from 'lucide-react';
@@ -75,10 +75,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
     { id: 'report-staff', label: 'Báo cáo Nhân viên', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-staff' },
     { id: 'report-product', label: 'Báo cáo Sản phẩm', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-product' },
     { id: 'report-revenue', label: 'Báo cáo Doanh thu', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-revenue' },
-  ] },
-  { title: 'Trợ lý AI Marketing', items: [
-    { id: 'ai-marketing', label: 'Tạo nội dung Facebook', icon: <Sparkles className="w-4 h-4" />, path: '/admin/ai-marketing' },
-    { id: 'marketing-history', label: 'Lịch sử Marketing', icon: <History className="w-4 h-4" />, path: '/admin/marketing-history' },
   ] },
   { title: 'Cấu hình hệ thống', items: [
     { id: 'settings', label: 'Thiết lập SePay & Ngưỡng giá', icon: <Settings className="w-4 h-4" />, path: '/admin/settings' },

@@ -136,6 +136,23 @@ export function CartProvider({ children }) {
     }
   }, [isAuthenticated])
 
+  // BR-025: làm mới giá cho giỏ đã hết hạn giữ giá 24h (khách bấm xác nhận sau khi thấy banner cảnh báo)
+  const refreshPrices = useCallback(async () => {
+    if (!isAuthenticated) return cart
+    setLoading(true)
+    setError(null)
+    try {
+      const updatedCart = await cartService.refreshPrices()
+      setCart(updatedCart)
+      return updatedCart
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [isAuthenticated, cart])
+
   // Clear cart
   const clearCart = useCallback(async () => {
     if (!isAuthenticated) {
@@ -165,12 +182,14 @@ export function CartProvider({ children }) {
     totalItems: cart?.totalItems ?? 0,
     totalPrice: cart?.totalPrice ?? 0,
     items: cart?.items ?? [],
+    isPriceExpired: cart?.isPriceExpired ?? false,
     fetchCart,
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
-  }), [cart, loading, error, fetchCart, addToCart, updateQuantity, removeFromCart, clearCart])
+    refreshPrices,
+  }), [cart, loading, error, fetchCart, addToCart, updateQuantity, removeFromCart, clearCart, refreshPrices])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

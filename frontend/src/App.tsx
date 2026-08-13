@@ -70,8 +70,9 @@ function App() {
             {/* Admin Routes */}
             <Route path="/admin/*" element={<ProtectedRoute allowedRoles={['Admin']}><AdminPortal /></ProtectedRoute>} />
 
-            {/* CEO Routes */}
-            <Route path="/ceo/*" element={<ProtectedRoute allowedRoles={['CEO', 'Admin']}><CEOPortal /></ProtectedRoute>} />
+            {/* CEO Routes — chỉ CEO được duyệt nghiệp vụ (ceo-decision), Admin không có quyền này ở backend
+                (DEF-L4-005: trước đây UI vẫn cho Admin vào xem/thao tác dù API luôn trả 403) */}
+            <Route path="/ceo/*" element={<ProtectedRoute allowedRoles={['CEO']}><CEOPortal /></ProtectedRoute>} />
 
             {/* Warehouse Routes */}
             <Route path="/warehouse/*" element={<ProtectedRoute allowedRoles={['WarehouseStaff', 'Admin']}><WarehousePortal /></ProtectedRoute>} />

@@ -49,11 +49,12 @@ function getAutomaticDiscount(total) {
 export default function Cart() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const { items: cartItems, updateQuantity, removeFromCart, totalItems } = useCart()
+  const { items: cartItems, updateQuantity, removeFromCart, totalItems, isPriceExpired, refreshPrices } = useCart()
   const [showQuotationModal, setShowQuotationModal] = useState(false)
   const [quotationSent, setQuotationSent] = useState(false)
   const [negotiatedPrices, setNegotiatedPrices] = useState({}) // productId -> negotiated price
   const [checkoutSummary, setCheckoutSummary] = useState(null) // chiet khau that tu backend (DiscountTiers)
+  const [isRefreshingPrice, setIsRefreshingPrice] = useState(false)
 
   // Fetch giá đàm phán khi cart load
   useEffect(() => {
@@ -92,11 +93,24 @@ export default function Cart() {
     })
   }
 
+  // BR-025: giỏ giữ giá 24h — khi hết hạn phải bấm làm mới để nhận giá hiện hành trước khi thanh toán
+  async function handleRefreshPrices() {
+    setIsRefreshingPrice(true)
+    try {
+      await refreshPrices()
+    } catch (err) {
+      alert(err.message || 'Lỗi khi làm mới giá')
+    } finally {
+      setIsRefreshingPrice(false)
+    }
+  }
+
   function goToCheckout() {
     if (!isAuthenticated) {
       navigate('/login')
       return
     }
+    if (isPriceExpired) return
     navigate('/checkout', {
       state: {
         cartItems: cartItems.map(item => ({
@@ -317,6 +331,29 @@ export default function Cart() {
 
             <div>
               <div className="space-y-6 lg:sticky lg:top-24">
+                {isPriceExpired && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-[1.75rem] border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-6"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <h3 className="font-bold text-red-900">Giá trong giỏ hàng đã hết hạn giữ</h3>
+                    </div>
+                    <p className="mb-4 text-sm text-red-800 leading-relaxed">
+                      Giỏ hàng của bạn đã giữ giá quá 24 giờ. Vui lòng làm mới để cập nhật giá hiện hành trước khi thanh toán.
+                    </p>
+                    <Button
+                      className="w-full rounded-full bg-red-600 text-white hover:bg-red-700"
+                      onClick={handleRefreshPrices}
+                      disabled={isRefreshingPrice}
+                    >
+                      {isRefreshingPrice ? 'Đang làm mới...' : 'Làm mới giá'}
+                    </Button>
+                  </motion.div>
+                )}
+
                 <div className="rounded-[1.75rem] border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-6">
                   <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
                     <AlertCircle className="h-5 w-5" />
@@ -440,8 +477,10 @@ export default function Cart() {
                   {!requiresQuotationFlow && (
                     <Button
                       size="lg"
-                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"
+                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={goToCheckout}
+                      disabled={isPriceExpired}
+                      title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
                     >
                       Đặt Hàng & Xem Hóa Đơn
                       <ArrowRight className="h-4 w-4" />
