@@ -43,7 +43,7 @@ import { Input } from '../components/ui/Input.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getAddresses, createAddress, updateAddress, setDefaultAddress } from '../services/userService.js'
-import { API_BASE } from '../services/apiBase'
+import { authFetch } from '../services/httpClient'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -397,9 +397,7 @@ export default function Checkout() {
     // (vd. tránh gọi trong khoảnh khắc cartStillLoading trước khi context cart kịp tải xong).
     if (sourceCart.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
-    fetch(`${API_BASE}/orders/checkout-summary`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
-    })
+    authFetch('/orders/checkout-summary')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled) setCheckoutSummary(data) })
       .catch(() => {})
@@ -429,9 +427,7 @@ export default function Checkout() {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch(`${API_BASE}/customer-profile`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        })
+        const res = await authFetch('/customer-profile')
         let profile = null
         if (res.ok) {
           const data = await res.json()
@@ -534,9 +530,7 @@ export default function Checkout() {
     let isMounted = true
     const intervalId = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/orders/${createdOrder.orderId}/payment-status`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        })
+        const res = await authFetch(`/orders/${createdOrder.orderId}/payment-status`)
         if (res.ok && isMounted) {
           const data = await res.json()
           if (data.status === 'Paid') {
@@ -600,12 +594,9 @@ export default function Checkout() {
       pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210)
       const pdfBase64 = pdf.output('datauristring')
 
-      const res = await fetch(`${API_BASE}/orders/${orderId}/upload-pdf`, {
+      const res = await authFetch(`/orders/${orderId}/upload-pdf`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfBase64 }),
       })
       if (!res.ok) {
@@ -633,12 +624,9 @@ export default function Checkout() {
         }
       }
 
-      const res = await fetch(`${API_BASE}/orders/place-order`, {
+      const res = await authFetch('/orders/place-order', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           addressId: selectedAddressId === 'profile-default' ? null : selectedAddressId,
           paymentMethod: paymentMethod === 'sepay' ? 'SePay' : 'COD',
@@ -664,9 +652,7 @@ export default function Checkout() {
       if (paymentMethod === 'sepay') {
         // Fetch QR
         try {
-          const qrRes = await fetch(`${API_BASE}/orders/${orderData.orderId}/sepay-qr`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-          })
+          const qrRes = await authFetch(`/orders/${orderData.orderId}/sepay-qr`)
           if (qrRes.ok) setQrDetails(await qrRes.json())
         } catch (err) { console.error('QR fetch error:', err) }
         setCurrentStep(3)

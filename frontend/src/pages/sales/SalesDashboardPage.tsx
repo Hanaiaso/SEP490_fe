@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
 import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 import type {
   SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
   DashboardQuoteRequest, DashboardOrder,
@@ -132,11 +133,7 @@ export default function SalesDashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/orders/sales-dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+      const response = await authFetch('/orders/sales-dashboard');
       if (response.ok) {
         const data = await response.json();
         setStats(data);

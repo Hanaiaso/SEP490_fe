@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ChevronRight, DollarSign, Package, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 import type { DeliveryOrderListItem, PendingPickup } from '../../types/delivery';
 import type { SalesOrderListItem } from '../../types/order';
 
 function api(path: string, opts?: RequestInit) {
-  const token = localStorage.getItem('accessToken');
-  return fetch(`${API_BASE}${path.startsWith('/api') ? path.slice(4) : path}`, {
+  return authFetch(path.startsWith('/api') ? path.slice(4) : path, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...(opts?.headers ?? {}) },
   });
 }
 

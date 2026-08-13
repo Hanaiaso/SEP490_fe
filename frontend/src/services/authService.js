@@ -1,54 +1,6 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
 import { API_BASE } from './apiBase';
-
-async function doFetchWithToken(method, url, body) {
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = { 'Content-Type': 'application/json' };
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
-  return fetch(`${API_BASE}${url}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
-// Refresh token bằng RefreshToken lưu trong localStorage. Trả về true nếu accessToken mới
-// đã được lưu lại, false nếu refresh thất bại (RefreshToken thiếu hoặc hết hạn).
-//
-// Backend xoay vòng (rotate) refresh token ở mỗi lần refresh -> refresh token cũ bị vô hiệu
-// ngay sau lần refresh đầu tiên. Nếu nhiều request 401 cùng lúc đều tự gọi refresh riêng, các
-// lần refresh sau sẽ dùng refresh token cũ (đã bị thu hồi) và thất bại, khiến phiên hợp lệ bị
-// đăng xuất oan. Dùng một promise in-flight dùng chung để mọi request 401 đồng thời chờ chung
-// đúng một lần refresh.
-let refreshPromise = null;
-
-async function tryRefreshAccessToken() {
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
-    const storedRefreshToken = localStorage.getItem('refreshToken');
-    if (!storedRefreshToken) return false;
-
-    try {
-      const res = await refreshToken({ refreshToken: storedRefreshToken });
-      const { accessToken, refreshToken: newRefreshToken } = res.data || {};
-      if (!accessToken) return false;
-
-      localStorage.setItem('accessToken', accessToken);
-      if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
-}
+import { authFetch } from './httpClient';
 
 function extractErrorMessage(status, json, text) {
   if (json && typeof json === 'object') {
@@ -81,12 +33,11 @@ function extractErrorMessage(status, json, text) {
  * @returns {Promise<any>}
  */
 export async function fetchWithToken(method, url, body) {
-  let res = await doFetchWithToken(method, url, body);
-
-  // Access token hết hạn -> silent refresh rồi thử lại request gốc đúng 1 lần.
-  if (res.status === 401 && (await tryRefreshAccessToken())) {
-    res = await doFetchWithToken(method, url, body);
-  }
+  const res = await authFetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
   const text = await res.text();
   let json = {};
@@ -96,13 +47,9 @@ export async function fetchWithToken(method, url, body) {
     json = {};
   }
 
+  // 401 sau khi authFetch đã thử refresh nghĩa là phiên thật sự hết hạn — authFetch tự xoá
+  // phiên + điều hướng /login, ở đây chỉ cần throw để dừng luồng gọi tiếp theo.
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('authUser');
-      window.location.href = '/login';
-    }
     throw new Error(extractErrorMessage(res.status, json, text));
   }
   return json;
@@ -115,15 +62,8 @@ export async function fetchWithToken(method, url, body) {
  * @returns {Promise<any>}
  */
 export async function fetchFormDataWithToken(method, url, formData) {
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = {};
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}${url}`, {
-    method,
-    headers, // Let browser set Content-Type with boundary for FormData
-    body: formData,
-  });
+  // Không set Content-Type: để trình duyệt tự gắn boundary cho multipart/form-data.
+  const res = await authFetch(url, { method, body: formData });
 
   const text = await res.text();
   let json = {};
@@ -134,11 +74,6 @@ export async function fetchFormDataWithToken(method, url, formData) {
   }
 
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('authUser');
-      window.location.href = '/login';
-    }
     throw new Error(extractErrorMessage(res.status, json, text));
   }
   return json;
@@ -262,21 +197,25 @@ export async function refreshToken(data) {
  * @param {{ fullName, phoneNumber }} data
  */
 export async function completeProfile(data) {
-  return request('PUT', '/auth/complete-profile', data)
+  return fetchWithToken('PUT', '/auth/complete-profile', data)
 }
+
+// Các endpoint dưới đây yêu cầu đăng nhập (khác register/login/OTP/reset-password ở trên,
+// vốn là pre-auth và không được đi qua authFetch — 401 do sai mật khẩu sẽ bị authFetch hiểu
+// nhầm thành hết phiên và đá về /login). Dùng fetchWithToken để có silent refresh (NFR-SEC02).
 
 /**
  * Đăng xuất — thu hồi Refresh Token trên server.
  */
 export async function logout() {
-  return request('POST', '/auth/logout')
+  return fetchWithToken('POST', '/auth/logout')
 }
 
 /**
  * Lấy thông tin thuế (CustomerProfile) của người dùng hiện tại.
  */
 export async function getCustomerProfile() {
-  return request('GET', '/customer-profile')
+  return fetchWithToken('GET', '/customer-profile')
 }
 
 /**
@@ -284,5 +223,5 @@ export async function getCustomerProfile() {
  * @param {{ taxCode, companyName, companyAddress, invoiceEmail, representative, companyPhone }} data
  */
 export async function updateCustomerProfile(data) {
-  return request('PUT', '/customer-profile', data)
+  return fetchWithToken('PUT', '/customer-profile', data)
 }

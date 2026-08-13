@@ -1,16 +1,9 @@
-import { API_BASE } from './apiBase';
+import { authFetch } from './httpClient';
 
 async function request(method, url, body) {
-  const accessToken = localStorage.getItem('accessToken')
-
-  const headers = { 'Content-Type': 'application/json' }
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`
-  }
-
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await authFetch(url, {
     method,
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   })
 
@@ -170,35 +163,9 @@ export function getOrderTimeline(orderStatus, deliveryStatus) {
 }
 
 export async function createExchangeRequest(orderId, data) {
-  const token = localStorage.getItem('accessToken');
-  const res = await fetch(`${API_BASE}/orders/${orderId}/exchange-request`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || 'Lỗi khi tạo yêu cầu đổi/trả hàng.');
-  }
-  return res.json();
+  return request('POST', `/orders/${orderId}/exchange-request`, data);
 }
 
 export async function processReturnExchangeRequest(id, data) {
-  const token = localStorage.getItem('accessToken');
-  const res = await fetch(`${API_BASE}/orders/exchange-request/${id}/process`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || 'Lỗi xử lý yêu cầu đổi/trả.');
-  }
-  return res.json();
+  return request('POST', `/orders/exchange-request/${id}/process`, data);
 }

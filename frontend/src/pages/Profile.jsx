@@ -65,7 +65,7 @@ import {
 import { exportInvoiceToPdf } from '../utils/exportPdf.js'
 import { formatPrice } from '../data/products.js'
 import { getCustomerProfile, updateCustomerProfile } from '../services/authService.js'
-import { API_BASE } from '../services/apiBase.js'
+import { authFetch } from '../services/httpClient.js'
 import { getQuotations } from '../services/quotationService.js'
 import {
   uploadAvatar,
@@ -1884,11 +1884,7 @@ function CreditHistoryTab() {
         const directBalance = profileRes?.availableCredit ?? profileRes?.data?.availableCredit ?? 0
         setBalance(directBalance)
 
-        const res = await fetch(`${API_BASE}/customer-profile/credit-history`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        })
+        const res = await authFetch('/customer-profile/credit-history')
         if (res.ok) {
           const data = await res.json()
           setHistory(data)

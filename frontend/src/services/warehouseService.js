@@ -1,16 +1,9 @@
-import { API_BASE } from './apiBase';
+import { authFetch } from './httpClient';
 
 async function request(method, url, body) {
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = { 'Content-Type': 'application/json' };
-  
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await authFetch(url, {
     method,
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -77,13 +70,8 @@ export async function updateItemPickProgress(pickTaskId, productId, packedQty, i
   formData.append('packedQty', packedQty);
   if (imageFile) formData.append('imageFile', imageFile);
 
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = {};
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}/warehouse/orders/pick-tasks/${pickTaskId}/items/${productId}/pick-progress`, {
+  const res = await authFetch(`/warehouse/orders/pick-tasks/${pickTaskId}/items/${productId}/pick-progress`, {
     method: 'POST',
-    headers,
     body: formData,
   });
   if (!res.ok) {
@@ -130,13 +118,9 @@ export async function createGoodsIssue(data) {
 export async function uploadGoodsIssueProof(id, imageFile) {
   const formData = new FormData();
   formData.append('file', imageFile);
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = {};
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${API_BASE}/goods-issues/${id}/upload-proof`, {
+  const res = await authFetch(`/goods-issues/${id}/upload-proof`, {
     method: 'POST',
-    headers,
     body: formData,
   });
   if (!res.ok) {
@@ -159,13 +143,8 @@ export async function createGoodsIssueReversal(id, data) {
 }
 
 export async function receiveStockTransfer(id, formData) {
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = {};
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}/stock-transfers/${id}/receive`, {
+  const res = await authFetch(`/stock-transfers/${id}/receive`, {
     method: 'POST',
-    headers,
     body: formData,
   });
   if (!res.ok) {

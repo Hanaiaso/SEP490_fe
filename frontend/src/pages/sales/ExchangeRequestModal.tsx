@@ -2,7 +2,7 @@ import { getErrorMessage } from '../../lib/errors';
 import React, { useState } from 'react';
 import { X, Search, Plus, Minus, Trash2, Upload, Loader2, Sparkles, RefreshCw, Calculator, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getProducts } from '../../services/productService';
-import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 import type { SalesOrderDetail, SalesOrderItem } from '../../types/order';
 import type { CreateReturnExchangeRequest } from '../../types/exchange';
 import type { Product } from '../../types/catalog';
@@ -34,9 +34,8 @@ interface ExchangeRequestModalProps {
 async function uploadEvidenceFile(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch(`${API_BASE}/orders/upload-evidence`, {
+  const res = await authFetch('/orders/upload-evidence', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     body: formData,
   });
   if (!res.ok) {

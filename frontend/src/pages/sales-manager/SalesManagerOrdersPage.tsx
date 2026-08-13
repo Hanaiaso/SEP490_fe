@@ -12,7 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { exportInvoiceToPdf } from '../../utils/exportPdf';
 import ConfirmModal from '../../components/ui/ConfirmModal';
-import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 
 const PRIMARY = '#1F3B64';
 const INFO = '#2563EB';
@@ -183,12 +183,9 @@ export default function SalesManagerOrdersPage() {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/orders/sales/${cancelModalOrder}/process-cancel-request`, {
+      const response = await authFetch(`/orders/sales/${cancelModalOrder}/process-cancel-request`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isApproved: true, reason: cancelReason })
       });
       if (response.ok) {
@@ -208,9 +205,7 @@ export default function SalesManagerOrdersPage() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/orders/sales-dashboard`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
+      const response = await authFetch('/orders/sales-dashboard');
       if (response.ok) {
         const data = await response.json();
         setDashboard(data);
@@ -232,9 +227,7 @@ export default function SalesManagerOrdersPage() {
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (paymentFilter !== 'all') params.append('paymentMethod', paymentFilter);
 
-      const response = await fetch(`${API_BASE}/orders/sales?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
+      const response = await authFetch(`/orders/sales?${params.toString()}`);
 
       if (!response.ok) throw new Error('Không thể tải danh sách đơn hàng.');
       const data = await response.json();
@@ -267,9 +260,8 @@ export default function SalesManagerOrdersPage() {
     setOrderToConfirm(null);
 
     try {
-      const response = await fetch(`${API_BASE}/orders/sales/${orderId}/confirm`, {
+      const response = await authFetch(`/orders/sales/${orderId}/confirm`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
 
       if (!response.ok) {
@@ -289,9 +281,7 @@ export default function SalesManagerOrdersPage() {
 
   const handleExportPdf = async (orderId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/orders/sales/${orderId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
+      const response = await authFetch(`/orders/sales/${orderId}`);
 
       if (!response.ok) {
         throw new Error('Không thể lấy chi tiết đơn hàng để xuất PDF.');

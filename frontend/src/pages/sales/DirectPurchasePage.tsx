@@ -5,6 +5,7 @@ import { Search, Trash2, Printer, FileText, Check, Loader2, ArrowLeft } from 'lu
 import { getProducts } from '../../services/productService';
 import { placeDirectOrder } from '../../services/directOrderService';
 import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { Product } from '../../types/catalog';
@@ -131,12 +132,9 @@ export default function DirectPurchasePage() {
     setConfirmingCash(true);
     setErrorMsg('');
     try {
-      const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/confirm-payment`, {
+      const response = await authFetch(`/orders/${successOrder.orderId}/confirm-payment`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
       });
       if (response.ok) {
         setPaymentStatus('Paid');
@@ -163,11 +161,7 @@ export default function DirectPurchasePage() {
 
     const fetchSePayQr = async () => {
       try {
-        const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/sepay-qr`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        });
+        const response = await authFetch(`/orders/${successOrder.orderId}/sepay-qr`);
         if (response.ok && isMounted) {
           const qrData = await response.json();
           setSepayQr(qrData);
@@ -181,11 +175,7 @@ export default function DirectPurchasePage() {
 
     const checkPaymentStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE}/orders/${successOrder.orderId}/payment-status`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        });
+        const response = await authFetch(`/orders/${successOrder.orderId}/payment-status`);
         if (response.ok && isMounted) {
           const statusData = await response.json();
           if (statusData.status === 'Paid') {
@@ -269,11 +259,7 @@ export default function DirectPurchasePage() {
     // Fetch existing customer details (AC-01)
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`${API_BASE}/customer-profile/by-phone/${cleanPhone}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        });
+        const response = await authFetch(`/customer-profile/by-phone/${cleanPhone}`);
         if (response.ok) {
           const profile = await response.json();
           if (profile.representative || profile.companyName) {

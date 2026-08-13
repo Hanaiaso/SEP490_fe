@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button.jsx'
 import { formatPrice } from '../services/productService.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { API_BASE } from '../services/apiBase.js'
+import { authFetch } from '../services/httpClient.js'
 
 // Lấy giá đàm phán đã được chấp thuận từ quotation CustomerAccepted
 async function fetchNegotiatedPrices() {
@@ -70,9 +70,7 @@ export default function Cart() {
     // Backend tra 400 "Giỏ hàng trống" khi cart rỗng — chỉ gọi khi thực sự có sản phẩm.
     if (!isAuthenticated || cartItems.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
-    fetch(`${API_BASE}/orders/checkout-summary`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
-    })
+    authFetch('/orders/checkout-summary')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled) setCheckoutSummary(data) })
       .catch(() => {})

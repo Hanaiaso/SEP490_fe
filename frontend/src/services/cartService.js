@@ -1,15 +1,10 @@
 // ─── Base config ─────────────────────────────────────────────────────────────
-import { API_BASE } from './apiBase';
+import { authFetch } from './httpClient';
 
 async function request(method, url, body) {
-  const accessToken = localStorage.getItem('accessToken')
-
-  const headers = { 'Content-Type': 'application/json' }
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
-
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await authFetch(url, {
     method,
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   })
 

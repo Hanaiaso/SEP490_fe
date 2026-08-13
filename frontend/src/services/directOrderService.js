@@ -1,17 +1,12 @@
-import { API_BASE } from './apiBase';
+import { authFetch } from './httpClient';
 
 async function request(method, url, body) {
-  const accessToken = localStorage.getItem('accessToken');
-
   const headers = {};
   if (!(body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
 
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await authFetch(url, {
     method,
     headers,
     body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,

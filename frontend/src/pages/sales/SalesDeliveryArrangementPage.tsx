@@ -1,5 +1,5 @@
 import { getErrorMessage } from '../../lib/errors';
-import { API_BASE } from '../../services/apiBase';
+import { authFetch } from '../../services/httpClient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Lock, MapPin, Package, RefreshCw, Truck, User, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
@@ -85,10 +85,9 @@ function groupOrdersByLocation(orders: DeliveryOrder[]): LocationGroup[] {
 }
 
 function api(path: string, opts?: RequestInit) {
-  const token = localStorage.getItem('accessToken');
-  return fetch(`${API_BASE}${path.startsWith('/api') ? path.slice(4) : path}`, {
+  return authFetch(path.startsWith('/api') ? path.slice(4) : path, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...(opts?.headers ?? {}) },
   });
 }
 

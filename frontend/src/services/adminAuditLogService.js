@@ -1,6 +1,5 @@
 import { fetchWithToken } from './authService.js';
-
-import { API_BASE } from './apiBase';
+import { authFetch } from './httpClient';
 
 function buildQuery({ page = 1, pageSize = 20, entityName, action, actorUserId, searchQuery, fromDate, toDate } = {}) {
   const params = new URLSearchParams();
@@ -19,20 +18,12 @@ export async function searchAuditLogs(query) {
   return fetchWithToken('GET', `/admin/audit-logs?${buildQuery(query).toString()}`);
 }
 
-// Không dùng fetchWithToken vì response là file CSV, không phải JSON.
+// Không dùng fetchWithToken vì response là file CSV, không phải JSON — nhưng vẫn cần
+// authFetch để có silent refresh (NFR-SEC02) thay vì tự đăng xuất ngay khi 401.
 export async function exportAuditLogsCsv(query) {
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = {};
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}/admin/audit-logs/export?${buildQuery(query).toString()}`, { headers });
+  const res = await authFetch(`/admin/audit-logs/export?${buildQuery(query).toString()}`);
 
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
     throw new Error(`Xuất CSV thất bại (Lỗi ${res.status})`);
   }
 
