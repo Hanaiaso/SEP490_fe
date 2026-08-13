@@ -1,11 +1,12 @@
 import { getErrorMessage } from '../../lib/errors';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Sparkles, Send, Save, RefreshCw, Image as ImageIcon,
-  CheckCircle2, Clock, AlertCircle, XCircle, ChevronRight,
-  ThumbsUp, MessageSquare, Share2, Globe, AlertTriangle
+  Sparkles, Send, Save, RefreshCw, Image as ImageIcon, Upload,
+  CheckCircle2, Clock, AlertCircle, XCircle, ChevronRight, ChevronDown,
+  ThumbsUp, MessageSquare, Share2, Globe, AlertTriangle, Eye, BarChart3
 } from 'lucide-react';
 import api from '../../services/api';
+import { fetchFormDataWithToken } from '../../services/authService';
 
 interface Product {
   id: string;
@@ -35,6 +36,17 @@ interface MarketingPost {
   scheduledTime?: string;
   externalPostId?: string;
   createdAt: string;
+}
+
+interface MarketingPostMetrics {
+  postId: string;
+  status: string;
+  externalPostId?: string;
+  reachCount: number;
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  lastSyncedAt?: string;
 }
 
 interface FormErrors {
@@ -78,9 +90,14 @@ export default function SalesAiContentStudio() {
   const [myPosts, setMyPosts] = useState<MarketingPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [expandedMetricsPostId, setExpandedMetricsPostId] = useState<string | null>(null);
+  const [metricsByPostId, setMetricsByPostId] = useState<Record<string, MarketingPostMetrics>>({});
+  const [loadingMetricsPostId, setLoadingMetricsPostId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generatingSingleImage, setGeneratingSingleImage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [imgLoading, setImgLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -179,6 +196,53 @@ export default function SalesAiContentStudio() {
     }
   };
 
+  const handleUploadImage = async (file: File) => {
+    if (!selectedProductId) {
+      setErrors(prev => ({ ...prev, productId: 'Vui lòng chọn sản phẩm trước khi tải ảnh lên.' }));
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      // POST /marketing-posts/{id}/media cần bài đã tồn tại — nếu chưa lưu nháp lần nào thì tự tạo
+      // nháp trước (giống hành vi handleSavePost với submitImmediately=false) để có id để upload vào.
+      let postId = currentPostId;
+      if (!postId) {
+        const created = await api.post('/marketing-posts', {
+          productId: selectedProductId,
+          promptUsed: prompt || `Template: ${templateName}, Tone: ${tone}`,
+          templateName,
+          tone,
+          generatedImageUrl: editedImageUrl,
+          generatedCaption: editedCaption,
+          selectedImageUrl: editedImageUrl,
+          editedCaption,
+          hashtags: editedHashtags,
+          ctaText: editedCta,
+          submitImmediately: false
+        });
+        postId = created.data.id;
+        setCurrentPostId(postId);
+        setCurrentPostStatus('Draft');
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      const updated = await fetchFormDataWithToken('POST', `/marketing-posts/${postId}/media`, formData);
+
+      if (updated?.selectedImageUrl) {
+        setEditedImageUrl(updated.selectedImageUrl);
+        if (errors.imageUrl) setErrors(prev => ({ ...prev, imageUrl: undefined }));
+      }
+      fetchMyPosts();
+    } catch (err: unknown) {
+      alert('Tải ảnh lên thất bại: ' + getErrorMessage(err));
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleGenerateAi = async () => {
     if (!selectedProductId) {
       setErrors(prev => ({ ...prev, productId: 'Vui lòng chọn sản phẩm cần tạo bài viết.' }));
@@ -248,6 +312,26 @@ export default function SalesAiContentStudio() {
     } finally {
       setSaving(false);
       setSubmitting(false);
+    }
+  };
+
+  const toggleMetrics = async (postId: string) => {
+    if (expandedMetricsPostId === postId) {
+      setExpandedMetricsPostId(null);
+      return;
+    }
+    setExpandedMetricsPostId(postId);
+    if (metricsByPostId[postId]) return; // đã tải trước đó, không gọi lại
+
+    setLoadingMetricsPostId(postId);
+    try {
+      const res = await api.get(`/marketing-posts/${postId}/metrics`);
+      setMetricsByPostId(prev => ({ ...prev, [postId]: res.data }));
+    } catch (err: unknown) {
+      alert('Không tải được chỉ số bài đăng: ' + getErrorMessage(err));
+      setExpandedMetricsPostId(null);
+    } finally {
+      setLoadingMetricsPostId(null);
     }
   };
 
@@ -547,6 +631,26 @@ export default function SalesAiContentStudio() {
                       {generatingSingleImage ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
                       <span>{generatingSingleImage ? 'Đang tạo...' : 'Sinh ảnh AI'}</span>
                     </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadImage(file);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploadingImage || !selectedProductId}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="py-2 px-3 rounded-md text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+                      title="Tải ảnh của riêng bạn lên (JPG/PNG/WEBP, tối đa 10MB)"
+                    >
+                      {uploadingImage ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      <span>{uploadingImage ? 'Đang tải...' : 'Tải ảnh lên'}</span>
+                    </button>
                   </div>
                   {errors.imageUrl && (
                     <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
@@ -672,27 +776,58 @@ export default function SalesAiContentStudio() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredPosts.map((post, i) => {
                     const sc = STATUS_MAP[post.status] || STATUS_MAP.Draft;
+                    const isExpanded = expandedMetricsPostId === post.id;
+                    const metrics = metricsByPostId[post.id];
                     return (
-                      <tr key={post.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                        <td className="px-4 py-2.5 font-mono font-bold text-gray-600">{post.code}</td>
-                        <td className="px-4 py-2.5 font-medium text-gray-900">{post.productName}</td>
-                        <td className="px-4 py-2.5 text-gray-600 max-w-xs truncate">{post.editedCaption}</td>
-                        <td className="px-4 py-2.5 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${sc.bg} ${sc.text}`}>
-                            {sc.icon} {sc.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-center text-gray-500">{new Date(post.createdAt).toLocaleDateString('vi-VN')}</td>
-                        <td className="px-4 py-2.5 text-center">
-                          {(post.status === 'Draft' || post.status === 'ReworkRequired') ? (
-                            <button onClick={() => loadPostToEdit(post)} className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 mx-auto">
-                              Sửa <ChevronRight className="w-3 h-3" />
-                            </button>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                      </tr>
+                      <React.Fragment key={post.id}>
+                        <tr className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                          <td className="px-4 py-2.5 font-mono font-bold text-gray-600">{post.code}</td>
+                          <td className="px-4 py-2.5 font-medium text-gray-900">{post.productName}</td>
+                          <td className="px-4 py-2.5 text-gray-600 max-w-xs truncate">{post.editedCaption}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${sc.bg} ${sc.text}`}>
+                              {sc.icon} {sc.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-center text-gray-500">{new Date(post.createdAt).toLocaleDateString('vi-VN')}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            {(post.status === 'Draft' || post.status === 'ReworkRequired') ? (
+                              <button onClick={() => loadPostToEdit(post)} className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 mx-auto">
+                                Sửa <ChevronRight className="w-3 h-3" />
+                              </button>
+                            ) : post.status === 'Success' ? (
+                              <button onClick={() => toggleMetrics(post.id)} className="text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-0.5 mx-auto">
+                                <BarChart3 className="w-3.5 h-3.5" /> Chỉ số {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                              </button>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-emerald-50/40">
+                            <td colSpan={6} className="px-4 py-3">
+                              {loadingMetricsPostId === post.id ? (
+                                <div className="text-xs text-gray-500 flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang tải chỉ số...</div>
+                              ) : metrics ? (
+                                <div className="flex items-center gap-6 text-xs">
+                                  <span className="flex items-center gap-1.5 text-gray-700"><Eye className="w-3.5 h-3.5 text-blue-600" /> Reach: <b>{metrics.reachCount.toLocaleString()}</b></span>
+                                  <span className="flex items-center gap-1.5 text-gray-700"><ThumbsUp className="w-3.5 h-3.5 text-blue-600" /> Thích: <b>{metrics.likeCount.toLocaleString()}</b></span>
+                                  <span className="flex items-center gap-1.5 text-gray-700"><MessageSquare className="w-3.5 h-3.5 text-blue-600" /> Bình luận: <b>{metrics.commentCount.toLocaleString()}</b></span>
+                                  <span className="flex items-center gap-1.5 text-gray-700"><Share2 className="w-3.5 h-3.5 text-blue-600" /> Chia sẻ: <b>{metrics.shareCount.toLocaleString()}</b></span>
+                                  <span className="text-gray-400 ml-auto">
+                                    {metrics.lastSyncedAt
+                                      ? `Đồng bộ lần cuối: ${new Date(metrics.lastSyncedAt).toLocaleString('vi-VN')}`
+                                      : 'Chưa có dữ liệu đồng bộ từ Facebook — hệ thống tự cập nhật mỗi 6 giờ.'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400">Không có dữ liệu.</div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

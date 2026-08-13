@@ -49,7 +49,7 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
     <div className="flex flex-col gap-[20px] p-[24px]">
       <div className="flex justify-between items-center">
         <h1 className="font-semibold text-[20px] text-[#1f3b64]">Purchase Orders - Đặt hàng Nhà cung cấp (CEO)</h1>
-        <button 
+        <button
           onClick={() => setIsCreateOpen(true)}
           className="flex items-center gap-2 bg-[#1f3b64] text-white px-[16px] py-[8px] rounded-[4px] text-[12px] font-medium hover:bg-[#162a4a]"
         >
@@ -62,7 +62,7 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
           <Search className="w-4 h-4 text-gray-400" />
           <input className="outline-none text-sm w-full" placeholder="Tìm theo mã PO..." />
         </div>
-        <select 
+        <select
           className="border rounded px-3 py-1.5 text-sm outline-none"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -114,11 +114,11 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
                   {new Date(p.createdAt).toLocaleDateString('vi-VN')}
                 </td>
                 <td className="px-[16px] py-[12px] text-center">
-                  <button 
+                  <button
                     onClick={() => {
                       setSelectPOId(p.id);
                       setActiveTab('po-detail');
-                    }} 
+                    }}
                     className="text-blue-500 hover:text-blue-700"
                   >
                     <Eye className="w-4 h-4" />
@@ -131,8 +131,8 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
       </div>
 
       {isCreateOpen && (
-        <CEOPurchaseOrderCreateModal 
-          onClose={() => setIsCreateOpen(false)} 
+        <CEOPurchaseOrderCreateModal
+          onClose={() => setIsCreateOpen(false)}
           onSuccess={() => {
             setIsCreateOpen(false);
             loadData();
