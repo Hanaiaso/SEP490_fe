@@ -358,6 +358,43 @@ export interface WarehouseOption {
   code: string;
 }
 
+// DEF-L4-003: khớp InventoryCountSessionDtos.cs (VietTien.API/DTOs/Warehouse)
+export type InventoryCountSessionStatus = 'Open' | 'Closed';
+
+export interface InventoryCountSessionItem {
+  id: string;
+  inventoryId: string;
+  itemName: string;
+  itemSku: string;
+  systemQuantity: number;
+  physicalQuantity: number | null;
+  variance: number | null;
+  note?: string | null;
+  autoApplied: boolean;
+  stockAdjustmentId?: string | null;
+}
+
+export interface InventoryCountSession {
+  id: string;
+  warehouseId: string;
+  warehouseName: string;
+  status: InventoryCountSessionStatus;
+  note?: string | null;
+  openedByUserId: string;
+  openedByName: string;
+  openedAt: string;
+  closedByUserId?: string | null;
+  closedByName?: string | null;
+  closedAt?: string | null;
+  items: InventoryCountSessionItem[];
+}
+
+export interface CloseInventoryCountSessionResult {
+  session: InventoryCountSession;
+  autoAppliedCount: number;
+  pendingApprovalCount: number;
+}
+
 export interface QuarantineListItem {
   id: string;
   quarantineCode: string;

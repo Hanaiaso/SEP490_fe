@@ -247,6 +247,31 @@ export async function decideStockAdjustment(id, data) {
   return request('POST', `/stock-adjustments/${id}/decision`, data);
 }
 
+// ─── DEF-L4-003: Phiên kiểm kê tồn kho (mở phiên -> chốt số lý thuyết -> đóng phiên = "post") ──
+
+export async function getInventoryCountSessions(params) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request('GET', `/inventory-count-sessions${qs ? `?${qs}` : ''}`);
+}
+
+export async function getInventoryCountSessionById(id) {
+  return request('GET', `/inventory-count-sessions/${id}`);
+}
+
+// data: { warehouseId, note? }
+export async function openInventoryCountSession(data) {
+  return request('POST', `/inventory-count-sessions`, data);
+}
+
+// data: { physicalQuantity, note? }
+export async function recordInventoryCountItem(sessionId, itemId, data) {
+  return request('PUT', `/inventory-count-sessions/${sessionId}/items/${itemId}`, data);
+}
+
+export async function closeInventoryCountSession(sessionId) {
+  return request('POST', `/inventory-count-sessions/${sessionId}/close`);
+}
+
 // ==========================================
 // WAREHOUSE MANAGEMENT (CEO)
 // ==========================================

@@ -42,6 +42,7 @@ import WarehouseReceivingComparison from './WarehouseReceivingComparison';
 import WarehouseStockTransfer from './WarehouseStockTransfer';
 import WarehouseQuarantine from './WarehouseQuarantine';
 import WarehouseInventoryCount from './WarehouseInventoryCount';
+import WarehouseCountSessions from './WarehouseCountSessions';
 import WarehouseStockAdjustment from './WarehouseStockAdjustment';
 import WarehouseProductionIssue from './WarehouseProductionIssue';
 import WarehouseGoodsIssue from './WarehouseGoodsIssue';
@@ -79,6 +80,7 @@ const buildNavItems = (role?: string): NavItem[] => [
     children: [
       { id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine' },
       { id: 'inventory-count', label: 'Kiểm kê tồn kho', icon: <ClipboardCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/inventory-count' },
+      { id: 'count-sessions', label: 'Phiên kiểm kê', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/count-sessions' },
       { id: 'stock-adjustment', label: 'Lịch sử điều chỉnh TK', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/stock-adjustment' },
     ],
   },
@@ -269,6 +271,7 @@ export default function WarehousePortal() {
               <Route path="transfer/stock-transfer" element={<WarehouseStockTransfer />} />
               <Route path="inv-management/quarantine" element={<WarehouseQuarantine />} />
               <Route path="inv-management/inventory-count" element={<WarehouseInventoryCount />} />
+              <Route path="inv-management/count-sessions" element={<WarehouseCountSessions />} />
               {/* DEF-L4-005: duyệt điều chỉnh tồn kho là nghiệp vụ WarehouseStaff, backend inventory/adjust
                   chặn Admin (403) — chặn luôn ở UI thay vì để Admin bấm rồi mới thấy lỗi. */}
               <Route path="inv-management/stock-adjustment" element={
