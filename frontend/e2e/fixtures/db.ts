@@ -11,6 +11,12 @@ import { dirname, resolve } from 'node:path';
 
 export const DB = process.env.L4_DB ?? 'VietTien22_L3';
 
+// L4_SQL_SERVER/L4_SQL_USER/L4_SQL_PASSWORD: chay nham vao Azure SQL (SQL auth, can -N ma hoa)
+// thay vi SQL Server local mac dinh (-E Windows trusted auth). Khong dat thi hanh vi cu giu nguyen.
+const SQL_SERVER = process.env.L4_SQL_SERVER ?? 'localhost';
+const SQL_USER = process.env.L4_SQL_USER;
+const SQL_PASSWORD = process.env.L4_SQL_PASSWORD;
+
 const NGAY = new Date().toISOString().slice(0, 10);
 const NHAT_KY = resolve(__dirname, '../../../../SEP490_be/tests', `L4_mutations_${NGAY}.sql`);
 
@@ -20,11 +26,14 @@ function ghiNhatKy(sql: string) {
 }
 
 function chay(sql: string, ...them: string[]): string {
+  const auth = SQL_USER
+    ? ['-U', SQL_USER, '-P', SQL_PASSWORD ?? '']
+    : ['-E'];
   // -b: sqlcmd tra ma thoat khac 0 khi cau lenh loi -> execFileSync nem exception.
   // Khong co -b thi loi SQL (vd sai ten cot) bi NUOT, seed "thanh cong" gia ma bang van rong.
   return execFileSync(
     'sqlcmd',
-    ['-S', 'localhost', '-E', '-C', '-b', '-d', DB, '-W', '-s', '|',
+    ['-S', SQL_SERVER, ...auth, '-C', '-b', '-d', DB, '-W', '-s', '|',
       // QUOTED_IDENTIFIER/ANSI_NULLS phai ON: cac bang co filtered index (vd Inventories,
       // Users) se tu choi moi INSERT/UPDATE neu tat, kem Msg 1934. sqlcmd -Q mac dinh TAT.
       '-Q', `SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;\nSET NOCOUNT ON;\n${sql}`, ...them],

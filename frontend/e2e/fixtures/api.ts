@@ -5,7 +5,7 @@
 import { request, APIRequestContext } from '@playwright/test';
 import { ACCOUNTS, RoleKey } from './accounts';
 
-export const API_BASE = 'http://localhost:5050';
+export const API_BASE = process.env.L4_API_BASE ?? 'http://localhost:5050';
 
 export interface Phien {
   accessToken: string;

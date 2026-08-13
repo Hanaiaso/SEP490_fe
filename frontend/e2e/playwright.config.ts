@@ -43,7 +43,7 @@ export default defineConfig({
   ],
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.L4_BASE_URL ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -67,7 +67,8 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
+  // L4_BASE_URL dat (vd chay nham production) -> app da chay san o URL do, khong tu bat dev server local.
+  webServer: process.env.L4_BASE_URL ? undefined : {
     command: 'npm run dev -- --port 5173 --strictPort',
     cwd: '..',
     url: 'http://localhost:5173',
