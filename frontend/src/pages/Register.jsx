@@ -106,8 +106,8 @@ export default function Register() {
             transition={{ duration: 0.7 }}
             className="text-center text-white"
           >
-            <h1 className="mb-4 text-5xl font-bold">Tham gia Viet Tien</h1>
-            <p className="text-xl text-slate-200">Tạo tài khoản để nhận mã OTP xác thực qua email.</p>
+            <h1 className="mb-4 text-5xl font-bold text-gray-900">Tham gia Viet Tien</h1>
+            <p className="text-xl text-gray-900">Tạo tài khoản để nhận mã OTP xác thực qua email.</p>
           </motion.div>
         </div>
       </div>
