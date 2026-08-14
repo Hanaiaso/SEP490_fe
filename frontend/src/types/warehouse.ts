@@ -97,19 +97,6 @@ export interface SlowMovingItem {
   suggestion: string;
 }
 
-export interface ShiftAdjustedItem {
-  inventoryId: string;
-  itemName: string;
-  oldQuantity: number;
-  newQuantity: number;
-}
-
-export interface ShiftInventoryCountResult {
-  totalCounted: number;
-  adjustedCount: number;
-  adjustedItems: ShiftAdjustedItem[];
-}
-
 export interface WarehouseShift {
   id: string;
   name: string;

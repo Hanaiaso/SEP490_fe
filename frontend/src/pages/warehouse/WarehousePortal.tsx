@@ -22,7 +22,6 @@ import {
 import NotificationBell from '../../components/NotificationBell';
 
 import WarehouseDashboard from './WarehouseDashboard';
-import WarehouseShiftInventory from './WarehouseShiftInventory';
 import WarehouseMaterials from './WarehouseMaterials';
 import WarehouseMaterialHistory from './WarehouseMaterialHistory';
 import WarehouseGoods from './WarehouseGoods';
@@ -93,7 +92,6 @@ const buildNavItems = (role?: string): NavItem[] => [
       { id: 'mat-history', label: 'Lịch sử nhập xuất', icon: <History className="w-3.5 h-3.5" />, path: '/warehouse/materials/history' },
     ],
   },
-  { id: 'shift-inventory', label: 'Tồn kho theo ca', icon: <ClipboardList className="w-4 h-4" />, path: '/warehouse/shift-inventory' },
   {
     id: 'goods', label: 'Hàng thương mại', icon: <ShoppingBag className="w-4 h-4" />, path: '/warehouse/goods',
     children: [
@@ -278,7 +276,6 @@ export default function WarehousePortal() {
                 <ProtectedRoute allowedRoles={['WarehouseStaff']}><WarehouseStockAdjustment /></ProtectedRoute>
               } />
               <Route path="production/issue" element={<WarehouseProductionIssue />} />
-              <Route path="shift-inventory" element={<WarehouseShiftInventory />} />
               <Route path="materials" element={<WarehouseMaterials />} />
               <Route path="materials/history" element={<WarehouseMaterialHistory />} />
               <Route path="goods" element={<WarehouseGoods />} />

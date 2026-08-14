@@ -201,10 +201,6 @@ export async function deleteWarehouseShift(id) {
   return request('DELETE', `/warehouse-shifts/${id}`);
 }
 
-export async function submitShiftInventoryCount(data) {
-  return request('POST', `/inventory/shift-count`, data);
-}
-
 // ─── P0-1: Đề xuất điều chỉnh tồn kho (Warehouse Staff -> CEO duyệt) ───────────
 
 export async function getStockAdjustments(params) {

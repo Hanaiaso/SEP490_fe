@@ -251,18 +251,20 @@ export default function WarehouseManagement() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Vị trí lưu trữ (Kệ/Khu)</label>
-                <textarea
-                  placeholder="Nhập tên các vị trí, cách nhau bởi dấu phẩy (VD: Kệ A, Kệ B, Khu 1)..."
-                  value={formData.locationNames}
-                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, locationNames: e.target.value })}
-                  className="w-full text-sm min-h-[80px] p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="text-[10px] text-gray-500">
-                  Lưu ý: Việc xóa tên vị trí khỏi danh sách này sẽ xóa vị trí đó trong hệ thống (nếu vị trí chưa chứa hàng).
-                </p>
-              </div>
+              {editingWarehouse && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Vị trí lưu trữ (Kệ/Khu)</label>
+                  <textarea
+                    placeholder="Nhập tên các vị trí, cách nhau bởi dấu phẩy (VD: Kệ A, Kệ B, Khu 1)..."
+                    value={formData.locationNames}
+                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, locationNames: e.target.value })}
+                    className="w-full text-sm min-h-[80px] p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-gray-500">
+                    Lưu ý: Việc xóa tên vị trí khỏi danh sách này sẽ xóa vị trí đó trong hệ thống (nếu vị trí chưa chứa hàng).
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={handleCloseModal} disabled={submitting}>Hủy bỏ</Button>

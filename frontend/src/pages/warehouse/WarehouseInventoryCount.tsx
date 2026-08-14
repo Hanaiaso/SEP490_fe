@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { getWarehouseInventory, createStockAdjustment, getWarehouses, addInventory } from '../../services/warehouseService';
 import { getProducts, getCategories, createProduct } from '../../services/productService';
-import { getMaterials } from '../../services/materialService';
+import { getMaterials, createMaterial } from '../../services/materialService';
 import type { InventoryItem, PaginatedList, Warehouse } from '../../types/warehouse';
 import type { Category, Material, Product } from '../../types/catalog';
 
@@ -46,9 +46,8 @@ export default function WarehouseInventoryCount() {
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
-  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [initialQuantity, setInitialQuantity] = useState('0');
-  
+
   // New Product Info
   const [newProductName, setNewProductName] = useState('');
   const [newProductSku, setNewProductSku] = useState('');
@@ -58,6 +57,12 @@ export default function WarehouseInventoryCount() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductSpecs, setNewProductSpecs] = useState('');
   const [newProductImageFile, setNewProductImageFile] = useState<File | null>(null);
+
+  // New Material Info
+  const [isNewMaterial, setIsNewMaterial] = useState(false);
+  const [newMaterialName, setNewMaterialName] = useState('');
+  const [newMaterialUnit, setNewMaterialUnit] = useState('Kg');
+  const [newMaterialSafetyThreshold, setNewMaterialSafetyThreshold] = useState('0');
 
   const fetchWarehousesList = useCallback(async () => {
     try {
@@ -167,14 +172,7 @@ export default function WarehouseInventoryCount() {
       if (loadedProds.length > 0) setSelectedProductId(loadedProds[0].id);
       if (loadedMats.length > 0) setSelectedMaterialId(loadedMats[0].id);
       if (cats.length > 0) setNewProductCategoryId(cats[0].id);
-      
-      const currWh = warehouses.find(w => w.id === warehouseId);
-      if (currWh && currWh.locations && currWh.locations.length > 0) {
-        setSelectedLocationId(currWh.locations[0].id);
-      } else {
-        setSelectedLocationId('');
-      }
-      
+
       setInitialQuantity('0');
       setNewProductName('');
       setNewProductSku('');
@@ -184,6 +182,10 @@ export default function WarehouseInventoryCount() {
       setNewProductSpecs('');
       setNewProductImageFile(null);
       setIsNewProduct(false);
+      setNewMaterialName('');
+      setNewMaterialUnit('Kg');
+      setNewMaterialSafetyThreshold('0');
+      setIsNewMaterial(false);
       setTargetType('Product');
       setShowAddModal(true);
     } catch (err: unknown) {
@@ -195,6 +197,7 @@ export default function WarehouseInventoryCount() {
 
   const handleAddSubmit = async () => {
     let finalProductId = selectedProductId;
+    let finalMaterialId = selectedMaterialId;
 
     if (targetType === 'Product') {
       if (isNewProduct) {
@@ -204,15 +207,19 @@ export default function WarehouseInventoryCount() {
         if (!selectedProductId) return alert("Vui lòng chọn sản phẩm.");
       }
     } else {
-      if (!selectedMaterialId) return alert("Vui lòng chọn nguyên vật liệu.");
+      if (isNewMaterial) {
+        if (!newMaterialName || !newMaterialUnit) return alert("Vui lòng điền đủ Tên và Đơn vị tính cho nguyên vật liệu mới.");
+        if (isNaN(Number(newMaterialSafetyThreshold))) return alert("Ngưỡng cảnh báo tồn kho không hợp lệ.");
+      } else {
+        if (!selectedMaterialId) return alert("Vui lòng chọn nguyên vật liệu.");
+      }
     }
 
-    if (!selectedLocationId) return alert("Vui lòng chọn vị trí lưu trữ trong kho.");
     if (!initialQuantity || isNaN(Number(initialQuantity)) || parseInt(initialQuantity) < 0) return alert("Số lượng không hợp lệ.");
 
     try {
       setSubmitting(true);
-      
+
       if (targetType === 'Product' && isNewProduct) {
         const formData = new FormData();
         formData.append('Name', newProductName);
@@ -228,10 +235,19 @@ export default function WarehouseInventoryCount() {
         finalProductId = createdProd.id;
       }
 
+      if (targetType === 'Material' && isNewMaterial) {
+        const createdMat = await createMaterial({
+          name: newMaterialName,
+          unit: newMaterialUnit,
+          safetyThreshold: Number(newMaterialSafetyThreshold)
+        }) as Material;
+        finalMaterialId = createdMat.id;
+      }
+
       await addInventory({
         productId: targetType === 'Product' ? finalProductId : null,
-        materialId: targetType === 'Material' ? selectedMaterialId : null,
-        warehouseLocationId: selectedLocationId,
+        materialId: targetType === 'Material' ? finalMaterialId : null,
+        warehouseId: warehouseId,
         initialQuantity: parseInt(initialQuantity)
       });
       alert(`Thêm ${targetType === 'Product' ? 'sản phẩm' : 'nguyên vật liệu'} vào kho thành công!`);
@@ -546,42 +562,60 @@ export default function WarehouseInventoryCount() {
                   )}
                 </>
               ) : (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700">Chọn nguyên vật liệu *</label>
-                  <select 
-                    className="w-full text-sm h-9 border border-gray-300 rounded px-2"
-                    value={selectedMaterialId}
-                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setSelectedMaterialId(e.target.value)}
-                  >
-                    <option value="">-- Chọn nguyên vật liệu --</option>
-                    {materialsList.map(m => (
-                      <option key={m.id} value={m.id}>{m.name} ({m.unit || 'Vật tư'})</option>
-                    ))}
-                  </select>
-                </div>
+                <>
+                  <div className="flex gap-4 mb-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input type="radio" checked={!isNewMaterial} onChange={() => setIsNewMaterial(false)} name="materialType" className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Chọn nguyên vật liệu có sẵn</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input type="radio" checked={isNewMaterial} onChange={() => setIsNewMaterial(true)} name="materialType" className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="font-semibold text-amber-700">Tạo mới hoàn toàn</span>
+                    </label>
+                  </div>
+
+                  {!isNewMaterial ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-700">Chọn nguyên vật liệu</label>
+                      <select
+                        className="w-full text-sm h-9 border border-gray-300 rounded px-2"
+                        value={selectedMaterialId}
+                        onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setSelectedMaterialId(e.target.value)}
+                      >
+                        <option value="">-- Chọn nguyên vật liệu --</option>
+                        {materialsList.map(m => (
+                          <option key={m.id} value={m.id}>{m.name} ({m.unit || 'Vật tư'})</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-700">Tên nguyên vật liệu *</label>
+                        <Input placeholder="Nhập tên nguyên vật liệu mới" value={newMaterialName} onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setNewMaterialName(e.target.value)} className="h-8 text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Đơn vị tính *</label>
+                          <Input placeholder="Kg, Cuộn, Lít..." value={newMaterialUnit} onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setNewMaterialUnit(e.target.value)} className="h-8 text-sm" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-700">Ngưỡng cảnh báo tồn</label>
+                          <Input type="number" placeholder="0" value={newMaterialSafetyThreshold} onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setNewMaterialSafetyThreshold(e.target.value)} className="h-8 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700">Vị trí lưu trữ trong kho</label>
-                  <select 
-                    className="w-full text-sm h-9 border border-gray-300 rounded px-2"
-                    value={selectedLocationId}
-                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setSelectedLocationId(e.target.value)}
-                  >
-                    <option value="">-- Chọn vị trí --</option>
-                    {warehouses.find(w => w.id === warehouseId)?.locations?.map((loc) => (
-                      <option key={loc.id} value={loc.id}>{loc.name || 'Vị trí mặc định'}</option>
-                    ))}
-                  </select>
-                </div>
-
+              <div className="pt-2 border-t border-gray-100">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700">Số lượng ban đầu</label>
-                  <Input 
-                    type="number" 
-                    value={initialQuantity} 
-                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setInitialQuantity(e.target.value)} 
+                  <Input
+                    type="number"
+                    value={initialQuantity}
+                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setInitialQuantity(e.target.value)}
                     className="h-9 text-sm font-bold text-blue-600"
                   />
                 </div>
