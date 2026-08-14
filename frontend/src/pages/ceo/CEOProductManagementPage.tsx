@@ -13,8 +13,10 @@ import {
   getProductById,
   formatPrice,
 } from '../../services/productService';
-import { Search, Plus, Package, TrendingUp, TrendingDown, Ban, ImageOff, Tags, Pencil, X, Check } from 'lucide-react';
-import type { Category, ProductManagementItem, ProductStatsResult } from '../../types/catalog';
+import { Search, Plus, Package, TrendingUp, TrendingDown, Ban, ImageOff, Tags, Pencil, X, Check, Loader2 } from 'lucide-react';
+import type { Category, ProductManagementItem, ProductStatsResult, ProductImage } from '../../types/catalog';
+
+const MAX_PRODUCT_IMAGES = 8;
 
 const PRIMARY = '#1f3b64';
 const SUCCESS = '#16A34A';
@@ -57,9 +59,15 @@ export default function CEOProductManagementPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductManagementItem | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(emptyForm);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Ảnh hiện có trên sản phẩm (khi sửa) — mỗi ảnh có Id để có thể chọn xóa qua RemoveImageIds
+  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
+  const [removeImageIds, setRemoveImageIds] = useState<string[]>([]);
+  // Ảnh mới người dùng chọn thêm (chưa upload) — gửi lên qua ImageFiles
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const totalImageCount = existingImages.length - removeImageIds.length + newImageFiles.length;
 
   const loadCategories = useCallback(async () => {
     try {
@@ -111,10 +119,12 @@ export default function CEOProductManagementPage() {
   }, [loadProducts]);
 
   const handleOpenModal = async (product: ProductManagementItem | null = null) => {
-    setImageFile(null);
+    setNewImageFiles([]);
+    setNewImagePreviews([]);
+    setRemoveImageIds([]);
     if (product) {
       setEditingProduct(product);
-      // Danh sách quản lý không trả về description/specifications -> phải lấy chi tiết,
+      // Danh sách quản lý không trả về description/specifications/gallery đầy đủ -> phải lấy chi tiết,
       // nếu không form sẽ luôn gửi rỗng và xóa mất 2 trường này khi lưu.
       setFormData({
         name: product.name,
@@ -126,7 +136,7 @@ export default function CEOProductManagementPage() {
         specifications: '',
         isDiscontinued: product.isDiscontinued,
       });
-      setImagePreview(product.imageUrl || null);
+      setExistingImages(product.imageUrl ? [{ id: '', imageUrl: product.imageUrl, sortOrder: 0 }] : []);
       setIsModalOpen(true);
       try {
         const detail = await getProductById(product.id);
@@ -135,21 +145,42 @@ export default function CEOProductManagementPage() {
           description: detail.description || '',
           specifications: detail.specifications || '',
         }));
+        setExistingImages(detail.images || []);
       } catch {
         // Giữ nguyên form nếu không lấy được chi tiết; người dùng vẫn có thể lưu các trường khác.
       }
     } else {
       setEditingProduct(null);
       setFormData(emptyForm);
-      setImagePreview(null);
+      setExistingImages([]);
       setIsModalOpen(true);
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setImageFile(file);
-    if (file) setImagePreview(URL.createObjectURL(file));
+  const handleImagesAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ''; // cho phép chọn lại cùng 1 file lần sau
+    if (files.length === 0) return;
+
+    const remainingSlots = MAX_PRODUCT_IMAGES - totalImageCount;
+    if (remainingSlots <= 0) {
+      alert(`Chỉ được tối đa ${MAX_PRODUCT_IMAGES} ảnh cho mỗi sản phẩm.`);
+      return;
+    }
+    const accepted = files.slice(0, remainingSlots);
+
+    setNewImageFiles((prev) => [...prev, ...accepted]);
+    setNewImagePreviews((prev) => [...prev, ...accepted.map((f) => URL.createObjectURL(f))]);
+  };
+
+  const handleRemoveExistingImage = (image: ProductImage) => {
+    setExistingImages((prev) => prev.filter((img) => img !== image));
+    if (image.id) setRemoveImageIds((prev) => [...prev, image.id]);
+  };
+
+  const handleRemoveNewImage = (index: number) => {
+    setNewImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -165,10 +196,11 @@ export default function CEOProductManagementPage() {
       // Luon gui (ke ca rong) - backend coi thieu truong = "khong doi", chuoi rong = "xoa".
       fd.append('Description', formData.description);
       fd.append('Specifications', formData.specifications);
-      if (imageFile) fd.append('ImageFile', imageFile);
+      newImageFiles.forEach((file) => fd.append('ImageFiles', file));
 
       if (editingProduct) {
         fd.append('IsDiscontinued', String(formData.isDiscontinued));
+        removeImageIds.forEach((id) => fd.append('RemoveImageIds', id));
         await updateProduct(editingProduct.id, fd);
         alert('Cập nhật sản phẩm thành công!');
       } else {
@@ -201,8 +233,8 @@ export default function CEOProductManagementPage() {
   const summary = stats?.summary;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-200 px-5 py-3">
+    <div className="flex flex-col min-h-full bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-5 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Quản lý sản phẩm</h2>
@@ -256,7 +288,7 @@ export default function CEOProductManagementPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-gray-50 p-4 flex flex-col gap-4">
+      <div className="p-4 flex flex-col gap-4 flex-1">
         {/* Stats cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard icon={<Package className="w-4 h-4" />} label="Tổng sản phẩm" value={summary?.totalProducts ?? '-'} color={PRIMARY} loading={statsLoading} />
@@ -368,18 +400,44 @@ export default function CEOProductManagementPage() {
               </h2>
             </div>
             <form onSubmit={handleSave} className="p-6 flex flex-col gap-4">
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-1 flex-shrink-0">
-                  <label className="text-sm font-medium text-gray-700">Ảnh sản phẩm</label>
-                  <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-400">
-                    {imagePreview ? (
-                      <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageOff className="w-6 h-6 text-gray-300" />
-                    )}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                  </label>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Ảnh sản phẩm <span className="text-gray-400 font-normal">({totalImageCount}/{MAX_PRODUCT_IMAGES})</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {existingImages.map((img, idx) => (
+                    <div key={img.id || `existing-${idx}`} className="relative w-20 h-20 rounded border border-gray-200 overflow-hidden group">
+                      <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => handleRemoveExistingImage(img)}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {newImagePreviews.map((src, idx) => (
+                    <div key={`new-${idx}`} className="relative w-20 h-20 rounded border border-blue-300 overflow-hidden group">
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => handleRemoveNewImage(idx)}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {totalImageCount < MAX_PRODUCT_IMAGES && (
+                    <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded flex items-center justify-center cursor-pointer hover:border-blue-400 flex-shrink-0">
+                      <Plus className="w-5 h-5 text-gray-300" />
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleImagesAdd} />
+                    </label>
+                  )}
+                  {totalImageCount === 0 && (
+                    <div className="w-20 h-20 rounded border border-gray-100 flex items-center justify-center text-gray-300 flex-shrink-0">
+                      <ImageOff className="w-6 h-6" />
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              <div className="flex gap-4">
                 <div className="flex-1 flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-sm font-medium text-gray-700">Tên sản phẩm *</label>
@@ -446,8 +504,19 @@ export default function CEOProductManagementPage() {
 
               <div className="flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded text-sm bg-gray-50 hover:bg-gray-100 font-medium">Hủy</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm disabled:opacity-50">
-                  {saving ? 'Đang lưu...' : (editingProduct ? 'Lưu thay đổi' : 'Thêm mới')}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {editingProduct ? 'Đang lưu...' : 'Đang thêm...'}
+                    </>
+                  ) : (
+                    editingProduct ? 'Lưu thay đổi' : 'Thêm mới'
+                  )}
                 </button>
               </div>
             </form>
@@ -553,9 +622,19 @@ function CategoryManagerModal({ onClose, onCategoriesChanged }: { onClose: () =>
               className="flex-1 border rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500" />
             <input type="text" placeholder="Mô tả (tùy chọn)" value={newDescription} onChange={e => setNewDescription(e.target.value)}
               className="flex-1 border rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500" />
-            <button type="submit" disabled={saving}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
-              Thêm
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap inline-flex items-center gap-1.5"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Đang thêm...
+                </>
+              ) : (
+                'Thêm'
+              )}
             </button>
           </div>
         </form>

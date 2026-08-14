@@ -18,11 +18,20 @@ export interface Product {
   availableStock?: number;
 }
 
+// ProductImageDto - 1 ảnh trong gallery sản phẩm
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  sortOrder: number;
+}
+
 export interface ProductDetail extends Omit<Product, 'availableStock'> {
   description?: string;
   specifications?: string;
   physicalStock?: number;
   availableStock?: number;
+  /** Toàn bộ ảnh sản phẩm theo thứ tự hiển thị */
+  images: ProductImage[];
 }
 
 // ProductManagementItemDto - dùng cho trang quản lý sản phẩm CEO/Admin

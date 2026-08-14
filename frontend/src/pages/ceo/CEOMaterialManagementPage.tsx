@@ -87,8 +87,8 @@ export default function CEOMaterialManagementPage() {
   const criticalCount = materials.filter(m => m.isBelowSafetyThreshold).length;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-200 px-5 py-3">
+    <div className="flex flex-col min-h-full bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-5 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Quản lý Nguyên vật liệu</h2>
@@ -115,7 +115,7 @@ export default function CEOMaterialManagementPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-gray-50 p-4">
+      <div className="p-4 flex flex-col gap-4 flex-1">
         {loading ? (
           <div className="text-center py-10 text-xs text-gray-500">Đang tải dữ liệu...</div>
         ) : (
