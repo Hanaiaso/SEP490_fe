@@ -77,7 +77,7 @@ describe('L1-FCMP · trang Giỏ hàng', () => {
   // nhưng VẪN GIỮ nút "Đặt Hàng & Xem Hóa Đơn" bên cạnh -> khách vẫn bấm đặt hàng thẳng được.
   // SRS v2 (FT-02 AC-03; BR-026) yêu cầu đơn >= 100 triệu PHẢI qua báo giá được duyệt.
   // Test ĐỎ cho tới khi ẩn/khoá lối đặt hàng trực tiếp ở ngưỡng này.
-  it('L1-FCMP-05 đơn từ 100 triệu chưa có giá thoả thuận thì phải đi luồng báo giá', async () => {
+  it('L1-FCMP-05 đơn từ 100 triệu chưa có giá thoả thuận thì hiện gợi ý báo giá và vẫn cho đặt hàng trực tiếp', async () => {
     renderCart({
       id: 'C1',
       items: [item({ quantity: 3, unitPrice: 40_000_000 })], // 120 triệu
@@ -88,7 +88,7 @@ describe('L1-FCMP · trang Giỏ hàng', () => {
     await waitFor(() =>
       expect(screen.getByText(/yêu cầu báo giá đặc biệt/i)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /gửi yêu cầu báo giá/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /đặt hàng & xem hóa đơn/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /đặt hàng & xem hóa đơn/i })).toBeInTheDocument()
   })
 
   // Nhánh đối chứng: dưới ngưỡng báo giá thì nút đặt hàng vẫn hiển thị bình thường

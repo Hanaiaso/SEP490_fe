@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 import { Button } from '../components/ui/Button.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const values = [
   {
@@ -29,6 +30,7 @@ const values = [
 ]
 
 export default function Landing() {
+  const { isAuthenticated } = useAuth()
 
   return (
     <div className="min-h-screen bg-white">
@@ -64,15 +66,27 @@ export default function Landing() {
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </Link>
-              <Link to="/register">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full border-gray-900 px-8 py-6 text-gray-900"
-                >
-                  Tạo tài khoản
-                </Button>
-              </Link>
+              {!isAuthenticated ? (
+                <Link to="/register">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full border-gray-900 px-8 py-6 text-gray-900"
+                  >
+                    Tạo tài khoản
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/profile">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full border-gray-900 px-8 py-6 text-gray-900"
+                  >
+                    Tài khoản của tôi
+                  </Button>
+                </Link>
+              )}
             </div>
           </motion.div>
         </div>

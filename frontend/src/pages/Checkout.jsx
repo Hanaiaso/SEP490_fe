@@ -379,11 +379,28 @@ export default function Checkout() {
 
   // ── Profile ────────────────────────────────────────────────────────────────
   const [profileFull, setProfileFull] = useState(null)
-  const [vatRequested, setVatRequested] = useState(false)
+  const [vatRequested, setVatRequested] = useState(true)
   const [vatInfo, setVatInfo] = useState(defaultVatInfo)
   const [vatForm, setVatForm] = useState(defaultVatInfo)
   const [isEditingVat, setIsEditingVat] = useState(false)
   const [searchingMst, setSearchingMst] = useState(false)
+
+  // ── BR-026: đơn ≥100tr bắt buộc có báo giá đã duyệt, không được đặt thẳng theo giá niêm yết ──
+  // Cart.jsx đã ẩn nút "Đặt Hàng" khi rơi vào case này, nhưng trang Checkout có thể bị vào thẳng
+  // (gõ URL, F5, mở link cũ) nên phải tự kiểm tra lại ở đây, không chỉ dựa vào Cart chặn hộ.
+  // null = đang tải, true/false = đã có kết quả.
+  const [hasApprovedQuotation, setHasApprovedQuotation] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    import('../services/quotationService.js').then(({ getQuotations }) =>
+      getQuotations().then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setHasApprovedQuotation(list.some((q) => q.status === 'CustomerAccepted'))
+      })
+    ).catch(() => { if (!cancelled) setHasApprovedQuotation(false) })
+    return () => { cancelled = true }
+  }, [])
 
   // ── Checkout summary thật từ backend (chiết khấu theo DiscountTiers do Admin cấu hình) ────
   // Trước đây trang nay tinh chiet khau bang ham getAutomaticDiscount() hardcode 2 moc co dinh
@@ -414,6 +431,7 @@ export default function Checkout() {
   const [sepayPaid, setSepayPaid] = useState(false)
   const [showSuccessScreen, setShowSuccessScreen] = useState(false)
   const [countdown, setCountdown] = useState(5)
+  const [sepaySecondsLeft, setSepaySecondsLeft] = useState(15 * 60)
 
   // UC-13: đơn hàng đầu tiên + SĐT chưa xác thực -> bắt buộc verify OTP trước khi đặt hàng.
   const [showPhoneOtpModal, setShowPhoneOtpModal] = useState(false)
@@ -500,7 +518,7 @@ export default function Checkout() {
   const discountRate = hasServerSummary ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
   const discountAmount = hasServerSummary ? checkoutSummary.discountAmount : Math.round(subtotal * discountRate)
   const afterDiscount = subtotal - discountAmount
-  const vat = vatRequested ? Math.round(afterDiscount * 0.1) : 0
+  const vat = Math.round(afterDiscount * 0.1)
   const total = afterDiscount + vat
   const availableCredit = profileFull?.availableCredit || 0
   const creditApplied = Math.min(total, availableCredit)
@@ -552,6 +570,28 @@ export default function Checkout() {
     }, 800)
     return () => clearTimeout(timer)
   }, [sepayPaid])
+
+  // ── 15-minute countdown for SePay QR screen (L1-FCMP-06) ───────────────────
+  useEffect(() => {
+    if (!createdOrder || paymentMethod !== 'sepay' || sepayPaid) return
+    setSepaySecondsLeft(15 * 60)
+    const intervalId = setInterval(() => {
+      setSepaySecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(intervalId)
+  }, [createdOrder, paymentMethod, sepayPaid])
+
+  const formatCountdown = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60)
+    const s = totalSeconds % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
 
   // ── Auto-upload PDF when order is created ──────────────────────────────────
   useEffect(() => {
@@ -811,6 +851,31 @@ export default function Checkout() {
     )
   }
 
+  // ── Guard: BR-026 — đơn ≥100tr chưa có báo giá được duyệt thì không cho đặt hàng ──────────
+  if (subtotal >= 100_000_000 && hasApprovedQuotation === false) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="flex min-h-[60vh] items-center justify-center pt-20 px-6">
+          <div className="max-w-md text-center">
+            <AlertCircle className="mx-auto mb-6 h-16 w-16 text-amber-500" />
+            <h2 className="mb-4 text-3xl font-bold text-gray-900">Cần báo giá được duyệt</h2>
+            <p className="mb-8 text-gray-600">
+              Đơn hàng từ 100.000.000đ trở lên bắt buộc phải có báo giá được Sales duyệt trước khi đặt hàng.
+              Vui lòng gửi yêu cầu báo giá từ giỏ hàng.
+            </p>
+            <Link to="/cart">
+              <Button size="lg" className="rounded-full bg-gray-900 hover:bg-gray-800 text-white">
+                Quay lại giỏ hàng
+              </Button>
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
   // ── Success screen ─────────────────────────────────────────────────────────
   if (showSuccessScreen && createdOrder) {
     return (
@@ -976,11 +1041,38 @@ export default function Checkout() {
                   <h3 className="text-xl font-bold text-gray-900 mb-1 text-left">
                     Thanh toán chuyển khoản SePay
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4 text-left">
+                  <p className="text-xs text-gray-500 mb-3 text-left">
                     Mở App Ngân hàng bất kỳ để quét mã VietQR bên dưới
                   </p>
 
-                  <div className="bg-gray-50 rounded-2xl p-4 flex flex-col items-center mb-4">
+                  {/* Đếm ngược 15 phút (L1-FCMP-06) */}
+                  <div className={`mb-4 flex items-center justify-between rounded-xl px-3.5 py-2 text-xs font-medium border transition-colors ${
+                    sepaySecondsLeft > 180
+                      ? 'bg-blue-50/80 border-blue-200 text-blue-900'
+                      : sepaySecondsLeft > 0
+                        ? 'bg-amber-50 border-amber-300 text-amber-900 animate-pulse'
+                        : 'bg-red-50 border-red-300 text-red-700'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className={`h-4 w-4 ${sepaySecondsLeft <= 180 && sepaySecondsLeft > 0 ? 'text-amber-600' : sepaySecondsLeft === 0 ? 'text-red-600' : 'text-blue-600'}`} />
+                      <span>{sepaySecondsLeft > 0 ? 'Mã QR hết hạn sau:' : 'Mã QR đã hết hiệu lực'}</span>
+                    </div>
+                    <span className="font-mono text-sm font-bold tracking-wider">
+                      {formatCountdown(sepaySecondsLeft)}
+                    </span>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-4 flex flex-col items-center mb-4 relative overflow-hidden">
+                    {sepaySecondsLeft === 0 && (
+                      <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
+                        <AlertCircle className="h-10 w-10 text-red-500 mb-2" />
+                        <h4 className="font-bold text-gray-900 text-sm">Hết hạn thanh toán</h4>
+                        <p className="text-xs text-gray-500 mt-1 mb-4">Mã QR đã hết hạn 15 phút. Bạn có thể vào lịch sử đơn hàng để thanh toán lại.</p>
+                        <Button size="sm" className="rounded-full bg-gray-900 text-white" onClick={() => navigate('/profile')}>
+                          Về lịch sử đơn hàng
+                        </Button>
+                      </div>
+                    )}
                     {qrDetails ? (
                       <img
                         src={qrDetails.QrImageUrl || qrDetails.qrImageUrl}

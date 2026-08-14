@@ -11,31 +11,25 @@ import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { authFetch } from '../services/httpClient.js'
 
-// Lấy giá đàm phán đã được chấp thuận từ quotation CustomerAccepted
-async function fetchNegotiatedPrices() {
+// Lấy báo giá đã được chấp thuận từ quotation CustomerAccepted
+async function fetchNegotiatedQuotation() {
   try {
     const { getQuotations, getQuotationById } = await import('../services/quotationService.js');
     const data = await getQuotations();
     const list = Array.isArray(data) ? data : [];
-    // Tìm quotation được CustomerAccepted
-    const acceptedList = list.filter(q => q.status === 'CustomerAccepted');
-    if (acceptedList.length === 0) return {};
-    // Lấy full detail của quotation mới nhất
+    // Tìm quotation được CustomerAccepted và còn hạn
+    const acceptedList = list.filter(q => q.status === 'CustomerAccepted' && (!q.validUntil || new Date(q.validUntil) >= new Date()));
+    if (acceptedList.length === 0) return null;
     const latest = acceptedList[0];
     const full = await getQuotationById(latest.id);
     const version = full.versions?.find(v => v.id === full.acceptedVersionId) || full.versions?.[0];
-    const items = version?.items || [];
-    // Build map: productId -> proposedUnitPrice
-    const map = {};
-    for (const item of items) {
-      const proposedPrice = item.proposedUnitPrice;
-      if (proposedPrice) {
-        map[item.productId] = proposedPrice;
-      }
-    }
-    return map;
+    return {
+      quotation: full,
+      version: version,
+      items: version?.items || []
+    };
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -52,22 +46,17 @@ export default function Cart() {
   const { items: cartItems, updateQuantity, removeFromCart, totalItems, isPriceExpired, refreshPrices } = useCart()
   const [showQuotationModal, setShowQuotationModal] = useState(false)
   const [quotationSent, setQuotationSent] = useState(false)
-  const [negotiatedPrices, setNegotiatedPrices] = useState({}) // productId -> negotiated price
+  const [negotiatedQuotation, setNegotiatedQuotation] = useState(null)
   const [checkoutSummary, setCheckoutSummary] = useState(null) // chiet khau that tu backend (DiscountTiers)
   const [isRefreshingPrice, setIsRefreshingPrice] = useState(false)
 
-  // Fetch giá đàm phán khi cart load
+  // Fetch báo giá đã duyệt khi cart load
   useEffect(() => {
-    fetchNegotiatedPrices().then(setNegotiatedPrices);
+    fetchNegotiatedQuotation().then(setNegotiatedQuotation);
   }, []);
 
-  // Chiet khau tu dong hien thi truoc day dung ham getAutomaticDiscount() hardcode 2 moc co dinh
-  // (10tr:7%/50tr:10%), khong khop bang DiscountTiers thuc te Admin cau hinh (co the doi bat ky luc
-  // nao) -> so tien hien o day co the khac so tien Order that duoc tao (OrderService.CalculateDiscountAsync
-  // doc dung DiscountTiers). Khach vang lai khong goi duoc endpoint nay (yeu cau dang nhap) nen van
-  // fallback ve uoc tinh hardcode, se duoc sua dung ngay khi ho dang nhap/vao Checkout.
+  // Chiet khau tu dong hien thi tu backend
   useEffect(() => {
-    // Backend tra 400 "Giỏ hàng trống" khi cart rỗng — chỉ gọi khi thực sự có sản phẩm.
     if (!isAuthenticated || cartItems.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
     authFetch('/orders/checkout-summary')
@@ -149,33 +138,73 @@ export default function Cart() {
     }
   }
 
+  // SKU nào trong giỏ thuộc bộ báo giá đã duyệt (đơn giá theo SKU, không cần khớp đúng số lượng —
+  // khớp đúng OrderService.CalculateDiscountAsync đã sửa: đơn giá đàm phán áp cho SỐ LƯỢNG HIỆN TẠI).
+  const negotiatedByProduct = useMemo(() => {
+    const map = {};
+    for (const item of negotiatedQuotation?.items || []) {
+      if (item.proposedUnitPrice) map[item.productId] = item;
+    }
+    return map;
+  }, [negotiatedQuotation]);
+
+  // Khớp chính xác cả SKU lẫn số lượng — chỉ dùng để quyết định hiển thị box đầy đủ hay box rút gọn.
+  const isQuotationExactMatch = useMemo(() => {
+    if (!negotiatedQuotation?.items?.length) return false;
+    if (cartItems.length !== negotiatedQuotation.items.length) return false;
+    return cartItems.every(ci => negotiatedByProduct[ci.productId]?.quantity === ci.quantity);
+  }, [cartItems, negotiatedByProduct, negotiatedQuotation]);
+
+  // Toàn bộ dòng trong giỏ đều thuộc báo giá đã duyệt — điều kiện thật sự BE dùng để áp giá đàm phán.
+  const allLinesNegotiated = cartItems.length > 0 && cartItems.every(ci => negotiatedByProduct[ci.productId]);
+
+  const negotiatedPrices = useMemo(() => {
+    const map = {};
+    for (const [productId, item] of Object.entries(negotiatedByProduct)) {
+      map[productId] = item.proposedUnitPrice;
+    }
+    return map;
+  }, [negotiatedByProduct]);
+
   // Tổng theo giá gốc niêm yết (không trừ chiết khấu)
   const originalSubtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   }, [cartItems])
 
-  // Chỉ áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu
-  const applyNegotiation = originalSubtotal >= 100000000 &&
-    Object.keys(negotiatedPrices).length > 0 &&
-    cartItems.some(item => negotiatedPrices[item.productId]);
-
+  // Áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu VÀ mọi SKU trong giỏ đều thuộc báo giá đã duyệt
+  // (không đòi khớp đúng số lượng nữa — xem negotiatedByProduct ở trên).
+  const applyNegotiation = originalSubtotal >= 100000000 && allLinesNegotiated;
   const hasNegotiatedPrices = applyNegotiation;
-  const hasPendingNegotiationUnder100m = !applyNegotiation &&
-    Object.keys(negotiatedPrices).length > 0 &&
-    cartItems.some(item => negotiatedPrices[item.productId]);
+  const hasPendingNegotiationUnder100m = !applyNegotiation && allLinesNegotiated && originalSubtotal < 100000000;
+  // Đang áp giá đàm phán nhưng không khớp tuyệt đối (đổi số lượng) -> hiện box rút gọn thay vì box đầy đủ.
+  const hasMismatchedQuotation = applyNegotiation && !isQuotationExactMatch;
 
-  // Subtotal hiển thị theo giá niêm yết chuẩn B2B, phần giảm đàm phán được thể hiện qua Chiết khấu
+  const negotiatedDiscountAmount = useMemo(() => {
+    if (!applyNegotiation) return 0;
+    const negotiatedSubtotal = cartItems.reduce((sum, item) => {
+      const price = negotiatedPrices[item.productId] || item.unitPrice;
+      return sum + price * item.quantity;
+    }, 0);
+    return Math.max(0, originalSubtotal - negotiatedSubtotal);
+  }, [applyNegotiation, cartItems, negotiatedPrices, originalSubtotal]);
+
   const subtotal = originalSubtotal;
 
   const hasServerDiscount = checkoutSummary != null
-  const automaticDiscountRate = hasServerDiscount ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
-  const automaticDiscountAmount = hasServerDiscount ? checkoutSummary.discountAmount : Math.round(subtotal * automaticDiscountRate)
-  const shippingFee = 0
-  const total = subtotal + shippingFee - automaticDiscountAmount
+  const automaticDiscountRate = applyNegotiation
+    ? (originalSubtotal > 0 ? negotiatedDiscountAmount / originalSubtotal : 0)
+    : (hasServerDiscount ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal));
 
-  // Đơn từ 100 triệu chưa có giá thoả thuận PHẢI đi qua báo giá được duyệt (BR-026),
-  // không được đặt hàng trực tiếp bằng giá niêm yết.
-  const requiresQuotationFlow = subtotal >= 100000000 && !hasNegotiatedPrices
+  const automaticDiscountAmount = applyNegotiation
+    ? negotiatedDiscountAmount
+    : (hasServerDiscount ? checkoutSummary.discountAmount : Math.round(subtotal * automaticDiscountRate));
+
+  const shippingFee = 0
+  const afterDiscount = subtotal - automaticDiscountAmount
+  const vatAmount = Math.round(afterDiscount * 0.10)
+  const total = afterDiscount + shippingFee + vatAmount
+
+  const requiresQuotationFlow = subtotal >= 100000000 && !hasNegotiatedPrices && !hasMismatchedQuotation
 
   if (cartItems.length === 0) {
     return (
@@ -298,16 +327,25 @@ export default function Cart() {
                           {(() => {
                             const isItemNegotiated = applyNegotiation && !!negotiatedPrices[item.productId];
                             const negotiatedPrice = negotiatedPrices[item.productId];
+                            const quotedItem = negotiatedQuotation?.items?.find(qi => qi.productId === item.productId);
+                            const lineTotal = (isItemNegotiated ? negotiatedPrice : item.unitPrice) * item.quantity;
                             return (
                               <>
-                                <div className="text-xl font-bold text-gray-900">{formatPrice(item.unitPrice * item.quantity)}</div>
+                                <div className="text-xl font-bold text-gray-900">{formatPrice(lineTotal)}</div>
                                 {isItemNegotiated ? (
                                   <>
                                     <div className="text-sm font-semibold text-green-600">Đàm phán: {formatPrice(negotiatedPrice)} / sp</div>
                                     <div className="text-xs text-gray-400">Niêm yết: {formatPrice(item.unitPrice)} / sp</div>
                                   </>
                                 ) : (
-                                  <div className="text-sm text-gray-500">{formatPrice(item.unitPrice)} mỗi sản phẩm</div>
+                                  <>
+                                    <div className="text-sm text-gray-500">{formatPrice(item.unitPrice)} mỗi sản phẩm</div>
+                                    {originalSubtotal >= 100000000 && quotedItem && quotedItem.quantity !== item.quantity && (
+                                      <div className="mt-1 text-xs text-amber-700 font-medium">
+                                        (Báo giá đã duyệt: {quotedItem.quantity} sp @ {formatPrice(quotedItem.proposedUnitPrice)})
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </>
                             );
@@ -325,6 +363,21 @@ export default function Cart() {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
+
+              <div className="rounded-[1.75rem] border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+                <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                  <AlertCircle className="h-5 w-5 text-gray-700" />
+                  Chính Sách Giảm Giá
+                </h3>
+                <div className="space-y-2 text-sm text-gray-600">
+                  {hasServerDiscount && automaticDiscountAmount > 0 ? (
+                    <p>Đơn hàng của bạn đang được giảm <strong className="text-green-700">{Math.round(automaticDiscountRate * 100)}%</strong> theo chính sách chiết khấu đơn lớn.</p>
+                  ) : (
+                    <p>Đơn hàng giá trị lớn được tự động áp dụng chiết khấu theo bậc — mức giảm chính xác hiển thị trực tiếp trong bảng tóm tắt đơn hàng.</p>
+                  )}
+                  <p>Đơn từ 100 triệu trở lên: gửi yêu cầu để Sales báo giá đặc biệt ưu đãi.</p>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -352,20 +405,18 @@ export default function Cart() {
                   </motion.div>
                 )}
 
-                <div className="rounded-[1.75rem] border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-                  <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-                    <AlertCircle className="h-5 w-5" />
-                    Chính Sách Giảm Giá
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    {hasServerDiscount && automaticDiscountAmount > 0 ? (
-                      <p className="text-gray-700">Đơn hàng của bạn đang được giảm {Math.round(automaticDiscountRate * 100)}% theo chính sách chiết khấu đơn lớn.</p>
-                    ) : (
-                      <p className="text-gray-700">Đơn hàng giá trị lớn được tự động áp dụng chiết khấu theo bậc — mức giảm chính xác hiển thị ngay bên dưới.</p>
-                    )}
-                    <p className="text-gray-700">Đơn từ 100 triệu trở lên: gửi yêu cầu để Sales báo giá đặc biệt</p>
-                  </div>
-                </div>
+                {hasMismatchedQuotation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-[1.75rem] border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <h3 className="font-bold text-green-900">Đã áp dụng đơn giá đàm phán</h3>
+                    </div>
+                  </motion.div>
+                )}
 
                 {requiresQuotationFlow && (
                   <motion.div
@@ -388,7 +439,7 @@ export default function Cart() {
                   </motion.div>
                 )}
 
-                {hasNegotiatedPrices && (
+                {hasNegotiatedPrices && isQuotationExactMatch && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -459,6 +510,10 @@ export default function Cart() {
                       </div>
                     )}
                     <div className="flex justify-between text-gray-600">
+                      <span>Thuế VAT (10%)</span>
+                      <span className="font-medium text-gray-900">+{formatPrice(vatAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
                       <span>Vận Chuyển</span>
                       <span className="font-medium">{shippingFee === 0 ? 'Miễn Phí' : formatPrice(shippingFee)}</span>
                     </div>
@@ -472,29 +527,29 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  {!requiresQuotationFlow && (
-                    <Button
-                      size="lg"
-                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={goToCheckout}
-                      disabled={isPriceExpired}
-                      title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
-                    >
-                      Đặt Hàng & Xem Hóa Đơn
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    size="lg"
+                    className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={goToCheckout}
+                    disabled={isPriceExpired}
+                    title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
+                  >
+                    Đặt Hàng & Xem Hóa Đơn
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
 
-                  <Link to="/negotiations" className="block mb-3">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-full rounded-full border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Xem yêu cầu đàm phán giá
-                    </Button>
-                  </Link>
+                  {subtotal >= 100000000 && (
+                    <Link to="/negotiations" className="block mb-3">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full rounded-full border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        Xem yêu cầu đàm phán giá
+                      </Button>
+                    </Link>
+                  )}
 
                   <p className="text-center text-xs text-gray-500">Thanh toán an toàn bởi Việt Tiến</p>
                 </div>

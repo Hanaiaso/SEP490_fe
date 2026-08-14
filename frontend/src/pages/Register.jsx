@@ -93,12 +93,12 @@ export default function Register() {
   return (
     <div className="flex min-h-screen bg-white">
       <div className="relative hidden overflow-hidden lg:block lg:w-1/2">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700 opacity-90" />
         <img
           src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80"
           alt="Bàn làm việc tối giản"
           className="absolute inset-0 h-full w-full object-cover"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/85 via-gray-900/60 to-gray-900/40" />
         <div className="absolute inset-0 flex items-center justify-center p-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -106,8 +106,8 @@ export default function Register() {
             transition={{ duration: 0.7 }}
             className="text-center text-white"
           >
-            <h1 className="mb-4 text-5xl font-bold text-gray-900">Tham gia Viet Tien</h1>
-            <p className="text-xl text-gray-900">Tạo tài khoản để nhận mã OTP xác thực qua email.</p>
+            <h1 className="mb-4 text-5xl font-bold tracking-tight text-white drop-shadow-md">Tham gia Viet Tien</h1>
+            <p className="text-xl text-gray-100 drop-shadow">Tạo tài khoản để nhận mã OTP xác thực qua email.</p>
           </motion.div>
         </div>
       </div>

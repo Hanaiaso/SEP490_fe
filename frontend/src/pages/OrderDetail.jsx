@@ -19,6 +19,7 @@ import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 import { Badge } from '../components/ui/Badge.jsx'
 import { Button } from '../components/ui/Button.jsx'
+import { authFetch } from '../services/httpClient.js'
 import {
   downloadInvoicePdf,
   getOrderDetail,
@@ -80,6 +81,9 @@ export default function OrderDetail() {
   const [cancelLoading, setCancelLoading] = useState(false)
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [selectedReturnRequest, setSelectedReturnRequest] = useState(null)
+  const [sepayQr, setSepayQr] = useState(null)
+  const [sepayQrLoading, setSepayQrLoading] = useState(false)
+  const [sepayQrError, setSepayQrError] = useState(null)
 
   const fetchOrder = async () => {
     try {
@@ -98,6 +102,44 @@ export default function OrderDetail() {
   useEffect(() => {
     fetchOrder()
   }, [orderId])
+
+  // Đơn SePay chưa thanh toán: mở lại mã QR và tự đóng modal khi webhook báo Paid.
+  const handlePayAgain = async () => {
+    setSepayQrError(null)
+    setSepayQrLoading(true)
+    try {
+      const res = await authFetch(`/orders/${orderId}/sepay-qr`)
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}))
+        throw new Error(errJson.message || 'Không thể tạo mã QR thanh toán.')
+      }
+      setSepayQr(await res.json())
+    } catch (err) {
+      setSepayQrError(err.message || 'Không thể tạo mã QR thanh toán.')
+    } finally {
+      setSepayQrLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!sepayQr) return
+    let isMounted = true
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await authFetch(`/orders/${orderId}/payment-status`)
+        if (res.ok && isMounted) {
+          const data = await res.json()
+          if (data.status === 'Paid') {
+            setSepayQr(null)
+            fetchOrder()
+          }
+        }
+      } catch (err) {
+        console.error('Error polling payment status:', err)
+      }
+    }, 3000)
+    return () => { isMounted = false; clearInterval(intervalId) }
+  }, [sepayQr, orderId])
 
   const handleRequestCancel = async () => {
     if (!cancelReason.trim()) {
@@ -267,6 +309,20 @@ export default function OrderDetail() {
                 >
                   <Receipt className="h-4 w-4" />
                   {vatLoading ? 'Đang gửi...' : 'Yêu cầu VAT'}
+                </Button>
+              )}
+
+              {/* Nút thanh toán lại (SePay chưa thanh toán) */}
+              {order.paymentMethod === 'SePay' &&
+                ['Unpaid', 'Pending', 'Failed'].includes(order.paymentStatus) &&
+                !['Cancelled', 'CancelledReallocated', 'Returned'].includes(order.orderStatus) && (
+                <Button
+                  className="rounded-full text-sm gap-2 bg-gray-900 text-white hover:bg-gray-800"
+                  onClick={handlePayAgain}
+                  disabled={sepayQrLoading}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {sepayQrLoading ? 'Đang tạo mã QR...' : 'Thanh toán lại'}
                 </Button>
               )}
 
@@ -659,6 +715,40 @@ export default function OrderDetail() {
           onClose={() => setShowExchangeModal(false)}
           onSubmit={handleExchangeRequest}
         />
+      )}
+
+      {/* Modal QR thanh toán lại (SePay) */}
+      {(sepayQr || sepayQrError) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl text-center">
+            <h2 className="mb-1 text-xl font-bold text-gray-900">Thanh toán chuyển khoản SePay</h2>
+            {sepayQrError ? (
+              <p className="mt-4 text-sm text-red-600">{sepayQrError}</p>
+            ) : (
+              <>
+                <p className="mb-4 text-sm text-gray-500">
+                  Mở App Ngân hàng bất kỳ để quét mã VietQR bên dưới
+                </p>
+                <img
+                  src={sepayQr.qrImageUrl}
+                  alt="SePay QR"
+                  className="mx-auto h-64 w-64 rounded-2xl border border-gray-100 object-contain"
+                />
+                <p className="mt-3 text-xs text-gray-400">
+                  Nội dung chuyển khoản: <span className="font-mono font-semibold text-gray-700">{sepayQr.transferContent}</span>
+                </p>
+                <p className="mt-2 text-xs text-gray-500">Trang sẽ tự động cập nhật khi nhận được thanh toán.</p>
+              </>
+            )}
+            <Button
+              variant="outline"
+              className="mt-5 w-full rounded-full"
+              onClick={() => { setSepayQr(null); setSepayQrError(null) }}
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
       )}
 
       {selectedReturnRequest && (
