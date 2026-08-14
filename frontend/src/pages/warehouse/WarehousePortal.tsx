@@ -31,7 +31,7 @@ import WarehouseLowStock from './WarehouseLowStock';
 import WarehouseSlowMoving from './WarehouseSlowMoving';
 import WarehouseReport from './WarehouseReport';
 import WarehouseAuditLog from './WarehouseAuditLog';
-import WarehouseNotifications from './WarehouseNotifications';
+import NotificationsPage from '../NotificationsPage';
 import WarehouseFulfillmentOrders from './WarehouseFulfillmentOrders';
 import WarehousePickPacking from './WarehousePickPacking';
 import WarehouseConsolidation from './WarehouseConsolidation';
@@ -110,7 +110,7 @@ const buildNavItems = (role?: string): NavItem[] => [
     ],
   },
   { id: 'audit-log', label: 'Nhật ký thao tác', icon: <History className="w-4 h-4" />, path: '/warehouse/audit-log' },
-  { id: 'notifications', label: 'Thông báo', icon: <Bell className="w-4 h-4" />, path: '/warehouse/notifications', badge: 4 },
+  { id: 'notifications', label: 'Thông báo', icon: <Bell className="w-4 h-4" />, path: '/warehouse/notifications' },
 ];
 
 function NavItemRow({ item, level = 0, onNavigate }: { item: NavItem; level?: number; onNavigate: (path: string) => void }) {
@@ -287,7 +287,7 @@ export default function WarehousePortal() {
               <Route path="inventory/slow-moving" element={<WarehouseSlowMoving />} />
               <Route path="inventory/report" element={<WarehouseReport />} />
               <Route path="audit-log" element={<WarehouseAuditLog />} />
-              <Route path="notifications" element={<WarehouseNotifications />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="*" element={<WarehouseDashboard />} />
             </Routes>
           </div>
