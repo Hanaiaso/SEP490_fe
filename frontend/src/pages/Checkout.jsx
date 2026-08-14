@@ -379,7 +379,9 @@ export default function Checkout() {
 
   // ── Profile ────────────────────────────────────────────────────────────────
   const [profileFull, setProfileFull] = useState(null)
-  const [vatRequested, setVatRequested] = useState(true)
+  // Mặc định KHÔNG chọn yêu cầu hóa đơn VAT — hồ sơ đa số khách chưa có MST nên chọn sẵn sẽ
+  // khiến họ bị chặn ở bước tiếp theo dù không thực sự cần hóa đơn VAT.
+  const [vatRequested, setVatRequested] = useState(false)
   const [vatInfo, setVatInfo] = useState(defaultVatInfo)
   const [vatForm, setVatForm] = useState(defaultVatInfo)
   const [isEditingVat, setIsEditingVat] = useState(false)
@@ -524,10 +526,17 @@ export default function Checkout() {
   // chuyển khoản khi khách không có MST (BE trả VAT=0 nhưng FE vẫn cộng thêm 10%).
   const vat = hasServerSummary ? checkoutSummary.vatAmount : Math.round(afterDiscount * 0.1)
   const total = hasServerSummary ? checkoutSummary.finalPayment : afterDiscount + vat
+  // Số VAT sẽ CỘNG THÊM sau khi khách bổ sung MST — chỉ để xem trước ở bước Địa chỉ khi đã tick
+  // "Yêu cầu hóa đơn VAT" nhưng hồ sơ chưa có MST (nút "Tiếp tục" vẫn khoá lúc này nên không có
+  // rủi ro thu sai tiền, khác với bug cộng cứng VAT trước đây).
+  const vatPreviewAmount = Math.round(afterDiscount * 0.1)
   const availableCredit = profileFull?.availableCredit || 0
   const creditApplied = Math.min(total, availableCredit)
   const finalPayment = total - creditApplied
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
+  // Chọn "Yêu cầu hóa đơn VAT" mà hồ sơ chưa có MST -> chặn không cho đi tiếp, vì backend sẽ
+  // không cộng VAT (và không thể xuất hóa đơn đỏ hợp lệ) nếu chưa khai MST.
+  const vatRequestedWithoutTaxCode = vatRequested && !vatInfo.taxCode
 
   // ── Countdown after success ────────────────────────────────────────────────
   useEffect(() => {
@@ -721,6 +730,12 @@ export default function Checkout() {
 
   // UC-13: chặn trước khi gọi handleConfirmOrder nếu chưa xác thực OTP cho đơn đầu tiên.
   function handleConfirmClick() {
+    // Lớp chặn dự phòng: nút "Tiếp tục" ở bước Địa chỉ đã chặn hộ, nhưng vẫn kiểm tra lại ở đây
+    // để không đặt được đơn nếu state bất thường (quay lại bước 0, tick VAT rồi F5 giữa chừng...).
+    if (vatRequestedWithoutTaxCode) {
+      setCurrentStep(0)
+      return
+    }
     if (checkoutSummary?.requiresPhoneOtp && !user?.isPhoneVerified) {
       setShowPhoneOtpModal(true)
       return
@@ -1310,6 +1325,12 @@ export default function Checkout() {
                           <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                           <span>Khách có thể yêu cầu hóa đơn VAT tối đa 7 ngày sau khi giao hàng thành công.</span>
                         </div>
+                        {vatRequestedWithoutTaxCode && (
+                          <div className="mb-3 flex items-start gap-2 rounded-[1rem] bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                            <span>Hồ sơ của bạn chưa có Mã số thuế. Vui lòng cập nhật MST để tiếp tục với yêu cầu hóa đơn VAT, hoặc bỏ chọn nếu không cần hóa đơn VAT.</span>
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-3">
                           <Link to="/profile?tab=tax" target="_blank">
                             <Button variant="outline" size="sm" className="rounded-full text-xs gap-1.5 hover:bg-gray-100">
@@ -1347,6 +1368,12 @@ export default function Checkout() {
                           <span className="font-medium">+{formatPrice(vat)}</span>
                         </div>
                       )}
+                      {vatRequestedWithoutTaxCode && (
+                        <div className="flex justify-between text-amber-600">
+                          <span>VAT (10%) — dự kiến khi có MST</span>
+                          <span className="font-medium">+{formatPrice(vatPreviewAmount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-gray-600">
                         <span>Vận chuyển</span>
                         <span className="font-medium">Miễn phí</span>
@@ -1355,13 +1382,18 @@ export default function Checkout() {
                     <div className="mb-6 border-t border-gray-200 pt-4">
                       <div className="flex items-center justify-between">
                         <span className="text-lg font-semibold text-gray-900">Tổng cộng</span>
-                        <span className="text-2xl font-bold text-gray-900">{formatPrice(total)}</span>
+                        <span className="text-2xl font-bold text-gray-900">
+                          {formatPrice(vatRequestedWithoutTaxCode ? afterDiscount + vatPreviewAmount : total)}
+                        </span>
                       </div>
+                      {vatRequestedWithoutTaxCode && (
+                        <p className="mt-1 text-right text-[11px] text-amber-600">Đã gồm VAT dự kiến — cần cập nhật MST để áp dụng</p>
+                      )}
                     </div>
                     <Button
                       size="lg"
                       className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800"
-                      disabled={!selectedAddressId || addresses.length === 0}
+                      disabled={!selectedAddressId || addresses.length === 0 || vatRequestedWithoutTaxCode}
                       onClick={() => setCurrentStep(1)}
                     >
                       Xem hóa đơn & Tiếp tục
@@ -1369,6 +1401,9 @@ export default function Checkout() {
                     </Button>
                     {(!selectedAddressId || addresses.length === 0) && (
                       <p className="mt-2 text-center text-xs text-amber-600">Vui lòng thêm và chọn địa chỉ giao hàng</p>
+                    )}
+                    {selectedAddressId && addresses.length > 0 && vatRequestedWithoutTaxCode && (
+                      <p className="mt-2 text-center text-xs text-amber-600">Vui lòng cập nhật Mã số thuế hoặc bỏ chọn yêu cầu hóa đơn VAT</p>
                     )}
                   </section>
                 </div>
