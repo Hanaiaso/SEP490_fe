@@ -518,8 +518,12 @@ export default function Checkout() {
   const discountRate = hasServerSummary ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
   const discountAmount = hasServerSummary ? checkoutSummary.discountAmount : Math.round(subtotal * discountRate)
   const afterDiscount = subtotal - discountAmount
-  const vat = Math.round(afterDiscount * 0.1)
-  const total = afterDiscount + vat
+  // Cùng lý do với discountAmount ở trên: BE chỉ tính VAT khi hồ sơ khách có MST (không phải cứ
+  // có giỏ hàng là +10%) — trước đây dòng này luôn cộng cứng 10% bất kể BE có tính VAT hay không,
+  // khiến số tiền hiển thị ở Checkout khác với FinalPayment thật của Order/số tiền SePay yêu cầu
+  // chuyển khoản khi khách không có MST (BE trả VAT=0 nhưng FE vẫn cộng thêm 10%).
+  const vat = hasServerSummary ? checkoutSummary.vatAmount : Math.round(afterDiscount * 0.1)
+  const total = hasServerSummary ? checkoutSummary.finalPayment : afterDiscount + vat
   const availableCredit = profileFull?.availableCredit || 0
   const creditApplied = Math.min(total, availableCredit)
   const finalPayment = total - creditApplied
@@ -1337,7 +1341,7 @@ export default function Checkout() {
                           <span className="font-medium">-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && (
+                      {vatRequested && vat > 0 && (
                         <div className="flex justify-between text-gray-600">
                           <span>VAT (10%)</span>
                           <span className="font-medium">+{formatPrice(vat)}</span>
@@ -1467,7 +1471,7 @@ export default function Checkout() {
                           <span>-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && (
+                      {vatRequested && vat > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">VAT (10%)</span>
                           <span>+{formatPrice(vat)}</span>
@@ -1578,7 +1582,7 @@ export default function Checkout() {
                           <span>-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && (
+                      {vatRequested && vat > 0 && (
                         <div className="flex justify-between text-gray-600">
                           <span>VAT (10%)</span>
                           <span>+{formatPrice(vat)}</span>
