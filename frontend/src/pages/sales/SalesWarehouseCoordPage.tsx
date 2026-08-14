@@ -17,7 +17,10 @@ type WarehouseOrder = {
   completed: string;
   status: 'waiting' | 'packing' | 'done';
   address: string;
+  finalPayment: number;
 };
+
+const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
 
 const STATUS_CONFIG = {
   waiting: {
@@ -114,6 +117,7 @@ export default function SalesWarehouseCoordPage() {
           completed: completedTime,
           status,
           address: o.shippingAddress || '---',
+          finalPayment: o.finalPayment || 0,
         };
       });
 
@@ -191,6 +195,7 @@ export default function SalesWarehouseCoordPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Mã đơn</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Khách hàng</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Sản phẩm</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-500">Giá trị đơn</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Trọng lượng</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Người đóng gói</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Bắt đầu</th>
@@ -202,12 +207,12 @@ export default function SalesWarehouseCoordPage() {
             <tbody className="divide-y divide-gray-50">
               {loading && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-400">Đang tải dữ liệu tiến độ kho...</td>
+                  <td colSpan={10} className="py-8 text-center text-gray-400">Đang tải dữ liệu tiến độ kho...</td>
                 </tr>
               )}
               {!loading && orders.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-400">Không có đơn hàng nào cần phối hợp chuẩn bị.</td>
+                  <td colSpan={10} className="py-8 text-center text-gray-400">Không có đơn hàng nào cần phối hợp chuẩn bị.</td>
                 </tr>
               )}
               {orders.map((order) => (
@@ -218,6 +223,7 @@ export default function SalesWarehouseCoordPage() {
                     <p className="mt-0.5 text-[10px] text-gray-400">{order.address}</p>
                   </td>
                   <td className="px-4 py-3 text-center font-medium text-gray-700">{order.items} sản phẩm</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700 whitespace-nowrap">{formatPrice(order.finalPayment)}</td>
                   <td className="px-4 py-3 text-center text-gray-600">{order.weight}</td>
                   <td className="px-4 py-3">
                     {order.packer ? (

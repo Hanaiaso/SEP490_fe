@@ -36,9 +36,11 @@ interface PickTask {
   totalItems: number; pickedItems: number; packingStatus: string;
   startedTime: string; completedTime: string;
   status: 'waiting' | 'picking' | 'picked' | 'packing' | 'completed' | 'cancelled';
-  boxCount: number; weight: string; packingNotes: string; orderProgress: number;
+  boxCount: number; weight: string; packingNotes: string; orderProgress: number; finalPayment: number;
   items: PickItem[];
 }
+
+const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
 
 function Breadcrumb() {
   return (
@@ -96,6 +98,7 @@ export default function WarehousePickPacking() {
           weight: '0 kg',
           packingNotes: '',
           orderProgress: tRequested > 0 ? Math.round(tPacked * 100 / tRequested) : 0,
+          finalPayment: d.finalPayment || 0,
           items: d.items?.map((i) => ({
             sku: i.sku,
             name: i.productName,
@@ -244,6 +247,7 @@ export default function WarehousePickPacking() {
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Mã đơn hàng</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Mã lệnh</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Tên kho chứa</th>
+                <th className="text-right px-3 py-2.5 text-gray-700 font-semibold">Giá trị đơn</th>
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Tiến độ</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Bắt đầu</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Hoàn tất</th>
@@ -268,6 +272,7 @@ export default function WarehousePickPacking() {
                   <td className="px-3 py-2.5 font-semibold text-gray-800">{t.orderCode}</td>
                   <td className="px-3 py-2.5 text-gray-600">{t.fulfillmentId}</td>
                   <td className="px-3 py-2.5 text-gray-700">{t.warehouse}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-gray-700 whitespace-nowrap">{formatPrice(t.finalPayment)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -295,9 +300,10 @@ export default function WarehousePickPacking() {
                             productId: i.productId,
                             evidenceUrl: i.evidenceImageUrl
                           }));
-                          setDetail({ ...t, 
-                            items: mappedItems, 
+                          setDetail({ ...t,
+                            items: mappedItems,
                             orderProgress: data.orderProgress || 0,
+                            finalPayment: data.finalPayment ?? t.finalPayment,
                             startedTime: data.pickingStartedAt ? new Date(data.pickingStartedAt).toLocaleDateString('vi-VN') : t.startedTime,
                             completedTime: data.pickingCompletedAt ? new Date(data.pickingCompletedAt).toLocaleDateString('vi-VN') : '—'
                           });
@@ -345,6 +351,7 @@ export default function WarehousePickPacking() {
                   <div className="flex justify-between"><span className="text-gray-500">Mã Pick Task:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.id}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Mã lệnh xuất:</span><span className="font-medium">{detail.fulfillmentId}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Kho chứa:</span><span>{detail.warehouse}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Giá trị đơn:</span><span className="font-bold" style={{ color: SUCCESS }}>{formatPrice(detail.finalPayment)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Trạng thái:</span><Badge status={detail.status} /></div>
                 </div>
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">

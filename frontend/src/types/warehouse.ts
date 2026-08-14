@@ -216,6 +216,7 @@ export interface PickTask {
   pickTaskId: string;
   orderId?: string;
   orderCode: string;
+  finalPayment: number;
   warehouseName: string;
   warehouseCode: string;
   status: string;
@@ -232,6 +233,7 @@ export interface WarehouseOrderDetail {
   orderProgress: number;
   pickingStartedAt?: string;
   pickingCompletedAt?: string;
+  finalPayment: number;
   items: WarehouseOrderItem[];
   pickTasks: PickTask[];
 }
@@ -241,6 +243,7 @@ export interface WarehouseOrderListItem {
   orderCode: string;
   confirmedAt: string;
   totalQuantity: number;
+  finalPayment: number;
   status: string;
   allocatedWarehouse: string;
   allocatedWarehouseCode: string;

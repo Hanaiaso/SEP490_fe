@@ -29,12 +29,14 @@ const PRIORITY_CFG: Record<string, { label: string; bg: string }> = {
   normal: { label: 'Thường',    bg: NEUTRAL },
 };
 
+const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+
 interface FulfillmentOrder {
   id: string; soNo: string; customer: string; warehouse: string;
   priority: 'urgent' | 'high' | 'normal';
   delivery: string; allocatedQty: number; reservedQty: number;
   pickStatus: string; packStatus: string; consolidation: string; handover: string;
-  orderDate: string; allocatedWarehouse: string; orderProgress: number;
+  orderDate: string; allocatedWarehouse: string; orderProgress: number; finalPayment: number;
   status: 'waiting' | 'picking' | 'packing' | 'ready' | 'transferred' | 'cancelled';
   products: { sku: string; name: string; physicalStock: number; orderedQty: number }[];
   timeline: { time: string; event: string; user: string }[];
@@ -94,6 +96,7 @@ export default function WarehouseFulfillmentOrders() {
         orderDate: new Date(d.confirmedAt || Date.now()).toLocaleDateString('vi-VN'),
         allocatedWarehouse: d.allocatedWarehouse || 'Kho mặc định',
         orderProgress: d.orderProgress || 0,
+        finalPayment: d.finalPayment || 0,
         status: d.status === 'Confirmed' || d.status === 'Allocated' ? 'waiting' : d.status === 'Picking' ? 'picking' : d.status === 'Ready' ? 'ready' : 'waiting',
         products: [],
         timeline: []
@@ -186,6 +189,7 @@ export default function WarehouseFulfillmentOrders() {
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Mã lệnh</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Đơn hàng</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Kho phân bổ</th>
+                <th className="text-right px-3 py-2.5 text-gray-700 font-semibold">Giá trị đơn</th>
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Tiến trình</th>
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Trạng thái</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Ngày tạo đơn</th>
@@ -208,6 +212,7 @@ export default function WarehouseFulfillmentOrders() {
                   <td className="px-3 py-2.5 font-semibold text-gray-600">{o.id.substring(0,8).toUpperCase()}</td>
                   <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{o.soNo}</td>
                   <td className="px-3 py-2.5 text-gray-600">{o.allocatedWarehouse}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-gray-700 whitespace-nowrap">{formatPrice(o.finalPayment)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -230,10 +235,11 @@ export default function WarehouseFulfillmentOrders() {
                             physicalStock: i.physicalStock,
                             orderedQty: i.requestedQuantity
                           }));
-                          setDetail({ ...o, 
+                          setDetail({ ...o,
                             orderDate: new Date(data.createdAt || Date.now()).toLocaleDateString('vi-VN'),
                             allocatedWarehouse: data.allocatedWarehouse || o.allocatedWarehouse,
                             orderProgress: data.orderProgress || 0,
+                            finalPayment: data.finalPayment ?? o.finalPayment,
                             products: mappedProducts });
                         } catch (e: unknown) {
                           alert('Lỗi lấy chi tiết: ' + getErrorMessage(e));
@@ -285,6 +291,7 @@ export default function WarehouseFulfillmentOrders() {
                   <div className="flex justify-between"><span className="text-gray-500">Mã lệnh:</span><span className="font-semibold text-gray-600">{detail.id.substring(0,8).toUpperCase()}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Đơn SO:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.soNo}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Ngày tạo đơn:</span><span>{detail.orderDate}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Giá trị đơn:</span><span className="font-bold" style={{ color: SUCCESS }}>{formatPrice(detail.finalPayment)}</span></div>
                 </div>
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">
                   <p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Phân bổ & Tiến trình</p>
