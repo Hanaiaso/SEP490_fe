@@ -66,7 +66,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
   {
     title: 'Quản lý Sản phẩm', items: [
       { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
-      { id: 'material-alert', label: 'Cảnh báo nguyên liệu', icon: <AlertTriangle className="w-4 h-4" />, path: '/admin/material-alert', badge: 4 },
     ]
   },
   {
