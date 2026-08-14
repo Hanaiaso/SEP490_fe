@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Trash2, Printer, FileText, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { getProducts } from '../../services/productService';
 import { placeDirectOrder } from '../../services/directOrderService';
-import { API_BASE } from '../../services/apiBase';
 import { authFetch } from '../../services/httpClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -682,7 +681,7 @@ export default function DirectPurchasePage() {
 
               {successOrder.invoicePdfUrl && (
                 <a
-                  href={`${API_BASE}${successOrder.invoicePdfUrl}`}
+                  href={successOrder.invoicePdfUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex text-xs text-blue-600 hover:underline font-semibold"
