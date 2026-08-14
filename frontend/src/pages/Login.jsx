@@ -76,12 +76,12 @@ export default function Login() {
   return (
     <div className="flex min-h-screen bg-white">
       <div className="relative hidden overflow-hidden lg:block lg:w-1/2">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800 opacity-90" />
         <img
           src="https://images.unsplash.com/photo-1497215842964-222b430dc094?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjB3b3Jrc3BhY2UlMjBtaW5pbWFsfGVufDF8fHx8MTc3OTg2Mzg4NHww&ixlib=rb-4.1.0&q=80&w=1080"
           alt="Không gian làm việc hiện đại"
           className="absolute inset-0 h-full w-full object-cover"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/85 via-gray-900/60 to-gray-900/40" />
         <div className="absolute inset-0 flex items-center justify-center p-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -89,8 +89,8 @@ export default function Login() {
             transition={{ duration: 0.7 }}
             className="text-center text-white"
           >
-            <h1 className="mb-4 text-5xl font-bold">Chào mừng quay lại</h1>
-            <p className="text-xl text-gray-200">Đăng nhập để tiếp tục khám phá văn phòng phẩm cao cấp.</p>
+            <h1 className="mb-4 text-5xl font-bold tracking-tight text-white drop-shadow-md">Chào mừng quay lại</h1>
+            <p className="text-xl text-gray-100 drop-shadow">Đăng nhập để tiếp tục khám phá văn phòng phẩm cao cấp.</p>
           </motion.div>
         </div>
       </div>
