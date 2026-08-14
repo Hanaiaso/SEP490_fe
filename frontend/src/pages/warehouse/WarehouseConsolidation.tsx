@@ -199,7 +199,7 @@ export default function WarehouseConsolidation() {
                             const products = data.items.filter((i) => i.requiredTransferQuantity > 0).map((i) => ({
                               sku: i.sku, name: i.productName, quantity: i.requiredTransferQuantity, transferStatus: '—'
                             }));
-                            navigate('/warehouse/transfer/stock-transfer', { state: { prefill: { sourceWarehouse: d.warehouse, orderId: d.id, items: products } } });
+                            navigate('/warehouse/transfer/stock-transfer', { state: { prefill: { destinationWarehouse: d.warehouse, orderId: d.id, items: products } } });
                           } catch (e: unknown) { alert(getErrorMessage(e)); }
                         }}><Truck className="w-3.5 h-3.5" /></button>
                       )}
@@ -311,7 +311,7 @@ export default function WarehouseConsolidation() {
                     const productsToTransfer = (detail.products || []).filter((p) => (p.requiredTransferQuantity || 0) > 0).map((p) => ({
                       sku: p.sku, name: p.name, quantity: p.requiredTransferQuantity, transferStatus: '—'
                     }));
-                    navigate('/warehouse/transfer/stock-transfer', { state: { prefill: { sourceWarehouse: detail.warehouse, orderId: detail.id, items: productsToTransfer } } });
+                    navigate('/warehouse/transfer/stock-transfer', { state: { prefill: { destinationWarehouse: detail.warehouse, orderId: detail.id, items: productsToTransfer } } });
                   }}>
                     <Truck className="w-3.5 h-3.5" /> Điều chuyển nội bộ
                   </Button>

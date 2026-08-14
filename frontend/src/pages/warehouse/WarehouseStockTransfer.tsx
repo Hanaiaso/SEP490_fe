@@ -317,11 +317,14 @@ export default function WarehouseStockTransfer() {
 
   useEffect(() => {
     if (prefill && warehouses.length > 0) {
-      const sourceW = warehouses.find((w) => w.name === prefill.sourceWarehouse);
-      const targetW = warehouses.find((w) => w.name === 'Kho mặc định' || w.name === 'WH-DEFAULT' || w.code === 'WH-DEFAULT' || w.name.includes('WH-DEFAULT') || w.name === 'Kho Chính');
-      if (sourceW && targetW) {
+      // Kho tập kết (nơi đơn hàng cần đủ hàng để giao) là kho ĐÍCH của lệnh chuyển — trước đây bị
+      // gán nhầm làm kho nguồn, còn kho đích lại đoán bừa theo tên "Kho mặc định"/"WH-DEFAULT", nên
+      // kho nguồn/đích hiển thị không khớp với màn Tập kết hàng. Kho nguồn (nơi đang có hàng thừa)
+      // không có sẵn trong dữ liệu tập kết -> để trống, người dùng tự chọn.
+      const targetW = warehouses.find((w) => w.name === prefill.destinationWarehouse);
+      if (targetW) {
         setPrefillData({
-           sourceWarehouseId: sourceW.id,
+           sourceWarehouseId: '',
            targetWarehouseId: targetW.id,
            items: prefill.items
         });
