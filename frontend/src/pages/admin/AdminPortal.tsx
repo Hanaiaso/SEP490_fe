@@ -53,43 +53,56 @@ interface AdminNavGroup {
 
 // Đường dẫn là nguồn sự thật duy nhất (thay cho activeTab state cũ) — F5/Back/Forward/URL trực tiếp đều hoạt động đúng.
 const NAV_GROUPS: AdminNavGroup[] = [
-  { items: [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/admin/dashboard' },
-  ] },
-  { title: 'Quản lý & Duyệt giá', items: [
-    { id: 'bulk-price', label: 'Cập nhật giá hàng loạt', icon: <FileText className="w-4 h-4" />, path: '/admin/bulk-price' },
-    { id: 'approve-price', label: 'Duyệt giá đề xuất', icon: <CheckSquare className="w-4 h-4" />, path: '/admin/approve-price', badge: 2 },
-  ] },
-  { title: 'Quản lý Sản phẩm', items: [
-    { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
-    { id: 'discontinue', label: 'Duyệt ngừng kinh doanh', icon: <XCircle className="w-4 h-4" />, path: '/admin/discontinue', badge: 1 },
-    { id: 'material-alert', label: 'Cảnh báo nguyên liệu', icon: <AlertTriangle className="w-4 h-4" />, path: '/admin/material-alert', badge: 4 },
-  ] },
-  { title: 'Quản lý Nhân sự', items: [
-    { id: 'users', label: 'Danh sách người dùng', icon: <Users className="w-4 h-4" />, path: '/admin/users' },
-    { id: 'permissions', label: 'Phân quyền', icon: <ShieldCheck className="w-4 h-4" />, path: '/admin/permissions' },
-    { id: 'payroll', label: 'Duyệt bảng lương', icon: <Wallet className="w-4 h-4" />, path: '/admin/payroll', badge: 1 },
-  ] },
-  { title: 'Thống kê tổng hợp', items: [
-    { id: 'report-customer', label: 'Báo cáo Khách hàng', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-customer' },
-    { id: 'report-staff', label: 'Báo cáo Nhân viên', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-staff' },
-    { id: 'report-product', label: 'Báo cáo Sản phẩm', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-product' },
-    { id: 'report-revenue', label: 'Báo cáo Doanh thu', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-revenue' },
-  ] },
-  { title: 'Cấu hình hệ thống', items: [
-    { id: 'settings', label: 'Thiết lập SePay & Ngưỡng giá', icon: <Settings className="w-4 h-4" />, path: '/admin/settings' },
-    { id: 'integrations', label: 'Tích hợp hệ thống', icon: <Plug className="w-4 h-4" />, path: '/admin/integrations' },
-    { id: 'audit-log', label: 'Nhật ký kiểm toán', icon: <ScrollText className="w-4 h-4" />, path: '/admin/audit-log' },
-    { id: 'system-health', label: 'Giám sát hệ thống', icon: <Activity className="w-4 h-4" />, path: '/admin/system-health' },
-    { id: 'payment-confirm', label: 'Xác nhận thanh toán', icon: <CreditCard className="w-4 h-4" />, path: '/admin/payment-confirm', badge: 2 },
-  ] },
-  { title: 'Dữ liệu chủ', items: [
-    { id: 'vehicles', label: 'Xe giao hàng', icon: <Truck className="w-4 h-4" />, path: '/admin/vehicles' },
-    { id: 'discount-tiers', label: 'Khung chiết khấu', icon: <Percent className="w-4 h-4" />, path: '/admin/discount-tiers' },
-    { id: 'warehouses', label: 'Kho bãi', icon: <Warehouse className="w-4 h-4" />, path: '/admin/warehouses' },
-    { id: 'suppliers', label: 'Nhà cung cấp', icon: <Building2 className="w-4 h-4" />, path: '/admin/suppliers' },
-    { id: 'shifts', label: 'Ca làm việc', icon: <Clock className="w-4 h-4" />, path: '/admin/shifts' },
-  ] },
+  {
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/admin/dashboard' },
+    ]
+  },
+  {
+    title: 'Quản lý & Duyệt giá', items: [
+      { id: 'bulk-price', label: 'Cập nhật giá hàng loạt', icon: <FileText className="w-4 h-4" />, path: '/admin/bulk-price' },
+      { id: 'approve-price', label: 'Duyệt giá đề xuất', icon: <CheckSquare className="w-4 h-4" />, path: '/admin/approve-price', badge: 2 },
+    ]
+  },
+  {
+    title: 'Quản lý Sản phẩm', items: [
+      { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
+      { id: 'discontinue', label: 'Duyệt ngừng kinh doanh', icon: <XCircle className="w-4 h-4" />, path: '/admin/discontinue', badge: 1 },
+      { id: 'material-alert', label: 'Cảnh báo nguyên liệu', icon: <AlertTriangle className="w-4 h-4" />, path: '/admin/material-alert', badge: 4 },
+    ]
+  },
+  {
+    title: 'Quản lý Nhân sự', items: [
+      { id: 'users', label: 'Danh sách người dùng', icon: <Users className="w-4 h-4" />, path: '/admin/users' },
+      { id: 'permissions', label: 'Phân quyền', icon: <ShieldCheck className="w-4 h-4" />, path: '/admin/permissions' },
+    ]
+  },
+  {
+    title: 'Thống kê tổng hợp', items: [
+      { id: 'report-customer', label: 'Báo cáo Khách hàng', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-customer' },
+      { id: 'report-staff', label: 'Báo cáo Nhân viên', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-staff' },
+      { id: 'report-product', label: 'Báo cáo Sản phẩm', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-product' },
+      { id: 'report-revenue', label: 'Báo cáo Doanh thu', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-revenue' },
+    ]
+  },
+  {
+    title: 'Cấu hình hệ thống', items: [
+      { id: 'settings', label: 'Thiết lập SePay & Ngưỡng giá', icon: <Settings className="w-4 h-4" />, path: '/admin/settings' },
+      { id: 'integrations', label: 'Tích hợp hệ thống', icon: <Plug className="w-4 h-4" />, path: '/admin/integrations' },
+      { id: 'audit-log', label: 'Nhật ký kiểm toán', icon: <ScrollText className="w-4 h-4" />, path: '/admin/audit-log' },
+      { id: 'system-health', label: 'Giám sát hệ thống', icon: <Activity className="w-4 h-4" />, path: '/admin/system-health' },
+      { id: 'payment-confirm', label: 'Xác nhận thanh toán', icon: <CreditCard className="w-4 h-4" />, path: '/admin/payment-confirm', badge: 2 },
+    ]
+  },
+  {
+    title: 'Dữ liệu chủ', items: [
+      { id: 'vehicles', label: 'Xe giao hàng', icon: <Truck className="w-4 h-4" />, path: '/admin/vehicles' },
+      { id: 'discount-tiers', label: 'Khung chiết khấu', icon: <Percent className="w-4 h-4" />, path: '/admin/discount-tiers' },
+      { id: 'warehouses', label: 'Kho bãi', icon: <Warehouse className="w-4 h-4" />, path: '/admin/warehouses' },
+      { id: 'suppliers', label: 'Nhà cung cấp', icon: <Building2 className="w-4 h-4" />, path: '/admin/suppliers' },
+      { id: 'shifts', label: 'Ca làm việc', icon: <Clock className="w-4 h-4" />, path: '/admin/shifts' },
+    ]
+  },
 ];
 
 // Các nav id đã có trang thật — phần còn lại vẫn hiển thị ComingSoon như trước (chưa có API backend).

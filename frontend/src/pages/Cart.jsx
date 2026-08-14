@@ -138,37 +138,46 @@ export default function Cart() {
     }
   }
 
-  // Kiểm tra giỏ hàng có khớp chính xác cả SKU lẫn số lượng với báo giá đã duyệt không
-  const isQuotationExactMatch = useMemo(() => {
-    if (!negotiatedQuotation || !negotiatedQuotation.items?.length) return false;
-    if (cartItems.length !== negotiatedQuotation.items.length) return false;
-    return cartItems.every(ci => {
-      const qi = negotiatedQuotation.items.find(i => i.productId === ci.productId);
-      return qi && qi.quantity === ci.quantity;
-    });
-  }, [cartItems, negotiatedQuotation]);
-
-  const negotiatedPrices = useMemo(() => {
-    if (!isQuotationExactMatch || !negotiatedQuotation) return {};
+  // SKU nào trong giỏ thuộc bộ báo giá đã duyệt (đơn giá theo SKU, không cần khớp đúng số lượng —
+  // khớp đúng OrderService.CalculateDiscountAsync đã sửa: đơn giá đàm phán áp cho SỐ LƯỢNG HIỆN TẠI).
+  const negotiatedByProduct = useMemo(() => {
     const map = {};
-    for (const item of negotiatedQuotation.items) {
-      if (item.proposedUnitPrice) {
-        map[item.productId] = item.proposedUnitPrice;
-      }
+    for (const item of negotiatedQuotation?.items || []) {
+      if (item.proposedUnitPrice) map[item.productId] = item;
     }
     return map;
-  }, [isQuotationExactMatch, negotiatedQuotation]);
+  }, [negotiatedQuotation]);
+
+  // Khớp chính xác cả SKU lẫn số lượng — chỉ dùng để quyết định hiển thị box đầy đủ hay box rút gọn.
+  const isQuotationExactMatch = useMemo(() => {
+    if (!negotiatedQuotation?.items?.length) return false;
+    if (cartItems.length !== negotiatedQuotation.items.length) return false;
+    return cartItems.every(ci => negotiatedByProduct[ci.productId]?.quantity === ci.quantity);
+  }, [cartItems, negotiatedByProduct, negotiatedQuotation]);
+
+  // Toàn bộ dòng trong giỏ đều thuộc báo giá đã duyệt — điều kiện thật sự BE dùng để áp giá đàm phán.
+  const allLinesNegotiated = cartItems.length > 0 && cartItems.every(ci => negotiatedByProduct[ci.productId]);
+
+  const negotiatedPrices = useMemo(() => {
+    const map = {};
+    for (const [productId, item] of Object.entries(negotiatedByProduct)) {
+      map[productId] = item.proposedUnitPrice;
+    }
+    return map;
+  }, [negotiatedByProduct]);
 
   // Tổng theo giá gốc niêm yết (không trừ chiết khấu)
   const originalSubtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   }, [cartItems])
 
-  // Chỉ áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu VÀ giỏ hàng khớp đúng báo giá đã duyệt
-  const applyNegotiation = originalSubtotal >= 100000000 && isQuotationExactMatch;
+  // Áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu VÀ mọi SKU trong giỏ đều thuộc báo giá đã duyệt
+  // (không đòi khớp đúng số lượng nữa — xem negotiatedByProduct ở trên).
+  const applyNegotiation = originalSubtotal >= 100000000 && allLinesNegotiated;
   const hasNegotiatedPrices = applyNegotiation;
-  const hasPendingNegotiationUnder100m = !applyNegotiation && isQuotationExactMatch && originalSubtotal < 100000000;
-  const hasMismatchedQuotation = originalSubtotal >= 100000000 && !applyNegotiation && !!negotiatedQuotation && negotiatedQuotation.items?.some(qi => cartItems.some(ci => ci.productId === qi.productId));
+  const hasPendingNegotiationUnder100m = !applyNegotiation && allLinesNegotiated && originalSubtotal < 100000000;
+  // Đang áp giá đàm phán nhưng không khớp tuyệt đối (đổi số lượng) -> hiện box rút gọn thay vì box đầy đủ.
+  const hasMismatchedQuotation = applyNegotiation && !isQuotationExactMatch;
 
   const negotiatedDiscountAmount = useMemo(() => {
     if (!applyNegotiation) return 0;
@@ -400,51 +409,11 @@ export default function Cart() {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[1.75rem] border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-6"
+                    className="rounded-[1.75rem] border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6"
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-                      <h3 className="font-bold text-amber-900">Số lượng khác với báo giá đã duyệt</h3>
-                    </div>
-                    <p className="text-sm text-amber-800 leading-relaxed mb-3">
-                      Bạn có báo giá ưu đãi đã duyệt nhưng số lượng trong giỏ hàng hiện tại không khớp, nên hệ thống đang tính theo <strong>giá niêm yết</strong>.
-                    </p>
-                    <div className="space-y-1.5 text-xs text-amber-950 bg-amber-100/70 rounded-xl p-3 mb-4">
-                      {negotiatedQuotation?.items?.map((qi) => {
-                        const ci = cartItems.find((c) => c.productId === qi.productId)
-                        if (!ci) return null
-                        return (
-                          <div key={qi.productId} className="flex justify-between items-center py-0.5">
-                            <span className="font-medium truncate max-w-[130px]">{ci.productName || 'Sản phẩm'}</span>
-                            <span>Đang chọn <b>{ci.quantity}</b> (Báo giá: <b>{qi.quantity}</b> @ {formatPrice(qi.proposedUnitPrice)})</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="space-y-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full rounded-full border-amber-400 bg-white text-amber-900 hover:bg-amber-100 text-xs font-semibold"
-                        onClick={() => {
-                          negotiatedQuotation.items.forEach((qi) => {
-                            const ci = cartItems.find((c) => c.productId === qi.productId)
-                            if (ci && ci.quantity !== qi.quantity) {
-                              updateQuantity(ci.id, qi.quantity).catch(() => {})
-                            }
-                          })
-                        }}
-                      >
-                        Chỉnh về số lượng báo giá để nhận ưu đãi
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full rounded-full text-amber-800 hover:bg-amber-100 text-xs"
-                        onClick={openQuotationModal}
-                      >
-                        Gửi yêu cầu báo giá mới cho số lượng này
-                      </Button>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <h3 className="font-bold text-green-900">Đã áp dụng đơn giá đàm phán</h3>
                     </div>
                   </motion.div>
                 )}
@@ -470,7 +439,7 @@ export default function Cart() {
                   </motion.div>
                 )}
 
-                {hasNegotiatedPrices && (
+                {hasNegotiatedPrices && isQuotationExactMatch && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
