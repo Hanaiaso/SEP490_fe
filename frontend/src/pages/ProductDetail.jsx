@@ -210,9 +210,11 @@ export default function ProductDetail() {
     )
   }
 
-  // Use the single ImageUrl from API (or placeholder if null)
+  // Gallery ảnh thật từ API (Images), fallback về ImageUrl đơn hoặc placeholder nếu sản phẩm chưa có ảnh
   const placeholderImg = `https://placehold.co/600x600/f3f4f6/9ca3af?text=${encodeURIComponent(product.name)}`
-  const productImages = Array.from({ length: 4 }, () => product.imageUrl || placeholderImg)
+  const productImages = product.images?.length
+    ? product.images.map((img) => img.imageUrl)
+    : [product.imageUrl || placeholderImg]
 
   const stockLabel = product.availableStock != null
     ? product.availableStock > 0
@@ -255,18 +257,20 @@ export default function ProductDetail() {
                 />
               </motion.div>
 
-              <div className="grid grid-cols-4 gap-4">
-                {productImages.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`aspect-square overflow-hidden rounded-[1.25rem] border-2 bg-gray-100 transition-all ${selectedImage === index ? 'border-gray-900 shadow-lg' : 'border-transparent hover:border-gray-300'
-                      }`}
-                  >
-                    <img src={image} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
+              {productImages.length > 1 && (
+                <div className="grid grid-cols-4 gap-4">
+                  {productImages.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`aspect-square overflow-hidden rounded-[1.25rem] border-2 bg-gray-100 transition-all ${selectedImage === index ? 'border-gray-900 shadow-lg' : 'border-transparent hover:border-gray-300'
+                        }`}
+                    >
+                      <img src={image} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Product info */}
