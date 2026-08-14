@@ -14,10 +14,10 @@ import CEOSupplierManagementPage from '../ceo/CEOSupplierManagementPage';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import { useAuth } from '../../context/AuthContext';
 import {
-  LayoutDashboard, FileText, CheckSquare,
-  Package, XCircle, AlertTriangle, Users, ShieldCheck,
+  LayoutDashboard, FileText,
+  Package, AlertTriangle, Users, ShieldCheck,
   LogOut, BarChart2, Settings,
-  CreditCard, Wallet, ScrollText, Activity, Truck, Percent,
+  ScrollText, Activity, Truck, Percent,
   Warehouse, Building2, Clock, Plug
 } from 'lucide-react';
 import NotificationBell from '../../components/NotificationBell';
@@ -59,15 +59,13 @@ const NAV_GROUPS: AdminNavGroup[] = [
     ]
   },
   {
-    title: 'Quản lý & Duyệt giá', items: [
+    title: 'Quản lý giá', items: [
       { id: 'bulk-price', label: 'Cập nhật giá hàng loạt', icon: <FileText className="w-4 h-4" />, path: '/admin/bulk-price' },
-      { id: 'approve-price', label: 'Duyệt giá đề xuất', icon: <CheckSquare className="w-4 h-4" />, path: '/admin/approve-price', badge: 2 },
     ]
   },
   {
     title: 'Quản lý Sản phẩm', items: [
       { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
-      { id: 'discontinue', label: 'Duyệt ngừng kinh doanh', icon: <XCircle className="w-4 h-4" />, path: '/admin/discontinue', badge: 1 },
       { id: 'material-alert', label: 'Cảnh báo nguyên liệu', icon: <AlertTriangle className="w-4 h-4" />, path: '/admin/material-alert', badge: 4 },
     ]
   },
@@ -91,7 +89,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
       { id: 'integrations', label: 'Tích hợp hệ thống', icon: <Plug className="w-4 h-4" />, path: '/admin/integrations' },
       { id: 'audit-log', label: 'Nhật ký kiểm toán', icon: <ScrollText className="w-4 h-4" />, path: '/admin/audit-log' },
       { id: 'system-health', label: 'Giám sát hệ thống', icon: <Activity className="w-4 h-4" />, path: '/admin/system-health' },
-      { id: 'payment-confirm', label: 'Xác nhận thanh toán', icon: <CreditCard className="w-4 h-4" />, path: '/admin/payment-confirm', badge: 2 },
     ]
   },
   {
