@@ -77,6 +77,7 @@ export default function SalesManagerDashboardPage() {
     periodFrom: '', periodTo: '', revenue: 0, completedOrderCount: 0,
     deliverySuccessRate: 0, deliveryAttemptedOrderCount: 0,
     returningCustomerRate: 0, customersInScopeCount: 0,
+    monthlyTarget: 0, monthlyRevenue: 0, monthlyTargetAchievementRate: null,
   };
   const staffBreakdown = data?.staffBreakdown || [];
   const openExceptions = data?.openExceptions || [];

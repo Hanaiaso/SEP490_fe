@@ -14,6 +14,12 @@ export interface KpiSnapshot {
   processingSpeedAvgHours?: number;
   returningCustomerRate: number;
   customersInScopeCount: number;
+  /** Mục tiêu doanh thu THÁNG HIỆN TẠI do Sales Manager đặt (0 = chưa đặt) — cố định theo tháng dương lịch, không phụ thuộc periodFrom/periodTo. */
+  monthlyTarget: number;
+  /** Doanh thu thực thu (AmountPaid) từ đầu tháng hiện tại tới nay. */
+  monthlyRevenue: number;
+  /** monthlyRevenue / monthlyTarget, null nếu chưa có mục tiêu. */
+  monthlyTargetAchievementRate?: number | null;
 }
 
 export interface SalesStaffDashboard {
@@ -91,4 +97,18 @@ export interface CeoDashboard {
   inventory: InventorySummary;
   purchaseOrders: PurchaseOrderDashboardSummary;
   discrepancy: DiscrepancySummary;
+}
+
+// GET/POST /api/sales-targets (Sales Manager đặt mục tiêu doanh thu tháng cho từng Sales Staff)
+export interface SalesStaffTarget {
+  salesStaffId: string;
+  salesStaffName: string;
+  year: number;
+  month: number;
+  /** 0 = chưa đặt mục tiêu cho tháng này. */
+  targetAmount: number;
+  actualRevenue: number;
+  achievementRate?: number | null;
+  setAt?: string | null;
+  setByName?: string | null;
 }

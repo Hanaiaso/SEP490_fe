@@ -11,9 +11,11 @@ import {
   UserCog,
   Lock,
   Truck,
+  Target,
 } from 'lucide-react';
 import SalesManagerDashboardPage from './SalesManagerDashboardPage';
 import SalesManagerRoundRobinPage from './SalesManagerRoundRobinPage';
+import SalesManagerTargetsPage from './SalesManagerTargetsPage';
 import SalesManagerSePayExceptionPage from './SalesManagerSePayExceptionPage';
 import SalesManagerBlockedDeliveriesPage from './SalesManagerBlockedDeliveriesPage';
 import SalesManagerPriceNegotiation from './SalesManagerPriceNegotiation';
@@ -52,6 +54,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Phân bổ khách hàng',
     icon: <Shuffle className="w-4 h-4" />,
     path: '/sales-manager/round-robin',
+  },
+  {
+    id: 'sales-targets',
+    label: 'Mục tiêu doanh thu',
+    icon: <Target className="w-4 h-4" />,
+    path: '/sales-manager/sales-targets',
   },
   {
     id: 'manager-negotiation',
@@ -222,6 +230,7 @@ export default function SalesManagerPortal() {
           <Routes>
             <Route path="dashboard" element={<SalesManagerDashboardPage />} />
             <Route path="round-robin" element={<SalesManagerRoundRobinPage />} />
+            <Route path="sales-targets" element={<SalesManagerTargetsPage />} />
             <Route path="manager-negotiation" element={<SalesManagerPriceNegotiation />} />
             <Route path="manager-negotiation/:id" element={<SalesManagerPriceNegotiationDetail />} />
             <Route path="orders" element={<SalesManagerOrdersPage />} />

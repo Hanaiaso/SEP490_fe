@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   ShoppingCart, TrendingUp, Truck, CheckCircle, AlertCircle,
-  Clock, Eye, ChevronRight, Plus, RefreshCw, ArrowUp, ArrowDown,
+  Clock, Eye, ChevronRight, Plus, RefreshCw, ArrowUp, ArrowDown, Target,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -9,7 +9,6 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
-import { API_BASE } from '../../services/apiBase';
 import { authFetch } from '../../services/httpClient';
 import type {
   SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
@@ -233,12 +232,26 @@ export default function SalesDashboard() {
       <div className="flex-1 overflow-auto p-4 space-y-3">
         {/* KPI hiệu suất cá nhân (30 ngày gần nhất) */}
         {!kpiLoading && kpiSnapshot?.kpi && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             <KpiRow
               label="Doanh thu (30 ngày)"
               value={formatPrice(kpiSnapshot.kpi.revenue) + ' đ'}
               sub={`${kpiSnapshot.kpi.completedOrderCount} đơn hoàn thành`}
               icon={<TrendingUp className="w-4 h-4" />}
+            />
+            <KpiRow
+              label="Mục tiêu tháng này"
+              value={
+                kpiSnapshot.kpi.monthlyTarget > 0
+                  ? `${Math.round((kpiSnapshot.kpi.monthlyTargetAchievementRate ?? 0) * 100)}%`
+                  : '—'
+              }
+              sub={
+                kpiSnapshot.kpi.monthlyTarget > 0
+                  ? `${formatPrice(kpiSnapshot.kpi.monthlyRevenue)} / ${formatPrice(kpiSnapshot.kpi.monthlyTarget)} đ`
+                  : 'Sales Manager chưa đặt mục tiêu'
+              }
+              icon={<Target className="w-4 h-4" />}
             />
             <KpiRow
               label="Tỷ lệ giao thành công"
@@ -440,9 +453,9 @@ export default function SalesDashboard() {
                       </td>
                       <td className="px-3 py-2 text-center">
                         {o.invoicePdfUrl ? (
-                          <a 
-                            href={`${API_BASE}${o.invoicePdfUrl}`}
-                            target="_blank" 
+                          <a
+                            href={o.invoicePdfUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-[#9CA3AF] hover:text-[#1F3B64] transition-colors inline-block"
                             title="Xem hóa đơn PDF"
