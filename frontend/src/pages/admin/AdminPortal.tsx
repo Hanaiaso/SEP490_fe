@@ -208,7 +208,7 @@ export default function AdminPortal() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-h-0 overflow-auto">
           <Routes>
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsersPage />} />
