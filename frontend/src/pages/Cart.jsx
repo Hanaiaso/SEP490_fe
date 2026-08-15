@@ -532,16 +532,18 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  <Button
-                    size="lg"
-                    className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={goToCheckout}
-                    disabled={isPriceExpired}
-                    title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
-                  >
-                    Đặt Hàng & Xem Hóa Đơn
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  {!requiresQuotationFlow && (
+                    <Button
+                      size="lg"
+                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={goToCheckout}
+                      disabled={isPriceExpired}
+                      title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
+                    >
+                      Đặt Hàng & Xem Hóa Đơn
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
 
                   {subtotal >= 100000000 && (
                     <Link to="/negotiations" className="block mb-3">

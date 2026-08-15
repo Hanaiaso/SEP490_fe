@@ -14,8 +14,8 @@ import CEOSupplierManagementPage from '../ceo/CEOSupplierManagementPage';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import { useAuth } from '../../context/AuthContext';
 import {
-  LayoutDashboard, FileText,
-  Package, AlertTriangle, Users, ShieldCheck,
+  LayoutDashboard,
+  Package, Users,
   LogOut, BarChart2, Settings,
   ScrollText, Activity, Truck, Percent,
   Warehouse, Building2, Clock, Plug
@@ -59,11 +59,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
     ]
   },
   {
-    title: 'Quản lý giá', items: [
-      { id: 'bulk-price', label: 'Cập nhật giá hàng loạt', icon: <FileText className="w-4 h-4" />, path: '/admin/bulk-price' },
-    ]
-  },
-  {
     title: 'Quản lý Sản phẩm', items: [
       { id: 'products', label: 'Danh mục sản phẩm', icon: <Package className="w-4 h-4" />, path: '/admin/products' },
     ]
@@ -71,7 +66,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
   {
     title: 'Quản lý Nhân sự', items: [
       { id: 'users', label: 'Danh sách người dùng', icon: <Users className="w-4 h-4" />, path: '/admin/users' },
-      { id: 'permissions', label: 'Phân quyền', icon: <ShieldCheck className="w-4 h-4" />, path: '/admin/permissions' },
     ]
   },
   {
