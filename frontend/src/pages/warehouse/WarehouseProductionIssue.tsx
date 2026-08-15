@@ -50,6 +50,34 @@ function Badge({ status }: { status: string }) {
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
 }
 
+// 5 điều kiện bắt buộc trước khi Post — khớp BR-045/AC-05 (FT-12) và check phía backend
+// (GoodsIssueService.PostGoodsIssueAsync, ngoại lệ A1). Validate ở FE trước để tránh bấm Post
+// rồi mới biết thiếu trường nào qua alert lỗi từ server.
+function getMissingFields(item: GoodsIssue): string[] {
+  const missing: string[] = [];
+  if (!item.imageProofUrl) missing.push('Ảnh biên bản giấy đã ký');
+  if (!item.externalRecipientName?.trim()) missing.push('Tên người nhận (ngoài hệ thống)');
+  if (!item.department?.trim()) missing.push('Bộ phận sản xuất nhận');
+  if (!item.receivedAt) missing.push('Thời điểm thực tế nhận');
+  if (!item.paperDocumentNumber?.trim()) missing.push('Số biên bản giấy');
+  return missing;
+}
+
+// Hàng đã ký biên bản giấy bàn giao coi như hàng đã rời kho vật lý, nhưng tồn kho hệ thống
+// chỉ giảm khi Post — phiếu càng để lâu ở trạng thái chưa Post thì tồn kho hệ thống càng lệch
+// so với thực tế. Cảnh báo quá hạn 24 giờ để nhân viên xử lý dứt điểm, tránh cấp phát nhầm.
+const OVERDUE_HOURS = 24;
+
+function getAgeHours(createdAt: string): number {
+  return (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+}
+
+function isOverdue(item: GoodsIssue): boolean {
+  const status = item.status?.toLowerCase();
+  if (status === 'posted' || status === 'reversed' || status === 'cancelled') return false;
+  return getAgeHours(item.createdAt) > OVERDUE_HOURS;
+}
+
 export default function WarehouseProductionIssue() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -191,6 +219,8 @@ export default function WarehouseProductionIssue() {
     }
   };
 
+  const missingFields = detail ? getMissingFields(detail) : [];
+
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Top Bar */}
@@ -199,7 +229,12 @@ export default function WarehouseProductionIssue() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Xuất Nguyên Liệu Cho Sản Xuất Ngoài Hệ Thống</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{items.length} lệnh · {items.filter(i => i.status?.toLowerCase() === 'proofpending').length} chờ chứng từ · {items.filter(i => i.status?.toLowerCase() === 'proofuploaded').length} chờ đăng sổ</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {items.length} lệnh · {items.filter(i => i.status?.toLowerCase() === 'proofpending').length} chờ chứng từ · {items.filter(i => i.status?.toLowerCase() === 'proofuploaded').length} chờ đăng sổ
+              {items.some(isOverdue) && (
+                <span className="text-rose-600 font-semibold"> · {items.filter(isOverdue).length} quá {OVERDUE_HOURS}h chưa đăng sổ</span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={loadData}><RefreshCw className="w-3.5 h-3.5" /> Làm mới</Button>
@@ -245,8 +280,10 @@ export default function WarehouseProductionIssue() {
                   </td>
                 </tr>
               )}
-              {filtered.map((d, i) => (
-                <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+              {filtered.map((d, i) => {
+                const overdue = isOverdue(d);
+                return (
+                <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${overdue ? 'bg-rose-50/60' : i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                   <td className="px-3 py-2.5"><input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleSelect(d.id)} /></td>
                   <td className="px-3 py-2.5 font-bold" style={{ color: PRIMARY }}>{d.id}</td>
                   <td className="px-3 py-2.5 text-gray-700">{d.warehouse}</td>
@@ -258,7 +295,14 @@ export default function WarehouseProductionIssue() {
                       ? <a href={d.imageProofUrl} target="_blank" rel="noreferrer" className="text-[10px] font-semibold text-white px-2 py-0.5 rounded bg-emerald-600 hover:underline">Xem ảnh</a>
                       : <span className="text-[10px] text-rose-500 font-medium">Chưa có ảnh</span>}
                   </td>
-                  <td className="px-3 py-2.5 text-center"><Badge status={d.status} /></td>
+                  <td className="px-3 py-2.5 text-center">
+                    <Badge status={d.status} />
+                    {overdue && (
+                      <span title={`Đã ${Math.floor(getAgeHours(d.createdAt))} giờ chưa đăng sổ`} className="ml-1 inline-flex items-center gap-0.5 text-[9px] font-semibold text-rose-600">
+                        <AlertTriangle className="w-3 h-3" /> Quá hạn
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button className="p-1 rounded hover:bg-blue-50 text-gray-500 hover:text-blue-600" onClick={() => openDetailModal(d)} title="Xem chi tiết & Bàn giao"><Eye className="w-4 h-4" /></button>
@@ -267,9 +311,17 @@ export default function WarehouseProductionIssue() {
                         <button className="p-1 rounded hover:bg-orange-50 text-gray-500 hover:text-orange-600" onClick={() => { setDetail(d); setShowUpload(true); }} title="Upload ảnh biên bản"><Upload className="w-4 h-4" /></button>
                       )}
 
-                      {d.hasProof && d.status?.toLowerCase() !== 'posted' && d.status?.toLowerCase() !== 'reversed' && (
-                        <button className="p-1 rounded hover:bg-green-50 text-gray-500 hover:text-green-600" onClick={() => postGoods(d.realId)} title="Đăng sổ ngay"><Send className="w-4 h-4" /></button>
-                      )}
+                      {d.status?.toLowerCase() !== 'posted' && d.status?.toLowerCase() !== 'reversed' && (() => {
+                        const missing = getMissingFields(d);
+                        return (
+                          <button
+                            className={missing.length === 0 ? 'p-1 rounded hover:bg-green-50 text-gray-500 hover:text-green-600' : 'p-1 rounded text-gray-300 cursor-not-allowed'}
+                            onClick={() => missing.length === 0 && postGoods(d.realId)}
+                            disabled={missing.length > 0}
+                            title={missing.length === 0 ? 'Đăng sổ ngay' : `Còn thiếu: ${missing.join(', ')}`}
+                          ><Send className="w-4 h-4" /></button>
+                        );
+                      })()}
 
                       {d.status?.toLowerCase() === 'posted' && (
                         <button className="p-1 rounded hover:bg-red-50 text-gray-500 hover:text-red-600" onClick={() => { setDetail(d); setShowReversalModal(true); }} title="Tạo phiếu Reversal đảo chứng từ"><RotateCcw className="w-4 h-4" /></button>
@@ -277,7 +329,8 @@ export default function WarehouseProductionIssue() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -378,6 +431,7 @@ export default function WarehouseProductionIssue() {
                       <th className="text-left px-3 py-2 text-gray-700 font-semibold">Mặt hàng / Nguyên liệu</th>
                       <th className="text-center px-3 py-2 text-gray-700 font-semibold">ĐVT</th>
                       <th className="text-center px-3 py-2 text-gray-700 font-semibold">SL xuất</th>
+                      <th className="text-left px-3 py-2 text-gray-700 font-semibold">Ghi chú</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -387,6 +441,7 @@ export default function WarehouseProductionIssue() {
                         <td className="px-3 py-2 text-gray-800 font-medium">{line.materialName}</td>
                         <td className="px-3 py-2 text-center text-gray-600">{line.unit}</td>
                         <td className="px-3 py-2 text-center font-bold text-blue-600">{line.issuedQty}</td>
+                        <td className="px-3 py-2 text-gray-500 italic">{line.note || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -409,6 +464,19 @@ export default function WarehouseProductionIssue() {
                 </div>
               )}
 
+              {/* Missing-fields warning (BR-045/AC-05) */}
+              {detail.status?.toLowerCase() !== 'posted' && detail.status?.toLowerCase() !== 'reversed' && missingFields.length > 0 && (
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-900 text-xs">Chưa thể đăng sổ — còn thiếu {missingFields.length} thông tin bắt buộc:</p>
+                    <ul className="text-[11px] text-amber-700 list-disc list-inside mt-0.5">
+                      {missingFields.map(f => <li key={f}>{f}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-2 pt-3 border-t border-gray-100 items-center">
                 {detail.status?.toLowerCase() !== 'posted' && detail.status?.toLowerCase() !== 'reversed' && (
@@ -416,7 +484,13 @@ export default function WarehouseProductionIssue() {
                     <Button size="sm" className="h-8 text-xs gap-1.5 bg-amber-600 hover:bg-amber-700" onClick={() => setShowUpload(true)}>
                       <Camera className="w-4 h-4" /> Upload Ảnh Biên Bản
                     </Button>
-                    <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => postGoods(detail.realId)}>
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => postGoods(detail.realId)}
+                      disabled={missingFields.length > 0}
+                      title={missingFields.length > 0 ? `Còn thiếu: ${missingFields.join(', ')}` : undefined}
+                    >
                       <Send className="w-4 h-4" /> Post Đăng Sổ Xuất Kho
                     </Button>
                   </>
