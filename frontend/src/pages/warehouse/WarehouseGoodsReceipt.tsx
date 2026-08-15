@@ -13,12 +13,22 @@ const WARNING = '#D97706';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';
 
+// GoodsReceiptStatus (backend enum thật): chỉ có Draft, Posted, Cancelled — không có trạng thái
+// "receiving"/"discrepancy" nào cả, nên 2 khóa đó trước đây không bao giờ khớp được dữ liệu thật.
 const STATUS_CFG: Record<string, { label: string; bg: string }> = {
-  draft:     { label: 'Nháp',            bg: NEUTRAL },
-  receiving: { label: 'Đang nhận hàng',  bg: INFO    },
-  completed: { label: 'Hoàn tất',        bg: SUCCESS },
-  discrepancy: { label: 'Có sai lệch',   bg: WARNING },
+  draft:     { label: 'Đang nhận hàng (Nháp)', bg: INFO    },
+  completed: { label: 'Hoàn tất',              bg: SUCCESS },
+  cancelled: { label: 'Đã hủy',                bg: WARNING },
 };
+
+function mapStatus(status: string): string {
+  switch (status) {
+    case 'Draft': return 'draft';
+    case 'Posted': return 'completed';
+    case 'Cancelled': return 'cancelled';
+    default: return status;
+  }
+}
 
 interface ReceiptItem {
   purchaseOrderItemId: string;
@@ -36,11 +46,7 @@ interface GoodsReceipt {
 }
 
 function Badge({ status }: { status: string }) {
-  let mappedStatus = status;
-  if (status === 'Draft') mappedStatus = 'draft';
-  if (status === 'Posted') mappedStatus = 'completed';
-
-  const c = STATUS_CFG[mappedStatus] || { label: status, bg: NEUTRAL };
+  const c = STATUS_CFG[mapStatus(status)] || { label: status, bg: NEUTRAL };
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
 }
 
@@ -58,7 +64,7 @@ export default function WarehouseGoodsReceipt() {
   const [loadingAction, setLoadingAction] = useState(false);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  const isReadOnly = detail?.status === 'completed' || detail?.status === 'Posted';
+  const isReadOnly = !!detail && mapStatus(detail.status) === 'completed';
 
   useEffect(() => {
     if (toast) {
@@ -109,7 +115,7 @@ export default function WarehouseGoodsReceipt() {
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
     const ms = !q || d.id.toLowerCase().includes(q) || d.poNo.toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || (d.code && d.code.toLowerCase().includes(q));
-    return ms && (statusFilter === 'all' || d.status === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter);
+    return ms && (statusFilter === 'all' || mapStatus(d.status) === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter);
   });
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
@@ -347,7 +353,7 @@ export default function WarehouseGoodsReceipt() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Lịch sử phiếu nhập hàng (Goods Receipt)</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{DATA.length} phiếu · {DATA.filter(d => d.status === 'receiving' || d.status === 'Draft').length} đang nhập · {DATA.filter(d => d.status === 'discrepancy').length} có sai lệch</p>
+            <p className="text-xs text-gray-500 mt-0.5">{DATA.length} phiếu · {DATA.filter(d => mapStatus(d.status) === 'draft').length} đang nhập</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 cursor-pointer" onClick={loadData} disabled={loading}><RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Làm mới</Button>

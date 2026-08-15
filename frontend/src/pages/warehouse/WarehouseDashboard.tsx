@@ -28,7 +28,6 @@ interface OutboundKpi { pendingOrders: number; pickingInProgress: number; consol
 interface InboundKpi { pendingPurchaseOrders: number; receiptsInProgress: number; qualityCheckPending: number; returnQuarantinePending: number }
 interface InventoryKpi { lowStockCount: number; slowMovingCount: number; transfersInTransit: number; activeWarehouses: number }
 interface DailyVolume { date: string; outbound: number; inbound: number }
-interface StockHealthItem { name: string; onHand: number; threshold: number; unit: string }
 interface RecentPickTask { id: string; orderCode: string; customerName: string; status: string }
 interface PendingPo { id: string; code: string; supplierName: string; status: string; progressPercent: number }
 interface LowStockItem { name: string; onHand: number; threshold: number; unit: string }
@@ -42,7 +41,6 @@ interface WarehouseDashboard {
   inbound: InboundKpi;
   inventoryOps: InventoryKpi;
   weeklyVolume: DailyVolume[];
-  stockHealth: StockHealthItem[];
   recentPickTasks: RecentPickTask[];
   pendingPurchaseOrders: PendingPo[];
   lowStockAlerts: LowStockItem[];
@@ -204,48 +202,23 @@ export default function WarehouseDashboard() {
           </div>
         </div>
 
-        {/* Charts + panels row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Inbound/Outbound chart */}
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <PanelHeader title="Xuất / Nhập kho 7 ngày" />
-            <div className="p-3">
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={data.weeklyVolume.map((d) => ({ ...d, day: formatDayLabel(d.date) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={10}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}`]} />
-                  <Bar dataKey="outbound" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="inbound" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex items-center gap-4 mt-1 px-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: PRIMARY }} /> Xuất kho</div>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block bg-gray-300" /> Nhập kho</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stock health */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <PanelHeader title="Sản phẩm cần chú ý" link="Chi tiết" onLink={() => navigate('/warehouse/inventory/report')} />
-            <div className="p-3 space-y-2.5">
-              {data.stockHealth.length === 0 && <p className="text-[11px] text-gray-400 text-center py-2">Không có sản phẩm dưới ngưỡng</p>}
-              {data.stockHealth.map((s) => {
-                const pct = s.threshold > 0 ? Math.round((s.onHand / s.threshold) * 100) : 0;
-                return (
-                  <div key={s.name}>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="font-medium text-red-600">{s.name}</span>
-                      <span className="tabular-nums text-red-500 font-semibold">{s.onHand.toLocaleString()} {s.unit}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: ERROR }} />
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Inbound/Outbound chart */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <PanelHeader title="Xuất / Nhập kho 7 ngày" />
+          <div className="p-3">
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={data.weeklyVolume.map((d) => ({ ...d, day: formatDayLabel(d.date) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={10}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}`]} />
+                <Bar dataKey="outbound" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="inbound" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mt-1 px-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: PRIMARY }} /> Xuất kho</div>
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block bg-gray-300" /> Nhập kho</div>
             </div>
           </div>
         </div>

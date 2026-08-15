@@ -93,13 +93,6 @@ const buildNavItems = (role?: string): NavItem[] => [
     ],
   },
   {
-    id: 'goods', label: 'Hàng thương mại', icon: <ShoppingBag className="w-4 h-4" />, path: '/warehouse/goods',
-    children: [
-      { id: 'goods-list', label: 'Danh sách hàng hóa', icon: <ShoppingBag className="w-3.5 h-3.5" />, path: '/warehouse/goods' },
-      { id: 'goods-history', label: 'Lịch sử nhập xuất', icon: <History className="w-3.5 h-3.5" />, path: '/warehouse/goods/history' },
-    ],
-  },
-  {
     id: 'inventory', label: 'Theo dõi tồn kho', icon: <BarChart3 className="w-4 h-4" />, path: '/warehouse/inventory',
     children: [
       { id: 'low-stock', label: 'Cảnh báo gần hết hàng', icon: <AlertCircle className="w-3.5 h-3.5" />, path: '/warehouse/inventory/low-stock', badge: 5 },

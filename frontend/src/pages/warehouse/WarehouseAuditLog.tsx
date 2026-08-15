@@ -104,11 +104,19 @@ export default function WarehouseAuditLog() {
               setPage(1);
             }}
           >
+            {/* Giá trị phải khớp Y HỆT chuỗi Action thật lưu trong AuditLog (so sánh "==" ở
+                AuditLogService.ApplyFilters) — trước đây FE tự đặt tên khác (Update/Create/Delete/
+                StatusChange) không trùng bất kỳ giá trị thật nào (CREATE/UPDATE/ROLE_CHANGE/
+                STATUS_CHANGE/SESSION_REVOKE/CONFIG_CHANGE/POST/REVERSAL) nên lọc luôn ra 0 kết quả. */}
             <option value="">Tất cả</option>
-            <option value="Update">Update</option>
-            <option value="Create">Create</option>
-            <option value="Delete">Delete</option>
-            <option value="StatusChange">StatusChange</option>
+            <option value="CREATE">Tạo mới</option>
+            <option value="UPDATE">Cập nhật</option>
+            <option value="STATUS_CHANGE">Đổi trạng thái</option>
+            <option value="ROLE_CHANGE">Đổi vai trò</option>
+            <option value="SESSION_REVOKE">Thu hồi phiên đăng nhập</option>
+            <option value="CONFIG_CHANGE">Đổi cấu hình hệ thống</option>
+            <option value="POST">Đăng sổ xuất kho</option>
+            <option value="REVERSAL">Đảo chứng từ xuất kho</option>
           </select>
         </div>
         <Button variant="outline" className="h-9 gap-2" onClick={handleSearch}>
