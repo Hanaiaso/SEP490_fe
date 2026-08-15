@@ -6,6 +6,7 @@ import Footer from '../components/Footer.jsx'
 import Header from '../components/Header.jsx'
 import { Badge } from '../components/ui/Badge.jsx'
 import { Button } from '../components/ui/Button.jsx'
+import { Checkbox } from '../components/ui/Checkbox.jsx'
 import { formatPrice } from '../services/productService.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -50,21 +51,49 @@ export default function Cart() {
   const [checkoutSummary, setCheckoutSummary] = useState(null) // chiet khau that tu backend (DiscountTiers)
   const [isRefreshingPrice, setIsRefreshingPrice] = useState(false)
 
+  // Cho phép khách chỉ chọn 1 phần giỏ hàng để thanh toán thay vì bắt buộc cả giỏ.
+  // Lưu tập ID bị BỎ CHỌN (thay vì tập được chọn) để dòng mới thêm vào giỏ tự động ở trạng thái
+  // "được chọn" mà không cần đồng bộ qua useEffect — tránh sai lệch khi effect chạy 2 lần ở
+  // React StrictMode (dev), đồng thời không cần dọn id đã bị xoá khỏi giỏ (id lạ chỉ đơn giản
+  // không khớp sản phẩm nào nên vô hại).
+  const [deselectedIds, setDeselectedIds] = useState(() => new Set())
+
+  const selectedItems = useMemo(
+    () => cartItems.filter((item) => !deselectedIds.has(item.id)),
+    [cartItems, deselectedIds],
+  )
+  const allSelected = cartItems.length > 0 && selectedItems.length === cartItems.length
+
+  function toggleSelectItem(cartItemId) {
+    setDeselectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(cartItemId)) next.delete(cartItemId)
+      else next.add(cartItemId)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setDeselectedIds(allSelected ? new Set(cartItems.map((i) => i.id)) : new Set())
+  }
+
   // Fetch báo giá đã duyệt khi cart load
   useEffect(() => {
     fetchNegotiatedQuotation().then(setNegotiatedQuotation);
   }, []);
 
-  // Chiet khau tu dong hien thi tu backend
+  // Chiet khau tu dong hien thi tu backend — chỉ tính trên các dòng đang được chọn thanh toán.
   useEffect(() => {
-    if (!isAuthenticated || cartItems.length === 0) { setCheckoutSummary(null); return }
+    if (!isAuthenticated || selectedItems.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
-    authFetch('/orders/checkout-summary')
+    const params = new URLSearchParams()
+    selectedItems.forEach((item) => params.append('cartItemIds', item.id))
+    authFetch(`/orders/checkout-summary?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled) setCheckoutSummary(data) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [isAuthenticated, cartItems]);
+  }, [isAuthenticated, selectedItems]);
 
   function handleQuantityChange(cartItemId, delta, currentQuantity) {
     const newQty = currentQuantity + delta
@@ -98,9 +127,11 @@ export default function Cart() {
       return
     }
     if (isPriceExpired) return
+    if (selectedItems.length === 0) return
     navigate('/checkout', {
       state: {
-        cartItems: cartItems.map(item => ({
+        cartItems: selectedItems.map(item => ({
+          cartItemId: item.id,
           productId: item.productId,
           productName: item.productName,
           imageUrl: item.imageUrl,
@@ -149,14 +180,15 @@ export default function Cart() {
   }, [negotiatedQuotation]);
 
   // Khớp chính xác cả SKU lẫn số lượng — chỉ dùng để quyết định hiển thị box đầy đủ hay box rút gọn.
+  // Chỉ xét trên các dòng ĐANG ĐƯỢC CHỌN thanh toán, vì đó mới là những gì sẽ thật sự lên đơn.
   const isQuotationExactMatch = useMemo(() => {
     if (!negotiatedQuotation?.items?.length) return false;
-    if (cartItems.length !== negotiatedQuotation.items.length) return false;
-    return cartItems.every(ci => negotiatedByProduct[ci.productId]?.quantity === ci.quantity);
-  }, [cartItems, negotiatedByProduct, negotiatedQuotation]);
+    if (selectedItems.length !== negotiatedQuotation.items.length) return false;
+    return selectedItems.every(ci => negotiatedByProduct[ci.productId]?.quantity === ci.quantity);
+  }, [selectedItems, negotiatedByProduct, negotiatedQuotation]);
 
-  // Toàn bộ dòng trong giỏ đều thuộc báo giá đã duyệt — điều kiện thật sự BE dùng để áp giá đàm phán.
-  const allLinesNegotiated = cartItems.length > 0 && cartItems.every(ci => negotiatedByProduct[ci.productId]);
+  // Toàn bộ dòng ĐÃ CHỌN đều thuộc báo giá đã duyệt — điều kiện thật sự BE dùng để áp giá đàm phán.
+  const allLinesNegotiated = selectedItems.length > 0 && selectedItems.every(ci => negotiatedByProduct[ci.productId]);
 
   const negotiatedPrices = useMemo(() => {
     const map = {};
@@ -166,12 +198,12 @@ export default function Cart() {
     return map;
   }, [negotiatedByProduct]);
 
-  // Tổng theo giá gốc niêm yết (không trừ chiết khấu)
+  // Tổng theo giá gốc niêm yết (không trừ chiết khấu) — chỉ tính trên các dòng đang được chọn.
   const originalSubtotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  }, [cartItems])
+    return selectedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+  }, [selectedItems])
 
-  // Áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu VÀ mọi SKU trong giỏ đều thuộc báo giá đã duyệt
+  // Áp dụng giá đàm phán khi tổng giá GỐC >= 100 triệu VÀ mọi SKU đã chọn đều thuộc báo giá đã duyệt
   // (không đòi khớp đúng số lượng nữa — xem negotiatedByProduct ở trên).
   const applyNegotiation = originalSubtotal >= 100000000 && allLinesNegotiated;
   const hasNegotiatedPrices = applyNegotiation;
@@ -181,12 +213,12 @@ export default function Cart() {
 
   const negotiatedDiscountAmount = useMemo(() => {
     if (!applyNegotiation) return 0;
-    const negotiatedSubtotal = cartItems.reduce((sum, item) => {
+    const negotiatedSubtotal = selectedItems.reduce((sum, item) => {
       const price = negotiatedPrices[item.productId] || item.unitPrice;
       return sum + price * item.quantity;
     }, 0);
     return Math.max(0, originalSubtotal - negotiatedSubtotal);
-  }, [applyNegotiation, cartItems, negotiatedPrices, originalSubtotal]);
+  }, [applyNegotiation, selectedItems, negotiatedPrices, originalSubtotal]);
 
   const subtotal = originalSubtotal;
 
@@ -250,23 +282,36 @@ export default function Cart() {
 
         <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
           <h1 className="text-4xl font-bold text-gray-900">Giỏ Hàng</h1>
-          <p className="mt-2 text-gray-600">{totalItems} sản phẩm trong giỏ hàng</p>
+          <p className="mt-2 text-gray-600">{totalItems} sản phẩm trong giỏ hàng · Đã chọn {selectedItems.length}/{cartItems.length} để thanh toán</p>
         </div>
 
         <div className="mx-auto max-w-7xl px-6 pb-20 lg:px-8">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
+              <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm font-medium text-gray-700">
+                <Checkbox checked={allSelected} onChange={toggleSelectAll} />
+                Chọn tất cả sản phẩm
+              </label>
+
               {cartItems.map((item) => {
                 const placeholderImg = `https://placehold.co/600x600/f3f4f6/9ca3af?text=${encodeURIComponent(item.productName)}`
                 const imageUrl = item.imageUrl || placeholderImg
+                const isSelected = !deselectedIds.has(item.id)
 
                 return (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col gap-6 rounded-[1.5rem] border border-gray-100 bg-white p-6 transition-shadow hover:shadow-lg sm:flex-row"
+                    className={`flex flex-col gap-6 rounded-[1.5rem] border p-6 transition-shadow hover:shadow-lg sm:flex-row ${isSelected ? 'border-gray-100 bg-white' : 'border-gray-100 bg-gray-50/70 opacity-70'}`}
                   >
+                    <div className="flex flex-shrink-0 items-start pt-1 sm:pt-0 sm:self-center">
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => toggleSelectItem(item.id)}
+                        aria-label={`Chọn ${item.productName} để thanh toán`}
+                      />
+                    </div>
                     <Link
                       to={`/products/${item.productId}`}
                       className="h-32 w-full flex-shrink-0 overflow-hidden rounded-[1.25rem] bg-gray-100 sm:w-32"
@@ -489,7 +534,15 @@ export default function Cart() {
                 )}
 
                 <div className="rounded-[1.75rem] border border-gray-100 bg-gray-50 p-8">
-                  <h2 className="mb-6 text-2xl font-bold text-gray-900">Tổng Đơn Hàng</h2>
+                  <h2 className="mb-1 text-2xl font-bold text-gray-900">Tổng Đơn Hàng</h2>
+                  <p className="mb-6 text-xs text-gray-500">Tính trên {selectedItems.length} sản phẩm đã chọn</p>
+
+                  {selectedItems.length === 0 && (
+                    <div className="mb-4 flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                      Chọn ít nhất 1 sản phẩm để thanh toán
+                    </div>
+                  )}
 
                   {automaticDiscountAmount > 0 && (
                     <div className="mb-4">
@@ -537,8 +590,14 @@ export default function Cart() {
                       size="lg"
                       className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={goToCheckout}
-                      disabled={isPriceExpired}
-                      title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
+                      disabled={isPriceExpired || selectedItems.length === 0}
+                      title={
+                        isPriceExpired
+                          ? 'Vui lòng làm mới giá trước khi thanh toán'
+                          : selectedItems.length === 0
+                            ? 'Chọn ít nhất 1 sản phẩm để thanh toán'
+                            : undefined
+                      }
                     >
                       Đặt Hàng & Xem Hóa Đơn
                       <ArrowRight className="h-4 w-4" />

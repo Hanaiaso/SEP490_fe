@@ -344,7 +344,7 @@ function InvoicePreview({ cartProducts, selectedAddress, discountRate, discountA
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { clearCart, items: contextCartItems, cart: contextCart } = useCart()
+  const { fetchCart, items: contextCartItems, cart: contextCart } = useCart()
   const { user } = useAuth()
 
   const routeCartItems = location.state?.cartItems
@@ -355,12 +355,21 @@ export default function Checkout() {
   const sourceCart = hasRouteCartItems
     ? routeCartItems
     : contextCartItems.map((item) => ({
+        cartItemId: item.id,
         productId: item.productId,
         productName: item.productName,
         imageUrl: item.imageUrl,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
       }))
+
+  // Giỏ hàng đến từ Cart.jsx có thể chỉ là 1 PHẦN giỏ (khách chọn thanh toán riêng từng loại sản
+  // phẩm) — gửi đúng danh sách cartItemId này lên backend để chỉ tính tiền/tạo đơn/xoá đúng các
+  // dòng đó, không đụng tới phần còn lại của giỏ. null nếu thiếu cartItemId (dữ liệu cũ/không xác
+  // định) để backend tự fallback về hành vi toàn bộ giỏ.
+  const selectedCartItemIds = sourceCart.length > 0 && sourceCart.every((i) => i.cartItemId)
+    ? sourceCart.map((i) => i.cartItemId)
+    : null
 
   // contextCart === null nghĩa là CartProvider chưa fetch xong lần đầu (bất đồng bộ) —
   // phân biệt với "đã fetch xong và giỏ hàng thật sự rỗng" để không nháy "Giỏ hàng trống"
@@ -416,12 +425,15 @@ export default function Checkout() {
     // (vd. tránh gọi trong khoảnh khắc cartStillLoading trước khi context cart kịp tải xong).
     if (sourceCart.length === 0) { setCheckoutSummary(null); return }
     let cancelled = false
-    authFetch('/orders/checkout-summary')
+    const query = selectedCartItemIds
+      ? `?${selectedCartItemIds.map((id) => `cartItemIds=${encodeURIComponent(id)}`).join('&')}`
+      : ''
+    authFetch(`/orders/checkout-summary${query}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled) setCheckoutSummary(data) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [sourceCart.length])
+  }, [sourceCart.length, selectedCartItemIds?.join(',')])
 
   // ── Payment ────────────────────────────────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState('cod')
@@ -685,6 +697,7 @@ export default function Checkout() {
           paymentMethod: paymentMethod === 'sepay' ? 'SePay' : 'COD',
           notes: '',
           requiresRedInvoice: vatRequested,
+          cartItemIds: selectedCartItemIds,
         }),
       })
 
@@ -697,7 +710,9 @@ export default function Checkout() {
 
       const orderData = await res.json()
       setCreatedOrder(orderData)
-      await clearCart().catch(() => {})
+      // Backend chỉ xoá đúng các dòng đã đặt (có thể là 1 phần giỏ) — đồng bộ lại giỏ từ server
+      // thay vì tự xoá sạch toàn bộ ở client, để các dòng khách chưa chọn thanh toán vẫn còn nguyên.
+      await fetchCart().catch(() => {})
 
       // Upload PDF: xem useEffect [createdOrder] phía trên — chỉ 1 noi gọi generateAndUploadPdf
       // de tranh 2 request PATCH Order gan nhau ghi de RowVersion cua nhau (DbUpdateConcurrencyException).

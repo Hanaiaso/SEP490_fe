@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../test/msw/server.js'
 import Cart from '../Cart.jsx'
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 /**
  * Sheet: FE-Components — L1-FCMP-03, L1-FCMP-05 (trang Giỏ hàng).
@@ -98,5 +107,48 @@ describe('L1-FCMP · trang Giỏ hàng', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /đặt hàng & xem hóa đơn/i })).toBeInTheDocument())
     expect(screen.queryByText(/yêu cầu báo giá đặc biệt/i)).not.toBeInTheDocument()
+  })
+
+  // Khách chỉ chọn 1 trong 2 sản phẩm để thanh toán -> nút "Đặt hàng" chỉ mang đúng sản phẩm đó
+  // sang trang Checkout, sản phẩm còn lại vẫn ở nguyên trong giỏ.
+  it('chỉ chọn 1 sản phẩm để thanh toán thì chỉ sản phẩm đó được đưa sang Checkout', async () => {
+    const user = userEvent.setup()
+    server.use(
+      http.get('/api/orders/checkout-summary', () => HttpResponse.json({
+        totalAmount: 50_000, discountAmount: 0, discountPercentage: 0,
+        vatPercentage: 0, vatAmount: 0, finalPayment: 50_000,
+        requiresPhoneOtp: false, isPriceExpired: false, items: [],
+      })),
+    )
+    const itemA = item({ id: 'CI1', productId: 'P1', productName: 'Ống PVC D21', unitPrice: 50_000 })
+    const itemB = item({ id: 'CI2', productId: 'P2', productName: 'Van Cầu D42', unitPrice: 70_000 })
+    renderCart({ id: 'C1', items: [itemA, itemB], totalItems: 2, totalPrice: 120_000 })
+
+    const checkboxB = await screen.findByRole('checkbox', { name: /Chọn Van Cầu D42 để thanh toán/i })
+    await user.click(checkboxB) // bỏ chọn sản phẩm B, chỉ còn A được chọn
+
+    expect(await screen.findByText('Đã chọn 1/2 để thanh toán', { exact: false })).toBeInTheDocument()
+
+    const orderButton = screen.getByRole('button', { name: /đặt hàng & xem hóa đơn/i })
+    await user.click(orderButton)
+
+    expect(mockNavigate).toHaveBeenCalledWith('/checkout', {
+      state: {
+        cartItems: [expect.objectContaining({ cartItemId: 'CI1', productId: 'P1' })],
+      },
+    })
+  })
+
+  // Bỏ chọn hết mọi sản phẩm -> nút "Đặt hàng" bị khoá, không cho thanh toán "giỏ rỗng theo lựa chọn"
+  it('bỏ chọn hết sản phẩm thì khoá nút đặt hàng', async () => {
+    const user = userEvent.setup()
+    const itemA = item({ id: 'CI1' })
+    renderCart({ id: 'C1', items: [itemA], totalItems: 1, totalPrice: 50_000 })
+
+    const checkbox = await screen.findByRole('checkbox', { name: /Chọn Ống PVC D21 để thanh toán/i })
+    await user.click(checkbox)
+
+    const orderButton = screen.getByRole('button', { name: /đặt hàng & xem hóa đơn/i })
+    expect(orderButton).toBeDisabled()
   })
 })
