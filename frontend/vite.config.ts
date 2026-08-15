@@ -42,6 +42,14 @@ export default defineConfig({
         changeOrigin: true,
         secure: false, // Bỏ qua self-signed SSL cert khi dev
       },
+      // Proxy file hóa đơn tĩnh /invoices/* → backend ASP.NET Core. Đơn cũ lưu InvoicePdfUrl
+      // dạng tương đối; ở dev API_BASE là '/api' nên FILE_BASE rỗng và URL vẫn trỏ về origin
+      // của Vite — không có proxy này thì SPA fallback nuốt request và trả index.html.
+      '/invoices': {
+        target: 'http://127.0.0.1:5050',
+        changeOrigin: true,
+        secure: false,
+      },
       // Proxy SignalR WebSocket /hubs/* → backend ASP.NET Core
       '/hubs': {
         target: 'http://127.0.0.1:5050',
