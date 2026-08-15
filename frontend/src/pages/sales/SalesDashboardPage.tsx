@@ -288,7 +288,7 @@ export default function SalesDashboard() {
     return (
       <div className="flex flex-col h-full bg-[#F5F7FA]">
         <div className="bg-white border-b border-[#E5E7EB] px-5 h-11 flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-[#374151]">Dashboard bán hàng</span>
+          <span className="text-[15px] font-semibold text-[#374151]">Dashboard bán hàng</span>
           <span className="text-[11px] text-[#9CA3AF]">Đang tải...</span>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -305,7 +305,7 @@ export default function SalesDashboard() {
     return (
       <div className="flex flex-col h-full bg-[#F5F7FA]">
         <div className="bg-white border-b border-[#E5E7EB] px-5 h-11 flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-[#374151]">Dashboard bán hàng</span>
+          <span className="text-[15px] font-semibold text-[#374151]">Dashboard bán hàng</span>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <span className="text-xs text-red-500 font-bold">{error}</span>
@@ -325,7 +325,7 @@ export default function SalesDashboard() {
       {/* Toolbar */}
       <div className="bg-white border-b border-[#E5E7EB] px-5 h-11 flex items-center justify-between flex-shrink-0">
         <div>
-          <span className="text-[13px] font-bold text-[#374151]">Dashboard bán hàng</span>
+          <span className="text-[15px] font-bold text-[#374151]">Dashboard bán hàng</span>
           <span className="text-[11px] text-[#9CA3AF] ml-3">Cập nhật lúc: {lastUpdated}</span>
         </div>
         <div className="flex items-center gap-2">

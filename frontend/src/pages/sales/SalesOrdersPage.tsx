@@ -293,7 +293,7 @@ export default function SalesOrdersPage() {
     <div className="flex h-full flex-col bg-[#F5F7FA]">
       <div className="flex h-11 items-center justify-between border-b border-[#E5E7EB] bg-white px-5">
         <div>
-          <span className="text-[13px] font-bold text-[#374151]">Quản lý đơn hàng Sales</span>
+          <span className="text-[15px] font-bold text-[#374151]">Quản lý đơn hàng Sales</span>
           <span className="ml-3 text-[11px] text-[#9CA3AF]">Cập nhật lúc: {lastUpdated || '--'}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -350,7 +350,7 @@ export default function SalesOrdersPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 border-b border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_180px_180px]">
+          <div className="grid grid-cols-1 gap-3 border-b border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 lg:grid-cols-[minmax(200px,1.4fr)_minmax(200px,0.8fr)_minmax(200px,0.8fr)]">
             <label className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
               <input
@@ -366,7 +366,7 @@ export default function SalesOrdersPage() {
               <select
                 value={statusFilter}
                 onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
-                className="h-9 w-full rounded border border-[#D1D5DB] bg-white pl-9 pr-3 text-sm text-[#374151] outline-none transition-colors focus:border-[#1F3B64]"
+                className="h-9 w-full rounded border border-[#D1D5DB] bg-white pl-9 pr-8 text-sm text-[#374151] outline-none transition-colors focus:border-[#1F3B64]"
               >
                 <option value="all">Tất cả trạng thái</option>
                 {ORDER_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
@@ -378,7 +378,7 @@ export default function SalesOrdersPage() {
             <select
               value={paymentFilter}
               onChange={(event) => { setPaymentFilter(event.target.value); setPage(1); }}
-              className="h-9 w-full rounded border border-[#D1D5DB] bg-white px-3 text-sm text-[#374151] outline-none transition-colors focus:border-[#1F3B64]"
+              className="h-9 w-full rounded border border-[#D1D5DB] bg-white px-3 pr-8 text-sm text-[#374151] outline-none transition-colors focus:border-[#1F3B64]"
             >
               <option value="all">Tất cả thanh toán</option>
               <option value="SePay">SePay</option>

@@ -173,8 +173,8 @@ export default function SalesChangeRequestExplainPage() {
   return (
     <div className="p-4">
       <div className="mb-4">
-        <h1 className="text-lg font-bold text-gray-900">Yêu cầu đổi Sale phụ trách</h1>
-        <p className="text-[13px] text-gray-500">
+        <span className="text-[15px] font-bold text-[#374151]">Yêu cầu đổi Sale phụ trách</span>
+        <p className="text-[11px] text-gray-500">
           Khách hàng của bạn đã gửi {requests.length} yêu cầu đổi Sale
           {openCount > 0 && <span className="font-semibold text-orange-600"> · {openCount} đang chờ giải trình</span>}
         </p>

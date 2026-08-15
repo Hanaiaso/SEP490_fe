@@ -170,47 +170,48 @@ export default function CEOMaterialManagementPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-[500px]">
-            <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#1f3b64]">
-                {editingMaterial ? 'Sửa thông tin nguyên liệu' : 'Thêm nguyên liệu mới'}
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+              <h2 className="text-sm font-bold text-[#1F3B64]">
+                {editingMaterial ? 'Sửa Thông Tin Nguyên Liệu' : 'Thêm Nguyên Liệu Mới'}
               </h2>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100">✕</button>
             </div>
-            <form onSubmit={handleSave} className="p-6 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Tên nguyên liệu *</label>
+            <form onSubmit={handleSave} className="p-6 flex flex-col gap-4 text-xs">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700">Tên nguyên liệu *</label>
                 <input 
                   type="text" required 
-                  className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
+                  className="border border-gray-300 rounded-lg px-3 h-9 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} 
                   placeholder="VD: Vải Kaki, Lõi giấy..."
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Đơn vị tính *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700">Đơn vị tính *</label>
                 <input 
                   type="text" required 
-                  className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
+                  className="border border-gray-300 rounded-lg px-3 h-9 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} 
                   placeholder="VD: Kg, Mét, Cuộn..."
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Ngưỡng an toàn (Cảnh báo tồn kho) *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700">Ngưỡng an toàn (Cảnh báo tồn kho) *</label>
                 <input 
                   type="number" min="0" step="0.1" required 
-                  className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
+                  className="border border-gray-300 rounded-lg px-3 h-9 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold text-blue-700" 
                   value={formData.safetyThreshold} onChange={e => setFormData({...formData, safetyThreshold: Number(e.target.value)})} 
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Khi tồn kho giảm xuống dưới mức này, hệ thống sẽ cảnh báo (hiện icon màu đỏ) để bạn kịp thời mua thêm.
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Khi tồn kho giảm xuống dưới mức này, hệ thống sẽ cảnh báo (hiện icon màu đỏ) để kịp thời mua bổ sung.
                 </p>
               </div>
-              
-              <div className="flex justify-end gap-3 mt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded text-sm bg-gray-50 hover:bg-gray-100 font-medium">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm">
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 h-9 border border-gray-300 rounded-lg text-xs font-medium bg-white hover:bg-gray-50 text-gray-700">Hủy bỏ</button>
+                <button type="submit" className="px-5 h-9 bg-[#1F3B64] text-white rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
                   {editingMaterial ? 'Lưu thay đổi' : 'Thêm mới'}
                 </button>
               </div>

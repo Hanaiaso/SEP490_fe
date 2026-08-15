@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, AlertCircle, TrendingDown, CheckCircle,
-  ArrowDownToLine, ArrowRightLeft, ClipboardCheck, FlaskConical, Truck,
-  PackageCheck, ShieldCheck, Loader2,
+  ArrowDownToLine, ArrowRightLeft, ClipboardCheck, Truck,
+  PackageCheck, ShieldCheck, Loader2, X, ExternalLink, RefreshCw
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { getWarehouseStaffDashboard } from '../../services/dashboardService.js';
+import {
+  getWarehouseOrders, getPickTasks, getStockTransfers,
+  getLowStockAlerts, getSlowMovingItems, getQuarantineList
+} from '../../services/warehouseService.js';
+import { getPurchaseOrders, getAllGoodsReceipts } from '../../services/purchaseOrderService.js';
 import { getErrorMessage } from '../../lib/errors';
 
 const PRIMARY = '#1F3B64';
@@ -22,13 +27,25 @@ const PURPLE  = '#7C3AED';
 
 const tooltipStyle = { fontSize: 12, borderRadius: 6, border: '1px solid #E5E7EB', boxShadow: 'none' };
 
+const formatPrice = (n: number) => new Intl.NumberFormat('vi-VN').format(n || 0);
+
+const formatTimeOrDate = (dateStr: string | null | undefined) => {
+  if (!dateStr) return '—';
+  const hasTimezone = /([+-]\d{2}(:?\d{2})?|Z)$/.test(dateStr);
+  const d = new Date(hasTimezone ? dateStr : dateStr + 'Z');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${hours}:${minutes} ${day}/${month}`;
+};
+
 // ─── Types khớp WarehouseDashboardDto (backend) ────────────────────────────
 interface WarehouseSummary { id: string; name: string; code: string }
 interface OutboundKpi { pendingOrders: number; pickingInProgress: number; consolidationArea: number; completedToday: number }
 interface InboundKpi { pendingPurchaseOrders: number; receiptsInProgress: number; qualityCheckPending: number; returnQuarantinePending: number }
 interface InventoryKpi { lowStockCount: number; slowMovingCount: number; transfersInTransit: number; activeWarehouses: number }
 interface DailyVolume { date: string; outbound: number; inbound: number }
-interface StockHealthItem { name: string; onHand: number; threshold: number; unit: string }
 interface RecentPickTask { id: string; orderCode: string; customerName: string; status: string }
 interface PendingPo { id: string; code: string; supplierName: string; status: string; progressPercent: number }
 interface LowStockItem { name: string; onHand: number; threshold: number; unit: string }
@@ -42,7 +59,6 @@ interface WarehouseDashboard {
   inbound: InboundKpi;
   inventoryOps: InventoryKpi;
   weeklyVolume: DailyVolume[];
-  stockHealth: StockHealthItem[];
   recentPickTasks: RecentPickTask[];
   pendingPurchaseOrders: PendingPo[];
   lowStockAlerts: LowStockItem[];
@@ -51,9 +67,9 @@ interface WarehouseDashboard {
 }
 
 function statusColor(label: string): string {
-  if (/hoàn tất|đã đăng sổ|đã xếp xe/i.test(label)) return SUCCESS;
-  if (/đang/i.test(label)) return INFO;
-  if (/ngoại lệ|lỗi/i.test(label)) return ERROR;
+  if (/hoàn tất|đã đăng sổ|đã xếp xe|completed/i.test(label)) return SUCCESS;
+  if (/đang|picking|draft|waiting/i.test(label)) return INFO;
+  if (/ngoại lệ|lỗi|rejected|shortage/i.test(label)) return ERROR;
   return WARNING;
 }
 
@@ -72,13 +88,13 @@ function KpiCard({ label, value, sub, icon, color, onClick }: KpiCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white border border-gray-200 rounded-lg p-3 flex items-start gap-2.5 transition-all ${onClick ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm hover:bg-blue-50/20' : ''}`}
+      className={`bg-white border border-gray-200 rounded-lg p-3 flex items-start gap-2.5 transition-all ${onClick ? 'cursor-pointer hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 group' : ''}`}
     >
-      <div className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>
+      <div className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center transition-transform group-hover:scale-110" style={{ backgroundColor: `${color}18` }}>
         <span style={{ color }}>{icon}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wide font-medium leading-tight">{label}</p>
+        <p className="text-[10px] text-gray-500 uppercase tracking-wide font-medium leading-tight group-hover:text-blue-900">{label}</p>
         <p className="text-xl font-black text-gray-900 mt-0.5 leading-none tabular-nums">{value}</p>
         {sub && <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{sub}</p>}
       </div>
@@ -90,7 +106,7 @@ function PanelHeader({ title, link, onLink }: { title: string; link?: string; on
   return (
     <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
       <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">{title}</span>
-      {link && <button onClick={onLink} className="text-[11px] text-blue-600 hover:underline">{link} →</button>}
+      {link && <button onClick={onLink} className="text-[11px] text-blue-600 hover:underline cursor-pointer">{link} →</button>}
     </div>
   );
 }
@@ -103,27 +119,448 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
   );
 }
 
+type DrillDownMetricType =
+  | 'outboundPending'
+  | 'pickingInProgress'
+  | 'consolidation'
+  | 'completedToday'
+  | 'pendingPO'
+  | 'receiptsInProgress'
+  | 'returnQuarantine'
+  | 'lowStock'
+  | 'slowMoving'
+  | 'transfersInTransit'
+  | 'activeWarehouses';
+
+interface DrillDownModalProps {
+  metric: DrillDownMetricType;
+  title: string;
+  targetPath: string;
+  targetLabel: string;
+  loading: boolean;
+  error: string;
+  items: any[];
+  onClose: () => void;
+  onRetry: () => void;
+  onNavigate: (path?: string) => void;
+}
+
+function WarehouseDrillDownModal({
+  metric, title, targetPath, targetLabel, loading, error, items, onClose, onRetry, onNavigate
+}: DrillDownModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-4xl max-h-[82vh] bg-white rounded-lg shadow-xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-bold text-gray-800">{title}</span>
+            <span className="text-xs bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full">
+              {items.length} bản ghi
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onNavigate(targetPath)}
+              className="text-xs font-semibold text-[#1F3B64] hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded"
+            >
+              {targetLabel} <ExternalLink className="w-3 h-3" />
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer ml-2">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16">
+              <RefreshCw className="w-6 h-6 animate-spin text-[#1F3B64]" />
+              <span className="text-xs text-slate-500 font-semibold">Đang tải danh sách...</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <span className="text-xs text-red-500 font-bold">{error}</span>
+              <button onClick={onRetry} className="px-3 py-1 bg-[#1F3B64] text-white rounded text-xs font-semibold cursor-pointer">
+                Thử lại
+              </button>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-16 text-center text-xs text-slate-400">Không có dữ liệu trong mục này.</div>
+          ) : (
+            <table className="w-full text-left" style={{ fontSize: 12 }}>
+              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {(metric === 'outboundPending' || metric === 'consolidation') && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã đơn</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Khách hàng</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Ngày tạo</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-right">Tổng tiền</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {(metric === 'pickingInProgress' || metric === 'completedToday') && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã Pick Task</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã đơn</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Người nhặt</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Tiến độ nhặt</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'pendingPO' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã PO</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Nhà cung cấp</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Ngày giao DK</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Tiến độ</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-right">Tổng tiền</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'receiptsInProgress' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã phiếu nhập</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã PO</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Nhà cung cấp</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Người nhận</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'returnQuarantine' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã cách ly</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Sản phẩm / Nguồn</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Số lượng</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Lý do</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'lowStock' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Sản phẩm</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-right">Tồn thực tế</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-right">Ngưỡng tối thiểu</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Đơn vị</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Tỷ lệ an toàn</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'slowMoving' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Sản phẩm / SKU</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-right">Tồn kho</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Số ngày chưa xuất</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Vị trí kho</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'transfersInTransit' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã lệnh</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Kho xuất → Kho nhận</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Ngày tạo</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+
+                  {metric === 'activeWarehouses' && (
+                    <>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã kho</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Tên kho</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Trạng thái</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase text-center">Thao tác</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(metric === 'outboundPending' || metric === 'consolidation') && items.map((o: any, i: number) => (
+                  <tr key={o.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{o.orderCode || o.code}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{o.customerName || 'Khách hàng'}</td>
+                    <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatTimeOrDate(o.createdAt)}</td>
+                    <td className="px-3 py-2 text-right font-bold text-gray-800 tabular-nums">{formatPrice(o.finalPayment || o.totalAmount)} đ</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded" style={{ backgroundColor: statusColor(o.fulfillmentStatus || o.status) }}>
+                        {o.fulfillmentStatus || o.status || 'Chờ xử lý'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Xử lý
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {(metric === 'pickingInProgress' || metric === 'completedToday') && items.map((p: any, i: number) => (
+                  <tr key={p.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{p.pickTaskCode || p.code || p.id?.slice(0, 8)}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{p.orderCode || '—'}</td>
+                    <td className="px-3 py-2 text-gray-600">{p.assignedStaffName || p.assignedTo || 'Chưa gán'}</td>
+                    <td className="px-3 py-2 text-center font-mono text-[11px]">
+                      {p.pickedItems != null && p.totalItems != null ? `${p.pickedItems} / ${p.totalItems}` : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded" style={{ backgroundColor: statusColor(p.status) }}>
+                        {p.status || 'Đang thực hiện'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Mở Pick
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'pendingPO' && items.map((po: any, i: number) => (
+                  <tr key={po.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{po.code}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{po.supplierName || 'Nhà cung cấp'}</td>
+                    <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatTimeOrDate(po.expectedDeliveryDate || po.createdAt)}</td>
+                    <td className="px-3 py-2 text-center font-mono text-[11px]">{po.progressPercent ?? 0}%</td>
+                    <td className="px-3 py-2 text-right font-bold text-gray-800 tabular-nums">{formatPrice(po.totalAmount)} đ</td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Xem PO
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'receiptsInProgress' && items.map((r: any, i: number) => (
+                  <tr key={r.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{r.code || r.id?.slice(0, 8)}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{r.poNo || '—'}</td>
+                    <td className="px-3 py-2 text-gray-600">{r.supplier || 'Nhà cung cấp'}</td>
+                    <td className="px-3 py-2 text-gray-600">{r.receiver || '—'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded" style={{ backgroundColor: statusColor(r.status) }}>
+                        {r.status || 'Đang nhận hàng'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Nhận hàng
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'returnQuarantine' && items.map((q: any, i: number) => (
+                  <tr key={q.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{q.quarantineCode || q.code || q.id?.slice(0, 8)}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{q.productName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
+                    <td className="px-3 py-2 font-mono text-[11px]">{q.quantity ?? 1}</td>
+                    <td className="px-3 py-2 text-gray-600 max-w-[200px] truncate">{q.reason || q.notes || 'Chờ kiểm tra'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded" style={{ backgroundColor: statusColor(q.status) }}>
+                        {q.status || 'Đang kiểm tra'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Kiểm định
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'lowStock' && items.map((m: any, i: number) => {
+                  const pct = m.threshold > 0 ? Math.round((m.onHand / m.threshold) * 100) : 0;
+                  return (
+                    <tr key={m.name || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                      <td className="px-3 py-2 font-bold text-gray-800">{m.name || m.productName}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: pct < 50 ? ERROR : WARNING }}>{(m.onHand || m.currentStock || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-medium text-gray-600 tabular-nums">{(m.threshold || m.minStockLevel || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-center text-gray-500">{m.unit || 'cái'}</td>
+                      <td className="px-3 py-2 text-center font-bold" style={{ color: pct < 50 ? ERROR : WARNING }}>{pct}%</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                          Đặt hàng / Bù
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {metric === 'slowMoving' && items.map((sm: any, i: number) => (
+                  <tr key={sm.sku || sm.name || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold text-gray-800">{sm.productName || sm.name || sm.sku}</td>
+                    <td className="px-3 py-2 text-right font-bold text-gray-800 tabular-nums">{(sm.quantity || sm.onHand || 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-center font-mono text-[11px] text-amber-600 font-semibold">{sm.daysInStock || 14}+ ngày</td>
+                    <td className="px-3 py-2 text-gray-600">{sm.warehouseName || 'Kho chính'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Điều phối
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'transfersInTransit' && items.map((t: any, i: number) => (
+                  <tr key={t.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{t.code}</td>
+                    <td className="px-3 py-2 text-gray-800">{t.sourceWarehouse || t.sourceWarehouseName} → {t.destinationWarehouse || t.destinationWarehouseName}</td>
+                    <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatTimeOrDate(t.createdAt)}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded" style={{ backgroundColor: statusColor(t.status) }}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Theo dõi
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {metric === 'activeWarehouses' && items.map((w: any, i: number) => (
+                  <tr key={w.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{w.code || w.id?.slice(0, 8)}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{w.name}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-[10px] font-semibold text-white px-2 py-0.5 rounded bg-emerald-600">
+                        Đang hoạt động
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button onClick={() => onNavigate(targetPath)} className="px-2 py-1 bg-[#1F3B64] text-white rounded text-[11px] font-semibold hover:opacity-90 cursor-pointer">
+                        Kiểm kê
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WarehouseDashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState<WarehouseDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const result = await getWarehouseStaffDashboard();
+      setData(result);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Không thể tải dashboard kho hàng'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const result = await getWarehouseStaffDashboard();
-        if (!cancelled) setData(result);
-      } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err, 'Không thể tải dashboard kho hàng'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    fetchDashboard();
   }, []);
+
+  // Drill-down Modal State
+  const [drillDown, setDrillDown] = useState<{
+    metric: DrillDownMetricType;
+    title: string;
+    targetPath: string;
+    targetLabel: string;
+  } | null>(null);
+  const [drillDownItems, setDrillDownItems] = useState<any[]>([]);
+  const [drillDownLoading, setDrillDownLoading] = useState(false);
+  const [drillDownError, setDrillDownError] = useState('');
+
+  const loadDrillDownData = async (metric: DrillDownMetricType) => {
+    setDrillDownLoading(true);
+    setDrillDownError('');
+    try {
+      if (metric === 'outboundPending') {
+        const res = await getWarehouseOrders('OnlinePending', 1, 50);
+        const list = res?.orders || res?.items || (Array.isArray(res) ? res : []);
+        setDrillDownItems(list);
+      } else if (metric === 'pickingInProgress') {
+        const res = await getPickTasks('InProgress', 1, 50);
+        const list = res?.items || res?.pickTasks || (Array.isArray(res) ? res : []);
+        setDrillDownItems(list);
+      } else if (metric === 'consolidation') {
+        const res = await getWarehouseOrders('Consolidation', 1, 50);
+        const list = res?.orders || res?.items || (Array.isArray(res) ? res : []);
+        setDrillDownItems(list);
+      } else if (metric === 'completedToday') {
+        const res = await getPickTasks('Completed', 1, 50);
+        const list = res?.items || res?.pickTasks || (Array.isArray(res) ? res : []);
+        setDrillDownItems(list);
+      } else if (metric === 'pendingPO') {
+        // KPI "PO chờ nhập kho" đếm PurchaseOrderStatus.SentToWarehouse — trước đây modal lại gọi
+        // status='Issued' (giai đoạn PO khác hẳn), luôn ra danh sách lệch với con số trên KPI.
+        const res = await getPurchaseOrders('SentToWarehouse');
+        const list = Array.isArray(res) ? res : res?.items || res?.purchaseOrders || [];
+        setDrillDownItems(list);
+      } else if (metric === 'receiptsInProgress') {
+        const res = await getAllGoodsReceipts('');
+        const list = Array.isArray(res) ? res.filter((r: any) => r.status === 'Draft' || String(r.status).toLowerCase() === 'draft') : [];
+        setDrillDownItems(list);
+      } else if (metric === 'returnQuarantine') {
+        const res = await getQuarantineList();
+        setDrillDownItems(Array.isArray(res) ? res.filter((q: any) => q.orderId != null) : []);
+      } else if (metric === 'lowStock') {
+        const res = await getLowStockAlerts();
+        const list = Array.isArray(res) ? res : res?.items || data?.lowStockAlerts || [];
+        setDrillDownItems(list);
+      } else if (metric === 'slowMoving') {
+        const res = await getSlowMovingItems();
+        const list = Array.isArray(res) ? res : res?.items || [];
+        setDrillDownItems(list);
+      } else if (metric === 'transfersInTransit') {
+        // KPI "Lệnh chuyển kho" đếm StockTransferStatus.Dispatched — 'InTransit' không phải giá trị
+        // enum hợp lệ nên backend bỏ qua bộ lọc và trả về TOÀN BỘ lệnh chuyển kho (mọi trạng thái).
+        const res = await getStockTransfers('Dispatched');
+        const list = Array.isArray(res) ? res : res?.items || data?.inTransitTransfers || [];
+        setDrillDownItems(list);
+      } else if (metric === 'activeWarehouses') {
+        setDrillDownItems(data?.warehouses || []);
+      }
+    } catch {
+      setDrillDownError('Không thể tải dữ liệu chi tiết.');
+    } finally {
+      setDrillDownLoading(false);
+    }
+  };
+
+  const openDrillDown = (
+    metric: DrillDownMetricType,
+    title: string,
+    targetPath: string,
+    targetLabel: string
+  ) => {
+    setDrillDown({ metric, title, targetPath, targetLabel });
+    setDrillDownItems([]);
+    loadDrillDownData(metric);
+  };
 
   if (loading) {
     return (
@@ -135,8 +572,11 @@ export default function WarehouseDashboard() {
 
   if (error || !data) {
     return (
-      <div className="flex h-full items-center justify-center" style={{ background: '#F5F7FA' }}>
-        <p className="text-sm text-red-600">{error || 'Không thể tải dashboard kho hàng'}</p>
+      <div className="flex h-full flex-col items-center justify-center gap-3" style={{ background: '#F5F7FA' }}>
+        <p className="text-sm text-red-600 font-semibold">{error || 'Không thể tải dashboard kho hàng'}</p>
+        <button onClick={fetchDashboard} className="px-3 py-1 bg-[#1F3B64] text-white rounded text-xs font-semibold cursor-pointer">
+          Thử lại
+        </button>
       </div>
     );
   }
@@ -159,12 +599,20 @@ export default function WarehouseDashboard() {
             <h2 className="text-base font-bold text-gray-900">Dashboard Kho hàng</h2>
             <p className="text-xs text-gray-500 mt-0.5">Cập nhật lúc {generatedAtLabel}</p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-            {data.warehouses.map((w) => (
-              <span key={w.id} className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full inline-block bg-blue-500" /> {w.name}
-              </span>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchDashboard}
+              className="h-7 px-3 text-[12px] border border-[#D1D5DB] rounded text-[#374151] bg-white hover:bg-gray-50 flex items-center gap-1.5 cursor-pointer mr-2"
+            >
+              <RefreshCw className="w-3 h-3 text-[#9CA3AF]" /> Làm mới
+            </button>
+            <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+              {data.warehouses.map((w) => (
+                <span key={w.id} className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full inline-block bg-blue-500" /> {w.name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -173,79 +621,130 @@ export default function WarehouseDashboard() {
 
         {/* Outbound KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Xuất kho (Outbound)</p>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Xuất kho (Outbound) — Bấm số để xem chi tiết</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
-            <KpiCard label="Lệnh xuất chờ xử lý" value={data.outbound.pendingOrders}    sub="cần xử lý hôm nay"    icon={<Package className="w-4 h-4" />}      color={WARNING} onClick={() => navigate('/warehouse/fulfillment/orders')} />
-            <KpiCard label="Đang Pick & Pack"     value={data.outbound.pickingInProgress} sub="đang thực hiện"       icon={<PackageCheck className="w-4 h-4" />} color={INFO}    onClick={() => navigate('/warehouse/fulfillment/pick-packing')} />
-            <KpiCard label="Khu tập kết"          value={data.outbound.consolidationArea} sub="chờ bàn giao Sales"   icon={<Truck className="w-4 h-4" />}        color={PURPLE}  onClick={() => navigate('/warehouse/fulfillment/consolidation')} />
-            <KpiCard label="Hoàn tất hôm nay"     value={data.outbound.completedToday}    sub="pick task hoàn tất"   icon={<CheckCircle className="w-4 h-4" />}  color={SUCCESS} onClick={() => navigate('/warehouse/fulfillment/orders')} />
+            <KpiCard
+              label="Lệnh xuất chờ xử lý"
+              value={data.outbound.pendingOrders}
+              sub="cần xử lý hôm nay · Bấm xem"
+              icon={<Package className="w-4 h-4" />}
+              color={WARNING}
+              onClick={() => openDrillDown('outboundPending', 'Lệnh xuất kho chờ xử lý', '/warehouse/fulfillment/orders', 'Quản lý Lệnh xuất')}
+            />
+            <KpiCard
+              label="Đang Pick & Pack"
+              value={data.outbound.pickingInProgress}
+              sub="đang thực hiện · Bấm xem"
+              icon={<PackageCheck className="w-4 h-4" />}
+              color={INFO}
+              onClick={() => openDrillDown('pickingInProgress', 'Nhiệm vụ Pick & Pack đang thực hiện', '/warehouse/fulfillment/pick-packing', 'Quản lý Pick & Pack')}
+            />
+            <KpiCard
+              label="Khu tập kết"
+              value={data.outbound.consolidationArea}
+              sub="chờ bàn giao Sales · Bấm xem"
+              icon={<Truck className="w-4 h-4" />}
+              color={PURPLE}
+              onClick={() => openDrillDown('consolidation', 'Đơn hàng tại khu tập kết chờ bàn giao', '/warehouse/fulfillment/consolidation', 'Khu tập kết')}
+            />
+            <KpiCard
+              label="Hoàn tất hôm nay"
+              value={data.outbound.completedToday}
+              sub="pick task hoàn tất · Bấm xem"
+              icon={<CheckCircle className="w-4 h-4" />}
+              color={SUCCESS}
+              onClick={() => openDrillDown('completedToday', 'Pick Task đã hoàn tất hôm nay', '/warehouse/fulfillment/orders', 'Xem tất cả đơn')}
+            />
           </div>
         </div>
 
         {/* Inbound KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Nhập kho (Inbound)</p>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Nhập kho (Inbound) — Bấm số để xem chi tiết</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
-            <KpiCard label="PO chờ nhập kho"       value={data.inbound.pendingPurchaseOrders}   sub="đã phát hành"        icon={<ArrowDownToLine className="w-4 h-4" />} color={INFO}    onClick={() => navigate('/warehouse/purchase/orders')} />
-            <KpiCard label="Phiếu nhập đang xử lý" value={data.inbound.receiptsInProgress}       sub="đang nhập hàng"      icon={<ArrowDownToLine className="w-4 h-4" />} color={WARNING} onClick={() => navigate('/warehouse/purchase/goods-receipt')} />
-            <KpiCard label="Cần kiểm tra CL"       value={data.inbound.qualityCheckPending}      sub="hàng nhập lỗi"       icon={<FlaskConical className="w-4 h-4" />}    color={ERROR}   onClick={() => navigate('/warehouse/purchase/quality-inspection')} />
-            <KpiCard label="Cách ly (Quarantine)"  value={data.inbound.returnQuarantinePending}  sub="hàng khách trả"      icon={<ShieldCheck className="w-4 h-4" />}     color={WARNING} onClick={() => navigate('/warehouse/inv-management/quarantine')} />
+            <KpiCard
+              label="PO chờ nhập kho"
+              value={data.inbound.pendingPurchaseOrders}
+              sub="đã phát hành · Bấm xem"
+              icon={<ArrowDownToLine className="w-4 h-4" />}
+              color={INFO}
+              onClick={() => openDrillDown('pendingPO', 'Đơn đặt hàng mua (PO) chờ nhập kho', '/warehouse/purchase/orders', 'Quản lý PO')}
+            />
+            <KpiCard
+              label="Phiếu nhập đang xử lý"
+              value={data.inbound.receiptsInProgress}
+              sub="đang nhập hàng · Bấm xem"
+              icon={<ArrowDownToLine className="w-4 h-4" />}
+              color={WARNING}
+              onClick={() => openDrillDown('receiptsInProgress', 'Phiếu nhập kho đang xử lý (Nháp)', '/warehouse/purchase/goods-receipt', 'Phiếu nhập kho')}
+            />
+            <KpiCard
+              label="Cách ly (Quarantine)"
+              value={data.inbound.returnQuarantinePending}
+              sub="hàng khách trả · Bấm xem"
+              icon={<ShieldCheck className="w-4 h-4" />}
+              color={WARNING}
+              onClick={() => openDrillDown('returnQuarantine', 'Hàng cách ly & khách trả về', '/warehouse/inv-management/quarantine', 'Quản lý cách ly')}
+            />
           </div>
         </div>
 
         {/* Inventory KPIs */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Tồn kho & Vận hành</p>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 px-0.5">Tồn kho & Vận hành — Bấm số để xem chi tiết</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 4xl:grid-cols-6 gap-3">
-            <KpiCard label="Sản phẩm sắp hết"       value={data.inventoryOps.lowStockCount}      sub="dưới ngưỡng tối thiểu" icon={<AlertCircle className="w-4 h-4" />}    color={ERROR}   onClick={() => navigate('/warehouse/inventory/low-stock')} />
-            <KpiCard label="Hàng chậm luân chuyển"  value={data.inventoryOps.slowMovingCount}    sub="trên 2 tuần"           icon={<TrendingDown className="w-4 h-4" />}   color={NEUTRAL} onClick={() => navigate('/warehouse/inventory/slow-moving')} />
-            <KpiCard label="Lệnh chuyển kho"        value={data.inventoryOps.transfersInTransit} sub="đang vận chuyển"       icon={<ArrowRightLeft className="w-4 h-4" />} color={INFO}    onClick={() => navigate('/warehouse/transfer/stock-transfer')} />
-            <KpiCard label="Kho đang hoạt động"     value={data.inventoryOps.activeWarehouses}   sub="tổng số kho"           icon={<ClipboardCheck className="w-4 h-4" />} color={PURPLE}  onClick={() => navigate('/warehouse/inv-management/inventory-count')} />
+            <KpiCard
+              label="Sản phẩm sắp hết"
+              value={data.inventoryOps.lowStockCount}
+              sub="dưới ngưỡng tối thiểu · Bấm xem"
+              icon={<AlertCircle className="w-4 h-4" />}
+              color={ERROR}
+              onClick={() => openDrillDown('lowStock', 'Sản phẩm sắp hết hàng (Dưới mức an toàn)', '/warehouse/inventory/low-stock', 'Cảnh báo tồn kho')}
+            />
+            <KpiCard
+              label="Hàng chậm luân chuyển"
+              value={data.inventoryOps.slowMovingCount}
+              sub="trên 2 tuần · Bấm xem"
+              icon={<TrendingDown className="w-4 h-4" />}
+              color={NEUTRAL}
+              onClick={() => openDrillDown('slowMoving', 'Hàng tồn chậm luân chuyển (> 14 ngày)', '/warehouse/inventory/slow-moving', 'Hàng chậm luân chuyển')}
+            />
+            <KpiCard
+              label="Lệnh chuyển kho"
+              value={data.inventoryOps.transfersInTransit}
+              sub="đang vận chuyển · Bấm xem"
+              icon={<ArrowRightLeft className="w-4 h-4" />}
+              color={INFO}
+              onClick={() => openDrillDown('transfersInTransit', 'Lệnh chuyển kho đang vận chuyển', '/warehouse/transfer/stock-transfer', 'Chuyển kho')}
+            />
+            <KpiCard
+              label="Kho đang hoạt động"
+              value={data.inventoryOps.activeWarehouses}
+              sub="tổng số kho · Bấm xem"
+              icon={<ClipboardCheck className="w-4 h-4" />}
+              color={PURPLE}
+              onClick={() => openDrillDown('activeWarehouses', 'Danh sách kho hàng đang hoạt động', '/warehouse/inv-management/inventory-count', 'Kiểm kê kho')}
+            />
           </div>
         </div>
 
-        {/* Charts + panels row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Inbound/Outbound chart */}
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <PanelHeader title="Xuất / Nhập kho 7 ngày" />
-            <div className="p-3">
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={data.weeklyVolume.map((d) => ({ ...d, day: formatDayLabel(d.date) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={10}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}`]} />
-                  <Bar dataKey="outbound" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="inbound" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex items-center gap-4 mt-1 px-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: PRIMARY }} /> Xuất kho</div>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block bg-gray-300" /> Nhập kho</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stock health */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <PanelHeader title="Sản phẩm cần chú ý" link="Chi tiết" onLink={() => navigate('/warehouse/inventory/report')} />
-            <div className="p-3 space-y-2.5">
-              {data.stockHealth.length === 0 && <p className="text-[11px] text-gray-400 text-center py-2">Không có sản phẩm dưới ngưỡng</p>}
-              {data.stockHealth.map((s) => {
-                const pct = s.threshold > 0 ? Math.round((s.onHand / s.threshold) * 100) : 0;
-                return (
-                  <div key={s.name}>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="font-medium text-red-600">{s.name}</span>
-                      <span className="tabular-nums text-red-500 font-semibold">{s.onHand.toLocaleString()} {s.unit}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: ERROR }} />
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Inbound/Outbound chart */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <PanelHeader title="Xuất / Nhập kho 7 ngày" />
+          <div className="p-3">
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={data.weeklyVolume.map((d) => ({ ...d, day: formatDayLabel(d.date) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={10}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}`]} />
+                <Bar dataKey="outbound" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="inbound" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mt-1 px-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: PRIMARY }} /> Xuất kho</div>
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block bg-gray-300" /> Nhập kho</div>
             </div>
           </div>
         </div>
@@ -399,6 +898,27 @@ export default function WarehouseDashboard() {
         </div>
 
       </div>
+
+      {/* Drill-down Modal */}
+      {drillDown && (
+        <WarehouseDrillDownModal
+          metric={drillDown.metric}
+          title={drillDown.title}
+          targetPath={drillDown.targetPath}
+          targetLabel={drillDown.targetLabel}
+          loading={drillDownLoading}
+          error={drillDownError}
+          items={drillDownItems}
+          onClose={() => setDrillDown(null)}
+          onRetry={() => loadDrillDownData(drillDown.metric)}
+          onNavigate={(path) => {
+            const target = path || drillDown.targetPath;
+            setDrillDown(null);
+            navigate(target);
+          }}
+        />
+      )}
     </div>
   );
 }
+

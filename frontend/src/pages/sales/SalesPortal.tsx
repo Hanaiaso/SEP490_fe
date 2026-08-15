@@ -104,7 +104,6 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Báo giá & Đàm phán giá',
     icon: <MessageSquare className="w-4 h-4" />,
     path: '/sales/negotiation',
-    badge: 3,
     roles: ['SalesStaff', 'Admin'],
   },
   {
@@ -190,7 +189,7 @@ function NavItemRow({
       <button
         onClick={handleClick}
         className={[
-          'w-full rounded px-2.5 py-1.5 text-left text-[12px] transition-colors group',
+          'w-full rounded px-2.5 py-[7px] text-left text-[12px] transition-colors group',
           level > 0 ? 'ml-3 w-[calc(100%-0.75rem)] font-normal' : 'font-medium',
           isActive
             ? 'bg-white/15 text-white'
@@ -256,6 +255,14 @@ export default function SalesPortal() {
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
   const [toasts, setToasts] = useState<AssignmentToast[]>([]);
 
+  useEffect(() => {
+    document.body.classList.add('sales-hallmark-type-active');
+
+    return () => {
+      document.body.classList.remove('sales-hallmark-type-active');
+    };
+  }, []);
+
   // WF-01 bước 6: nhận thông báo realtime khi được hệ thống gán khách hàng mới
   useEffect(() => {
     if (role !== 'SalesStaff') return;
@@ -314,7 +321,7 @@ export default function SalesPortal() {
       .toUpperCase() || 'NV';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F7FA]">
+    <div className="sales-hallmark-type flex h-screen overflow-hidden bg-[#F5F7FA]">
       <aside className="flex h-full w-[220px] min-w-[220px] flex-col" style={{ backgroundColor: '#1F3B64' }}>
         <div
           className="flex h-12 flex-shrink-0 items-center border-b px-4"
@@ -325,7 +332,7 @@ export default function SalesPortal() {
               <span className="text-[10px] font-black text-[#1F3B64]">VT</span>
             </div>
             <div>
-              <p className="text-[13px] font-semibold leading-tight text-white">Viet Tien ERP</p>
+              <p className="text-xs font-semibold leading-tight text-white">Việt Tiến ERP</p>
               <p className="text-[10px] leading-tight text-white/40">Nhân viên bán hàng</p>
             </div>
           </div>
@@ -364,13 +371,6 @@ export default function SalesPortal() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4">
-          <div className="max-w-xs flex-1">
-            <button className="flex h-7 w-full items-center gap-2 rounded border border-gray-300 bg-gray-50 px-2.5 text-left text-[12px] text-gray-400 transition-colors hover:bg-white">
-              <Search className="h-3 w-3 flex-shrink-0" />
-              <span className="flex-1 truncate">Tim kiem...</span>
-            </button>
-          </div>
-
           <div className="flex-1" />
 
           <div className="flex items-center gap-0.5">

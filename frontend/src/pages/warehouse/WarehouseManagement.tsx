@@ -2,12 +2,13 @@ import type { ChangeEvent } from 'react';
 import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect } from 'react';
 import { Settings, Plus, Edit, Trash, Building, AlertCircle, Check } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/sales-ui/button';
+import { Input } from '../../components/sales-ui/input';
 import { getWarehouses, createWarehouse, updateWarehouse, deleteWarehouse } from '../../services/warehouseService';
 import type { Warehouse } from '../../types/warehouse';
 
-const PRIMARY = '#3b82f6';
+const PRIMARY = '#1F3B64';
+const ERROR = '#DC2626';
 
 export default function WarehouseManagement() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -109,12 +110,12 @@ export default function WarehouseManagement() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="warehouse-hallmark-type p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Building className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Building className="w-6 h-6" style={{ color: PRIMARY }} />
             Cấu hình Danh mục Kho
           </h1>
           <p className="text-sm text-gray-500 mt-1">Quản lý danh sách các kho bãi trong hệ thống</p>
@@ -123,7 +124,7 @@ export default function WarehouseManagement() {
         <Button
           onClick={() => handleOpenModal()}
           style={{ backgroundColor: PRIMARY }}
-          className="gap-2 shadow-sm hover:shadow"
+          className="gap-2 shadow-sm hover:shadow text-white"
         >
           <Plus className="w-4 h-4" /> Thêm kho mới
         </Button>
@@ -138,20 +139,20 @@ export default function WarehouseManagement() {
       {/* Main Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm table-auto">
-            <thead>
-              <tr className="bg-slate-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-semibold text-gray-700 w-24">Mã Kho</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700 w-48">Tên Kho</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Vị trí (Kệ/Khu)</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-700 w-32">Thao tác</th>
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b border-gray-200 text-gray-700 font-semibold text-sm">
+              <tr>
+                <th className="px-4 py-3 w-24">Mã Kho</th>
+                <th className="px-4 py-3 w-48">Tên Kho</th>
+                <th className="px-4 py-3">Vị trí (Kệ/Khu)</th>
+                <th className="px-4 py-3 text-center w-32">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-gray-500">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }}></div>
                     Đang tải dữ liệu...
                   </td>
                 </tr>
@@ -167,7 +168,7 @@ export default function WarehouseManagement() {
               ) : (
                 warehouses.map((wh) => (
                   <tr key={wh.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono font-medium text-blue-700">{wh.code}</td>
+                    <td className="px-4 py-3 font-mono font-medium" style={{ color: PRIMARY }}>{wh.code}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{wh.name}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -221,9 +222,9 @@ export default function WarehouseManagement() {
       {/* Create/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-base font-bold flex items-center gap-2 text-gray-800">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
                 <Settings className="w-5 h-5 text-gray-500" />
                 {editingWarehouse ? 'Cập nhật thông tin kho' : 'Thêm kho mới'}
               </h3>
@@ -231,36 +232,36 @@ export default function WarehouseManagement() {
 
             <div className="p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Mã kho (VD: WH-HCM)</label>
+                <label className="text-sm font-semibold text-gray-700">Mã kho (VD: WH-HCM)</label>
                 <Input
                   placeholder="Nhập mã kho..."
                   value={formData.code}
                   onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, code: e.target.value })}
-                  className="font-mono text-sm uppercase"
+                  className="font-mono text-sm uppercase w-full"
                   autoFocus
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700">Tên kho</label>
+                <label className="text-sm font-semibold text-gray-700">Tên kho</label>
                 <Input
                   placeholder="Nhập tên kho..."
                   value={formData.name}
                   onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
-                  className="text-sm"
+                  className="text-sm w-full"
                 />
               </div>
 
               {editingWarehouse && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700">Vị trí lưu trữ (Kệ/Khu)</label>
+                  <label className="text-sm font-semibold text-gray-700">Vị trí lưu trữ (Kệ/Khu)</label>
                   <textarea
                     placeholder="Nhập tên các vị trí, cách nhau bởi dấu phẩy (VD: Kệ A, Kệ B, Khu 1)..."
                     value={formData.locationNames}
                     onChange={(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setFormData({ ...formData, locationNames: e.target.value })}
-                    className="w-full text-sm min-h-[80px] p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-sm min-h-[80px] p-3 border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-xs text-gray-500">
                     Lưu ý: Việc xóa tên vị trí khỏi danh sách này sẽ xóa vị trí đó trong hệ thống (nếu vị trí chưa chứa hàng).
                   </p>
                 </div>
@@ -268,7 +269,7 @@ export default function WarehouseManagement() {
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={handleCloseModal} disabled={submitting}>Hủy bỏ</Button>
-                <Button style={{ backgroundColor: PRIMARY }} onClick={handleSubmit} disabled={submitting} className="gap-2">
+                <Button style={{ backgroundColor: PRIMARY }} onClick={handleSubmit} disabled={submitting} className="gap-2 text-white">
                   {submitting ? (
                     <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
                   ) : (
