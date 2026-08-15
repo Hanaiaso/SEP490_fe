@@ -1,8 +1,8 @@
 import { getErrorMessage } from '../../lib/errors';
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { AlertTriangle, Package, PackagePlus, Trash2, X } from 'lucide-react';
 import { getMaterials } from '../../services/materialService';
-import { createGoodsIssue, getWarehouses } from '../../services/warehouseService';
+import { createGoodsIssue, getWarehouseInventory, getWarehouses } from '../../services/warehouseService';
 import { getProducts } from '../../services/productService';
 import type { Warehouse } from '../../types/warehouse';
 import type { Material, Product } from '../../types/catalog';
@@ -16,35 +16,74 @@ interface DraftIssueItem {
   note: string;
 }
 
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block font-semibold text-gray-700 mb-1">
+        {label} {required && <span className="text-rose-500">*</span>}
+      </label>
+      {children}
+      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+    </div>
+  );
+}
+
 export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
   const [items, setItems] = useState<DraftIssueItem[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouseId, setWarehouseId] = useState('');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  
-  // Fields mở rộng WF-17
-  const [department, setDepartment] = useState('Xưởng May A');
-  const [usagePurpose, setUsagePurpose] = useState('Xuất nguyên liệu phục vụ sản xuất');
+
+  // Fields mở rộng WF-17 — để trống, bắt nhập thật thay vì gợi ý sẵn giá trị (dễ khiến
+  // nhân viên bấm "Tạo" mà quên đổi, ghi sai bộ phận/mục đích thực tế).
+  const [department, setDepartment] = useState('');
+  const [usagePurpose, setUsagePurpose] = useState('');
   const [externalRecipientName, setExternalRecipientName] = useState('');
   const [paperDocumentNumber, setPaperDocumentNumber] = useState('');
-  const [note] = useState('');
-  
+  const [note, setNote] = useState('');
+
+  // Tồn khả dụng của kho đang chọn, để cảnh báo mềm ngay khi nhập số lượng thay vì chỉ
+  // phát hiện lúc Post (sau khi giấy tờ bàn giao đã ký).
+  const [availableQtyMap, setAvailableQtyMap] = useState<Record<string, number>>({});
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getMaterials().then(res => setMaterials(Array.isArray(res) ? res : (res?.items || []))).catch(console.error);
     getProducts({ page: 1, pageSize: 200 }).then(res => setProducts(res?.items || [])).catch(console.error);
-    getWarehouses().then(res => {
-      const whList = Array.isArray(res) ? res : (res?.items || []);
-      setWarehouses(whList);
-      // Chạy đúng 1 lần lúc mount, warehouseId luôn là '' tại thời điểm này nên chọn
-      // kho đầu tiên làm mặc định.
-      if (whList.length > 0) {
-        setWarehouseId(whList[0].id);
-      }
-    }).catch(console.error);
+    getWarehouses().then(res => setWarehouses(Array.isArray(res) ? res : (res?.items || []))).catch(console.error);
+    // Không tự chọn sẵn kho đầu tiên: nguyên liệu/sản phẩm thường chỉ tồn tại ở MỘT kho cụ
+    // thể (vd nguyên liệu sản xuất chỉ có ở WH-PE) — chọn nhầm kho mặc định sẽ khiến Post
+    // báo "Tồn khả dụng: 0" dù hàng có tồn ở kho khác. Bắt nhân viên chọn kho tường minh.
   }, []);
+
+  const loadAvailableQty = useCallback((whId: string) => {
+    if (!whId) return;
+    getWarehouseInventory(whId, { pageSize: 100 })
+      .then((res: { items?: Array<{ productId?: string; materialId?: string; availableQuantity: number }> }) => {
+        const map: Record<string, number> = {};
+        (res?.items || []).forEach(inv => {
+          const key = inv.productId ? `P-${inv.productId}` : inv.materialId ? `M-${inv.materialId}` : null;
+          if (key) map[key] = inv.availableQuantity;
+        });
+        setAvailableQtyMap(map);
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => { loadAvailableQty(warehouseId); }, [warehouseId, loadAvailableQty]);
+
+  const getAvailableQty = (item: DraftIssueItem): number => {
+    const key = item.itemType === 'Product' && item.productId ? `P-${item.productId}` : item.itemType === 'Material' && item.materialId ? `M-${item.materialId}` : null;
+    return key ? (availableQtyMap[key] ?? 0) : 0;
+  };
+
+  const stockWarningCount = useMemo(
+    () => items.filter(it => (Number(it.quantity) || 0) > getAvailableQty(it)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, availableQtyMap]
+  );
 
   const handleAddItem = () => {
     if (materials.length === 0 && products.length === 0) return;
@@ -85,8 +124,10 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
   };
 
   const handleSubmit = async () => {
+    if (!warehouseId) return alert('Vui lòng chọn kho xuất hàng');
     if (items.length === 0) return alert('Vui lòng thêm ít nhất 1 mặt hàng cần xuất');
-    if (!department) return alert('Vui lòng nhập bộ phận sản xuất nhận');
+    if (!department.trim()) return alert('Vui lòng nhập bộ phận sản xuất nhận');
+    if (!usagePurpose.trim()) return alert('Vui lòng nhập mục đích sử dụng');
 
     try {
       setLoading(true);
@@ -116,101 +157,152 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
     }
   };
 
+  const selectedWarehouseName = warehouses.find(w => w.id === warehouseId)?.name;
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
-        <div className="h-13 bg-slate-900 text-white flex items-center justify-between px-5 flex-shrink-0">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <span>📦</span> Tạo Phiếu Xuất Nguyên Liệu Cho Sản Xuất
+        <div className="h-12 bg-slate-900 text-white flex items-center justify-between px-5 flex-shrink-0">
+          <h2 className="text-sm font-bold flex items-center gap-2">
+            <Package className="w-4 h-4" /> Tạo Phiếu Xuất Nguyên Liệu Cho Sản Xuất
           </h2>
           <button className="text-gray-400 hover:text-white" onClick={onClose}><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-1 overflow-auto p-5 space-y-4 bg-gray-50 text-xs">
-          {/* Main Info */}
-          <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Kho xuất hàng *</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-xs font-medium" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
-                {warehouses.map(wh => (
-                  <option key={wh.id} value={wh.id}>{wh.name}</option>
-                ))}
-              </select>
+        <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-50 text-xs">
+          {/* Section 1: Thông tin phiếu */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+              <h3 className="font-bold text-gray-700 uppercase tracking-wide text-[11px]">1. Thông tin phiếu xuất</h3>
             </div>
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Bộ phận sản xuất nhận *</label>
-              <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-xs font-medium" value={department} onChange={e => setDepartment(e.target.value)} placeholder="Ví dụ: Xưởng May A, Tổ PE..." />
-            </div>
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Mục đích sử dụng *</label>
-              <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-xs" value={usagePurpose} onChange={e => setUsagePurpose(e.target.value)} placeholder="Ví dụ: Phục vụ sản xuất đơn PO-2026..." />
-            </div>
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Số biên bản giấy (Nếu có trước)</label>
-              <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-xs font-mono uppercase" value={paperDocumentNumber} onChange={e => setPaperDocumentNumber(e.target.value)} placeholder="Mã biên bản (Duy nhất)" />
-            </div>
-            <div className="col-span-2">
-              <label className="block font-semibold text-gray-700 mb-1">Đại diện sản xuất nhận (Ngoài hệ thống)</label>
-              <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-xs" value={externalRecipientName} onChange={e => setExternalRecipientName(e.target.value)} placeholder="Nhập họ tên người nhận đại diện xưởng sản xuất..." />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4">
+              <Field label="Kho xuất hàng" required hint={!warehouseId ? 'Chọn đúng kho đang giữ nguyên liệu — hàng thường chỉ tồn ở một kho cụ thể.' : undefined}>
+                <select
+                  className={`w-full border rounded-md px-3 py-1.5 bg-white text-xs font-medium ${!warehouseId ? 'border-amber-400 text-gray-400' : 'border-gray-300'}`}
+                  value={warehouseId}
+                  onChange={e => setWarehouseId(e.target.value)}
+                >
+                  <option value="">-- Chọn kho xuất --</option>
+                  {warehouses.map(wh => (
+                    <option key={wh.id} value={wh.id}>{wh.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Bộ phận sản xuất nhận" required>
+                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs font-medium" value={department} onChange={e => setDepartment(e.target.value)} placeholder="Ví dụ: Xưởng May A, Tổ PE..." />
+              </Field>
+              <Field label="Mục đích sử dụng" required>
+                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs" value={usagePurpose} onChange={e => setUsagePurpose(e.target.value)} placeholder="Ví dụ: Phục vụ sản xuất đơn PO-2026..." />
+              </Field>
+              <Field label="Số biên bản giấy" hint="Có thể để trống, bổ sung sau khi bàn giao.">
+                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs font-mono uppercase" value={paperDocumentNumber} onChange={e => setPaperDocumentNumber(e.target.value)} placeholder="Mã biên bản (Duy nhất)" />
+              </Field>
+              <div className="col-span-2">
+                <Field label="Đại diện sản xuất nhận (Ngoài hệ thống)">
+                  <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs" value={externalRecipientName} onChange={e => setExternalRecipientName(e.target.value)} placeholder="Nhập họ tên người nhận đại diện xưởng sản xuất..." />
+                </Field>
+              </div>
+              <div className="col-span-2">
+                <Field label="Ghi chú phiếu">
+                  <textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs resize-none" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm cho phiếu xuất (không bắt buộc)..." />
+                </Field>
+              </div>
             </div>
           </div>
 
-          {/* Item Table */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-bold text-gray-800 uppercase tracking-wide text-[11px]">Danh sách Mặt Hàng Xuất</h3>
-              <button className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded hover:bg-blue-100 transition-colors" onClick={handleAddItem}>+ Thêm mặt hàng</button>
+          {/* Section 2: Mặt hàng */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+              <h3 className="font-bold text-gray-700 uppercase tracking-wide text-[11px]">2. Danh sách mặt hàng xuất</h3>
+              <button
+                className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[11px] font-bold rounded hover:bg-blue-100 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={handleAddItem}
+                disabled={!warehouseId}
+                title={!warehouseId ? 'Chọn kho xuất hàng trước' : undefined}
+              >
+                <PackagePlus className="w-3.5 h-3.5" /> Thêm mặt hàng
+              </button>
             </div>
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b bg-gray-50 text-gray-600">
-                  <th className="p-2 font-semibold w-28">Loại</th>
-                  <th className="p-2 font-semibold">Tên Mặt Hàng / Nguyên Liệu</th>
-                  <th className="p-2 font-semibold w-24">Số lượng</th>
-                  <th className="p-2 font-semibold">Ghi chú</th>
-                  <th className="p-2 font-semibold w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(item => (
-                  <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
-                    <td className="p-2">
-                      <select className="w-full border rounded px-2 py-1 bg-white font-medium text-xs" value={item.itemType} onChange={e => handleItemChange(item.id, 'itemType', e.target.value)}>
-                        <option value="Material">Nguyên liệu</option>
-                        <option value="Product">Sản phẩm</option>
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      {item.itemType === 'Material' ? (
-                        <select className="w-full border rounded px-2 py-1 bg-white text-xs" value={item.materialId || ''} onChange={e => handleItemChange(item.id, 'materialId', e.target.value)}>
-                          {materials.map(m => (
-                            <option key={m.id} value={m.id}>{m.name} ({m.unit || 'Vật tư'})</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <select className="w-full border rounded px-2 py-1 bg-white text-xs" value={item.productId || ''} onChange={e => handleItemChange(item.id, 'productId', e.target.value)}>
-                          {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>
-                          ))}
-                        </select>
-                      )}
-                    </td>
-                    <td className="p-2">
-                      <input type="number" min="1" className="w-full border rounded px-2 py-1 font-bold text-blue-600 text-xs" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} />
-                    </td>
-                    <td className="p-2">
-                      <input type="text" className="w-full border rounded px-2 py-1 text-xs" value={item.note} onChange={e => handleItemChange(item.id, 'note', e.target.value)} placeholder="Ghi chú xuất" />
-                    </td>
-                    <td className="p-2 text-center">
-                      <button className="text-red-500 hover:bg-red-50 p-1 rounded" onClick={() => handleRemoveItem(item.id)}><X className="w-4 h-4" /></button>
-                    </td>
-                  </tr>
-                ))}
-                {items.length === 0 && (
-                  <tr><td colSpan={5} className="py-6 text-center text-gray-400 italic">Chưa có mặt hàng nào. Bấm nút "+ Thêm mặt hàng" ở trên.</td></tr>
+
+            {!warehouseId ? (
+              <p className="py-8 text-center text-gray-400 italic px-4">Chọn kho xuất hàng ở mục 1 để xem tồn kho khả dụng và thêm mặt hàng.</p>
+            ) : (
+              <div className="p-3">
+                {stockWarningCount > 0 && (
+                  <div className="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md flex items-center gap-2 text-amber-700 text-[11px] font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {stockWarningCount} mặt hàng vượt tồn khả dụng tại {selectedWarehouseName || 'kho đã chọn'} — vẫn tạo được phiếu nháp, nhưng sẽ không Post được cho đến khi đủ hàng.
+                  </div>
                 )}
-              </tbody>
-            </table>
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b bg-gray-50 text-gray-600">
+                      <th className="p-2 font-semibold w-28">Loại</th>
+                      <th className="p-2 font-semibold">Tên Mặt Hàng / Nguyên Liệu</th>
+                      <th className="p-2 font-semibold w-28">Số lượng</th>
+                      <th className="p-2 font-semibold">Ghi chú</th>
+                      <th className="p-2 font-semibold w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(item => {
+                      const available = getAvailableQty(item);
+                      const qty = Number(item.quantity) || 0;
+                      const overStock = qty > available;
+                      return (
+                        <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                          <td className="p-2 align-top">
+                            <select className="w-full border rounded px-2 py-1 bg-white font-medium text-xs" value={item.itemType} onChange={e => handleItemChange(item.id, 'itemType', e.target.value)}>
+                              <option value="Material">Nguyên liệu</option>
+                              <option value="Product">Sản phẩm</option>
+                            </select>
+                          </td>
+                          <td className="p-2 align-top">
+                            {item.itemType === 'Material' ? (
+                              <select className="w-full border rounded px-2 py-1 bg-white text-xs" value={item.materialId || ''} onChange={e => handleItemChange(item.id, 'materialId', e.target.value)}>
+                                {materials.map(m => {
+                                  const qtyM = availableQtyMap[`M-${m.id}`] ?? 0;
+                                  return <option key={m.id} value={m.id}>{m.name} ({m.unit || 'Vật tư'}) — Tồn: {qtyM}</option>;
+                                })}
+                              </select>
+                            ) : (
+                              <select className="w-full border rounded px-2 py-1 bg-white text-xs" value={item.productId || ''} onChange={e => handleItemChange(item.id, 'productId', e.target.value)}>
+                                {products.map(p => {
+                                  const qtyP = availableQtyMap[`P-${p.id}`] ?? 0;
+                                  return <option key={p.id} value={p.id}>{p.sku} - {p.name} — Tồn: {qtyP}</option>;
+                                })}
+                              </select>
+                            )}
+                          </td>
+                          <td className="p-2 align-top">
+                            <input
+                              type="number" min="1"
+                              className={`w-full border rounded px-2 py-1 font-bold text-xs ${overStock ? 'border-amber-400 text-amber-700' : 'text-blue-600'}`}
+                              value={item.quantity}
+                              onChange={e => handleItemChange(item.id, 'quantity', e.target.value)}
+                            />
+                            {overStock && (
+                              <p className="text-[10px] text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 flex-shrink-0" /> Khả dụng: {available}
+                              </p>
+                            )}
+                          </td>
+                          <td className="p-2 align-top">
+                            <input type="text" className="w-full border rounded px-2 py-1 text-xs" value={item.note} onChange={e => handleItemChange(item.id, 'note', e.target.value)} placeholder="Ghi chú xuất" />
+                          </td>
+                          <td className="p-2 text-center align-top">
+                            <button className="text-red-500 hover:bg-red-50 p-1 rounded" onClick={() => handleRemoveItem(item.id)}><Trash2 className="w-4 h-4" /></button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {items.length === 0 && (
+                      <tr><td colSpan={5} className="py-6 text-center text-gray-400 italic">Chưa có mặt hàng nào. Bấm "+ Thêm mặt hàng" ở trên.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
