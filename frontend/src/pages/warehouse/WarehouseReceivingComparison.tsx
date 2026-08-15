@@ -1,42 +1,21 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Button } from '../../components/sales-ui/button';
-import { CheckCircle, XCircle, AlertTriangle, Search, Eye, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Eye, ShieldCheck, TrendingUp, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
-import { Input } from '../../components/sales-ui/input';
-import { getPurchaseOrders, getPurchaseOrderById, resolveDiscrepancy } from '../../services/purchaseOrderService.js';
+import { getPurchaseOrders, getPurchaseOrderById } from '../../services/purchaseOrderService.js';
 import { useEffect } from 'react';
 import type { PurchaseOrder, PurchaseOrderListItem } from '../../types/warehouse';
 
-const PRIMARY = '#1F3B64';
-const SUCCESS = '#16A34A';
 const WARNING = '#D97706';
 const ERROR   = '#DC2626';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';
 
-type Decision = 'accepted' | 'rejected' | 'inspection' | 'escalated' | 'pending';
-
-const DECISION_CFG: Record<Decision, { label: string; bg: string }> = {
-  accepted:   { label: 'Chấp nhận',    bg: SUCCESS },
-  rejected:   { label: 'Từ chối',      bg: ERROR   },
-  inspection: { label: 'Cần kiểm tra', bg: WARNING },
-  escalated:  { label: 'Đã leo thang', bg: INFO    },
-  pending:    { label: 'Chờ quyết định', bg: NEUTRAL },
-};
-
 interface ComparisonItem {
   sku: string; product: string; orderedQty: number; receivedQty: number;
   difference: number; damageQty: number; missingQty: number; extraQty: number;
-  variancePct: number; qcRequired: boolean; decision: Decision;
-  reason: string; warehouseNote: string; supplierNote: string;
-}
-
-
-function DecisionBadge({ d }: { d: Decision }) {
-  const c = DECISION_CFG[d];
-  return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
+  variancePct: number; qcRequired: boolean;
 }
 
 export default function WarehouseReceivingComparison() {
@@ -86,10 +65,6 @@ export default function WarehouseReceivingComparison() {
           extraQty: diff > 0 ? diff : 0,
           variancePct: varPct,
           qcRequired: false,
-          decision: 'pending',
-          reason: '',
-          warehouseNote: '',
-          supplierNote: ''
         };
       });
       setItems(mapped.filter((i) => i.difference !== 0 || i.damageQty > 0)); // Only show items with discrepancy
@@ -108,27 +83,6 @@ export default function WarehouseReceivingComparison() {
     loadPoDetails(id);
   };
 
-  const setDecision = (sku: string, decision: Decision) => {
-    setItems(p => p.map(i => i.sku === sku ? { ...i, decision } : i));
-    setDetail(prev => prev?.sku === sku ? { ...prev, decision } : prev);
-  };
-
-  const submitDecisions = async () => {
-    if (!selectedPoId) return;
-    try {
-      await resolveDiscrepancy(selectedPoId, {
-        decision: 'Approve', // Simplification for demo
-        notes: 'Xử lý sai lệch'
-      });
-      alert('Đã xử lý xong chênh lệch!');
-      setSelectedPoId('');
-      setItems([]);
-      loadPOs();
-    } catch (err: unknown) {
-      alert('Lỗi xử lý: ' + getErrorMessage(err));
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       <div className="bg-white border-b border-gray-200 px-5 py-3 flex-shrink-0">
@@ -138,8 +92,13 @@ export default function WarehouseReceivingComparison() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Đối chiếu nhập hàng (Receiving Comparison)</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Kho xem xét hàng hoá sai lệch và đưa ra quyết định xử lý</p>
+            <p className="text-xs text-gray-500 mt-0.5">Xem hàng hoá sai lệch giữa PO và số lượng thực nhận — chỉ CEO có quyền ra quyết định xử lý</p>
           </div>
+        </div>
+
+        <div className="flex items-start gap-2 mb-3 rounded border border-blue-100 bg-blue-50 px-3 py-2">
+          <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: INFO }} />
+          <p className="text-xs text-blue-800">Trang này chỉ để tra cứu. Quyết định xử lý chênh lệch (chấp nhận hàng dư, trả lại NCC, yêu cầu giao bổ sung...) do CEO thực hiện ở màn Purchase Order phía CEO.</p>
         </div>
 
         {/* PO Selector */}
@@ -163,7 +122,7 @@ export default function WarehouseReceivingComparison() {
           </select>
         </div>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
             <span style={{ color: WARNING }}><AlertTriangle className="w-4 h-4" /></span>
             <div><p className="text-[10px] text-gray-500">Thiếu</p><p className="text-base font-bold" style={{ color: WARNING }}>{items.filter(i => i.missingQty > 0).length}</p></div>
@@ -175,10 +134,6 @@ export default function WarehouseReceivingComparison() {
           <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
             <span style={{ color: ERROR }}><XCircle className="w-4 h-4" /></span>
             <div><p className="text-[10px] text-gray-500">Hư hỏng</p><p className="text-base font-bold" style={{ color: ERROR }}>{items.filter(i => i.damageQty > 0).length}</p></div>
-          </div>
-          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
-            <span style={{ color: NEUTRAL }}><Search className="w-4 h-4" /></span>
-            <div><p className="text-[10px] text-gray-500">Chờ quyết định</p><p className="text-base font-bold" style={{ color: NEUTRAL }}>{items.filter(i => i.decision === 'pending').length}</p></div>
           </div>
         </div>
       </div>
@@ -198,21 +153,20 @@ export default function WarehouseReceivingComparison() {
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Dư</th>
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Lệch %</th>
                 <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">QC</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Quyết định</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Thao tác</th>
+                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Chi tiết</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {items.length === 0 && (
-                <tr><td colSpan={12} className="py-12 text-center"><div className="flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span className="text-gray-400 text-xl">📋</span></div><p className="text-sm font-medium text-gray-500">Không có dữ liệu</p><p className="text-xs text-gray-400">Thay đổi bộ lọc để xem kết quả khác</p></div></td></tr>
+                <tr><td colSpan={10} className="py-12 text-center"><div className="flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span className="text-gray-400 text-xl">📋</span></div><p className="text-sm font-medium text-gray-500">Không có dữ liệu</p><p className="text-xs text-gray-400">Chọn 1 PO đang có sai lệch để xem chi tiết</p></div></td></tr>
               )}
               {items.map((item, i) => (
                 <tr key={item.sku} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                   <td className="px-3 py-2.5 font-mono text-gray-500">{item.sku}</td>
                   <td className="px-3 py-2.5 font-medium text-gray-800">{item.product}</td>
                   <td className="px-3 py-2.5 text-center font-semibold">{item.orderedQty}</td>
-                  <td className="px-3 py-2.5 text-center font-semibold" style={{ color: item.receivedQty === item.orderedQty ? SUCCESS : WARNING }}>{item.receivedQty}</td>
-                  <td className="px-3 py-2.5 text-center font-semibold" style={{ color: item.difference < 0 ? ERROR : SUCCESS }}>
+                  <td className="px-3 py-2.5 text-center font-semibold" style={{ color: item.receivedQty === item.orderedQty ? '#16A34A' : WARNING }}>{item.receivedQty}</td>
+                  <td className="px-3 py-2.5 text-center font-semibold" style={{ color: item.difference < 0 ? ERROR : '#16A34A' }}>
                     {item.difference > 0 ? '+' : ''}{item.difference}
                   </td>
                   <td className="px-3 py-2.5 text-center font-semibold" style={{ color: item.damageQty > 0 ? ERROR : NEUTRAL }}>{item.damageQty}</td>
@@ -225,18 +179,8 @@ export default function WarehouseReceivingComparison() {
                     {item.qcRequired ? <span className="text-[10px] font-semibold text-white px-1.5 py-0.5" style={{ backgroundColor: WARNING, borderRadius: 4 }}>Cần QC</span>
                       : <span className="text-[10px] text-gray-400">Không</span>}
                   </td>
-                  <td className="px-3 py-2.5 text-center"><DecisionBadge d={item.decision} /></td>
                   <td className="px-3 py-2.5 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={() => setDetail(item)}><Eye className="w-3.5 h-3.5" /></button>
-                      {item.decision === 'pending' && (
-                        <>
-                          <button className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" onClick={() => setDecision(item.sku, 'accepted')} title="Chấp nhận"><CheckCircle className="w-3.5 h-3.5" /></button>
-                          <button className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" onClick={() => setDecision(item.sku, 'rejected')} title="Từ chối"><XCircle className="w-3.5 h-3.5" /></button>
-                          <button className="p-1 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" onClick={() => setDecision(item.sku, 'inspection')} title="Yêu cầu kiểm tra"><AlertTriangle className="w-3.5 h-3.5" /></button>
-                        </>
-                      )}
-                    </div>
+                    <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={() => setDetail(item)} title="Xem chi tiết"><Eye className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               ))}
@@ -244,11 +188,6 @@ export default function WarehouseReceivingComparison() {
           </table>
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
             <span className="text-xs text-gray-500">Hiển thị {items.length} sản phẩm</span>
-            <div className="flex gap-2">
-              <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={submitDecisions} disabled={!selectedPoId}>
-                <CheckCircle className="w-3.5 h-3.5" /> Gửi quyết định xử lý
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -269,7 +208,7 @@ export default function WarehouseReceivingComparison() {
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">
                   <p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Số lượng</p>
                   <div className="flex justify-between"><span className="text-gray-500">SL đặt:</span><span className="font-semibold">{detail.orderedQty}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">SL nhận:</span><span className="font-semibold" style={{ color: detail.receivedQty < detail.orderedQty ? WARNING : SUCCESS }}>{detail.receivedQty}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">SL nhận:</span><span className="font-semibold" style={{ color: detail.receivedQty < detail.orderedQty ? WARNING : '#16A34A' }}>{detail.receivedQty}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Lệch:</span><span className="font-semibold" style={{ color: ERROR }}>{detail.difference}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Lệch %:</span><span className="font-semibold" style={{ color: ERROR }}>{detail.variancePct.toFixed(1)}%</span></div>
                 </div>
@@ -281,25 +220,12 @@ export default function WarehouseReceivingComparison() {
                   <div className="flex justify-between"><span className="text-gray-500">QC:</span><span>{detail.qcRequired ? 'Cần kiểm tra' : 'Không'}</span></div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <label className="text-gray-500">Lý do</label>
-                  <Input defaultValue={detail.reason} className="h-7 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-gray-500">Ghi chú kho</label>
-                  <Input defaultValue={detail.warehouseNote} className="h-7 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-gray-500">Ghi chú NCC</label>
-                  <Input defaultValue={detail.supplierNote} className="h-7 text-xs" />
-                </div>
+              <div className="flex items-start gap-2 rounded border border-blue-100 bg-blue-50 px-3 py-2">
+                <ShieldCheck className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: INFO }} />
+                <p className="text-[11px] text-blue-800">Quyết định xử lý sai lệch này (chấp nhận, trả NCC, yêu cầu giao bổ sung...) do CEO thực hiện.</p>
               </div>
-              <div className="flex gap-2 pt-2 border-t border-gray-100">
-                <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} onClick={() => setDecision(detail.sku, 'accepted')}><CheckCircle className="w-3.5 h-3.5" /> Chấp nhận</Button>
-                <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: ERROR }} onClick={() => setDecision(detail.sku, 'rejected')}><XCircle className="w-3.5 h-3.5" /> Từ chối</Button>
-                <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: WARNING }} onClick={() => setDecision(detail.sku, 'inspection')}><AlertTriangle className="w-3.5 h-3.5" /> Cần kiểm tra</Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
+              <div className="flex pt-2 border-t border-gray-100">
+                <button className="ml-auto text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5" onClick={() => setDetail(null)}>Đóng</button>
               </div>
             </div>
           )}

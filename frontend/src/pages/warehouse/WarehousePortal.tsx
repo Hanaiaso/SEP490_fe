@@ -70,7 +70,7 @@ const buildNavItems = (role?: string): NavItem[] => [
     children: [
       { id: 'purchase-orders', label: 'PO chờ nhập kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/purchase/orders' },
       { id: 'goods-receipt', label: 'Lịch sử phiếu nhập (GRN)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/purchase/goods-receipt' },
-      { id: 'receiving-comparison', label: 'Đối chiếu chênh lệch PO', icon: <GitMerge className="w-3.5 h-3.5" />, path: '/warehouse/purchase/receiving-comparison' },
+      { id: 'receiving-comparison', label: 'Xem chênh lệch PO', icon: <GitMerge className="w-3.5 h-3.5" />, path: '/warehouse/purchase/receiving-comparison' },
     ],
   },
   { id: 'stock-transfer', label: 'Chuyển kho nội bộ', icon: <ArrowRightLeft className="w-3.5 h-3.5" />, path: '/warehouse/transfer/stock-transfer' },
