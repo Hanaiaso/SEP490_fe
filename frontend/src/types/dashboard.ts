@@ -59,6 +59,10 @@ export interface SalesManagerDashboard {
   openExceptions: PaymentException[];
   overdueDebts: CustomerDebt[];
   codSlaBreachCountToday: number;
+  pendingQuotationApprovalCount: number;
+  pendingSalesChangeRequestCount: number;
+  pendingDeliveryConflictCount: number;
+  pendingMarketingApprovalCount: number;
 }
 
 // GET /api/dashboards/ceo
@@ -97,6 +101,7 @@ export interface CeoDashboard {
   inventory: InventorySummary;
   purchaseOrders: PurchaseOrderDashboardSummary;
   discrepancy: DiscrepancySummary;
+  pendingCeoQuotationCount: number;
 }
 
 // GET/POST /api/sales-targets (Sales Manager đặt mục tiêu doanh thu tháng cho từng Sales Staff)

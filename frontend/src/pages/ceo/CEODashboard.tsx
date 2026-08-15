@@ -76,6 +76,7 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
   };
   const totalPOs = Object.values(purchaseOrders.countsByStatus || {}).reduce((a, b) => a + b, 0);
   const discrepancyReviewCount = purchaseOrders.countsByStatus?.DiscrepancyReview ?? 0;
+  const pendingCeoQuotationCount = data?.pendingCeoQuotationCount ?? 0;
 
   return (
     <div className="flex flex-col gap-[20px] p-[24px]">
@@ -152,7 +153,12 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
               <span className="text-gray-500">Sales đề xuất giá</span>
             </div>
             <div className="flex justify-between items-center py-[8px]">
-              <span className="text-[#1f3b64] font-bold text-amber-600">3. CEO phê duyệt giá cuối cùng</span>
+              <span className="text-[#1f3b64] font-bold text-amber-600">
+                3. CEO phê duyệt giá cuối cùng
+                {pendingCeoQuotationCount > 0 && (
+                  <span className="ml-2 px-[8px] py-[2px] rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold">{pendingCeoQuotationCount} đang chờ</span>
+                )}
+              </span>
               <button onClick={() => setActiveTab('price-negotiation')} className="text-blue-600 font-semibold hover:underline">Vào duyệt ngay →</button>
             </div>
           </div>

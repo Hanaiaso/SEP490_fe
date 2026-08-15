@@ -1,6 +1,7 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useState } from 'react';
-import { RefreshCw, TrendingUp, Truck, Clock, Users2, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw, TrendingUp, Truck, Clock, Users2, AlertTriangle, FileCheck, UserCog, CalendarClock, Megaphone } from 'lucide-react';
 import { getSalesManagerDashboard } from '../../services/dashboardService.js';
 import type { SalesManagerDashboard } from '../../types/dashboard';
 
@@ -13,12 +14,17 @@ function formatDate(iso: string | null | undefined) {
   return new Date(iso).toLocaleString('vi-VN');
 }
 
-function KpiCard({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon: React.ReactNode }) {
+function KpiCard({ label, value, sub, icon, onClick, highlight }: {
+  label: string; value: string; sub?: string; icon: React.ReactNode; onClick?: () => void; highlight?: boolean;
+}) {
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-lg p-3.5 shadow-sm">
+    <div
+      onClick={onClick}
+      className={`bg-white border rounded-lg p-3.5 shadow-sm ${highlight ? 'border-amber-300' : 'border-[#E5E7EB]'} ${onClick ? 'cursor-pointer hover:border-[#1F3B64] hover:shadow-md transition-all' : ''}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] text-[#6B7280] leading-none font-bold uppercase tracking-wider">{label}</span>
-        <span className="text-[#9CA3AF]">{icon}</span>
+        <span className={highlight ? 'text-amber-500' : 'text-[#9CA3AF]'}>{icon}</span>
       </div>
       <p className="text-[20px] font-extrabold text-[#374151] leading-none tabular-nums mt-1">{value}</p>
       {sub && <p className="text-[10px] text-[#9CA3AF] mt-2 font-medium">{sub}</p>}
@@ -35,6 +41,7 @@ function PanelHeader({ title }: { title: string }) {
 }
 
 export default function SalesManagerDashboardPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<SalesManagerDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -83,6 +90,10 @@ export default function SalesManagerDashboardPage() {
   const openExceptions = data?.openExceptions || [];
   const overdueDebts = data?.overdueDebts || [];
   const slaBreach = data?.codSlaBreachCountToday ?? 0;
+  const pendingQuotations = data?.pendingQuotationApprovalCount ?? 0;
+  const pendingChangeRequests = data?.pendingSalesChangeRequestCount ?? 0;
+  const pendingConflicts = data?.pendingDeliveryConflictCount ?? 0;
+  const pendingMarketing = data?.pendingMarketingApprovalCount ?? 0;
 
   return (
     <div className="flex flex-col h-full" style={{ background: '#F5F7FA' }}>
@@ -101,6 +112,30 @@ export default function SalesManagerDashboardPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-3">
+        {/* Việc cần xử lý */}
+        <div className="grid grid-cols-4 gap-2">
+          <KpiCard
+            label="Báo giá chờ duyệt" value={String(pendingQuotations)} sub="Đơn ≥ 100tr đang chờ"
+            icon={<FileCheck className="w-4 h-4" />} highlight={pendingQuotations > 0}
+            onClick={() => navigate('/sales-manager/manager-negotiation')}
+          />
+          <KpiCard
+            label="Yêu cầu đổi Sale" value={String(pendingChangeRequests)} sub="Đang chờ xử lý"
+            icon={<UserCog className="w-4 h-4" />} highlight={pendingChangeRequests > 0}
+            onClick={() => navigate('/sales-manager/change-requests')}
+          />
+          <KpiCard
+            label="Xung đột lịch xe/ca" value={String(pendingConflicts)} sub="Đang chờ xử lý"
+            icon={<CalendarClock className="w-4 h-4" />} highlight={pendingConflicts > 0}
+            onClick={() => navigate('/sales-manager/delivery-conflicts')}
+          />
+          <KpiCard
+            label="Bài Marketing chờ duyệt" value={String(pendingMarketing)} sub="AI đã tạo, chờ duyệt"
+            icon={<Megaphone className="w-4 h-4" />} highlight={pendingMarketing > 0}
+            onClick={() => navigate('/sales-manager/ai-marketing-approval')}
+          />
+        </div>
+
         {/* Team KPI */}
         <div className="grid grid-cols-4 gap-2">
           <KpiCard label="Doanh thu toàn đội" value={formatPrice(teamKpi.revenue) + ' đ'} sub={`${teamKpi.completedOrderCount ?? 0} đơn hoàn thành`} icon={<TrendingUp className="w-4 h-4" />} />

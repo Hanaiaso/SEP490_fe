@@ -22,8 +22,26 @@ const STATUS_CFG: Record<string, { label: string; bg: string }> = {
   issued: { label: 'Đã phát hành', bg: INFO },
   partial: { label: 'Nhập một phần', bg: WARNING },
   completed: { label: 'Hoàn tất', bg: SUCCESS },
+  discrepancy: { label: 'Có sai lệch', bg: ERROR },
   cancelled: { label: 'Đã hủy', bg: ERROR },
 };
+
+// PurchaseOrderStatus (backend enum thật): Draft, Issued, SentToWarehouse, PartiallyReceived,
+// FullyReceived, DiscrepancyReview, Closed, Cancelled — không khớp trực tiếp với key STATUS_CFG
+// (chữ thường, đặt tên khác). So sánh thẳng d.status với statusFilter sẽ luôn ra 0 kết quả.
+function mapStatus(status: string): string {
+  switch (status) {
+    case 'Draft': return 'draft';
+    case 'Issued':
+    case 'SentToWarehouse': return 'issued';
+    case 'PartiallyReceived': return 'partial';
+    case 'FullyReceived':
+    case 'Closed': return 'completed';
+    case 'DiscrepancyReview': return 'discrepancy';
+    case 'Cancelled': return 'cancelled';
+    default: return status;
+  }
+}
 
 interface POItem { sku: string; name: string; unit: string; orderedQty: number; receivedQty: number; remainingQty: number; unitPrice: number; notes: string }
 
@@ -52,12 +70,7 @@ interface PurchaseOrder {
 
 
 function Badge({ status }: { status: string }) {
-  let mappedStatus = status;
-  if (status === 'SentToWarehouse') mappedStatus = 'issued';
-  if (status === 'PartiallyReceived') mappedStatus = 'partial';
-  if (status === 'FullyReceived') mappedStatus = 'completed';
-
-  const c = STATUS_CFG[mappedStatus] || { label: status, bg: NEUTRAL };
+  const c = STATUS_CFG[mapStatus(status)] || { label: status, bg: NEUTRAL };
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
 }
 
@@ -189,7 +202,7 @@ export default function WarehousePurchaseOrders() {
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
     const ms = !q || d.id.toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || d.supplierCode.toLowerCase().includes(q);
-    const mst = statusFilter === 'all' || d.status === statusFilter;
+    const mst = statusFilter === 'all' || mapStatus(d.status) === statusFilter;
     const mw = warehouseFilter === 'all' || d.warehouse === warehouseFilter;
     return ms && mst && mw;
   });
@@ -204,7 +217,7 @@ export default function WarehousePurchaseOrders() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900">Đơn đặt hàng chờ nhập kho (PO Waiting)</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{DATA.length} đơn · {DATA.filter(d => d.status === 'issued').length} chờ nhập · {DATA.filter(d => d.status === 'partial').length} nhập một phần</p>
+            <p className="text-xs text-gray-500 mt-0.5">{DATA.length} đơn · {DATA.filter(d => mapStatus(d.status) === 'issued').length} chờ nhập · {DATA.filter(d => mapStatus(d.status) === 'partial').length} nhập một phần</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setShowImportExcel(true)}><FileSpreadsheet className="w-3 h-3" /> Import Excel</Button>
