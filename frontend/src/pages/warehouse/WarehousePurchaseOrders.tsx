@@ -18,7 +18,9 @@ const INFO = '#2563EB';
 const NEUTRAL = '#64748B';
 
 const STATUS_CFG: Record<string, { label: string; bg: string }> = {
-  draft: { label: 'Nháp', bg: NEUTRAL },
+  // Chỉ CEO tạo và phát hành PO — Draft nghĩa là đang chờ CEO bấm "Phát hành", Kho chưa cần làm
+  // gì với PO này. Ghi rõ "Chờ CEO phát hành" thay vì "Nháp" để Kho không tưởng nhầm là việc của mình.
+  draft: { label: 'Chờ CEO phát hành', bg: WARNING },
   issued: { label: 'Đã phát hành', bg: INFO },
   partial: { label: 'Nhập một phần', bg: WARNING },
   completed: { label: 'Hoàn tất', bg: SUCCESS },
@@ -69,6 +71,11 @@ interface PurchaseOrder {
 
 
 
+function formatDate(iso?: string | null): string {
+  if (!iso) return 'N/A';
+  return new Date(iso).toLocaleDateString('vi-VN');
+}
+
 function Badge({ status }: { status: string }) {
   const c = STATUS_CFG[mapStatus(status)] || { label: status, bg: NEUTRAL };
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
@@ -112,10 +119,8 @@ export default function WarehousePurchaseOrders() {
           supplierCode: 'SUP-001',
           warehouse: p.warehouseName || 'Kho Hệ thống',
           createdBy: 'Hệ thống',
-          // PurchaseOrderListDto (list view) không có ngày phát hành/dự kiến nhận — chỉ có ở
-          // chi tiết PO (PurchaseOrderDto.ExpectedDeliveryDate), xem getPurchaseOrderById.
-          issuedDate: 'N/A',
-          expectedArrival: 'N/A',
+          issuedDate: formatDate(p.issuedAt),
+          expectedArrival: formatDate(p.expectedDeliveryDate),
           itemCount: p.totalExpectedQuantity,
           expectedQty: p.totalExpectedQuantity,
           receivingProgress: p.totalExpectedQuantity > 0 ? Math.round((p.totalReceivedQuantity / p.totalExpectedQuantity) * 100) : 0,
@@ -256,6 +261,7 @@ export default function WarehousePurchaseOrders() {
           </div>
         )}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -308,6 +314,7 @@ export default function WarehousePurchaseOrders() {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
             <span className="text-xs text-gray-500">Hiển thị {filtered.length} / {DATA.length} bản ghi</span>
             <button className="w-6 h-6 text-xs rounded font-medium text-white flex items-center justify-center" style={{ backgroundColor: PRIMARY }}>1</button>

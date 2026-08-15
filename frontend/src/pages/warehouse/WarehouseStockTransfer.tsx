@@ -5,6 +5,7 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Plus, Truck, CheckCircle, X, ArrowRight, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import type { InventoryItem, StaffUser, StockTransfer, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -309,6 +310,9 @@ export default function WarehouseStockTransfer() {
   const [detail, setDetail] = useState<StockTransfer | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [receiveTransfer, setReceiveTransfer] = useState<StockTransfer | null>(null);
+  // Thay window.confirm() (modal xám xịt của trình duyệt, không đồng bộ giao diện app) bằng
+  // ConfirmModal riêng của hệ thống — dùng chung 1 state cho cả 3 thao tác cần xác nhận bên dưới.
+  const [confirmConfig, setConfirmConfig] = useState<{ msg: string; action: () => void | Promise<void> } | null>(null);
 
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -366,37 +370,49 @@ export default function WarehouseStockTransfer() {
     return ms && tabFilters[tab](t) && (statusFilter === 'all' || t.status === statusFilter);
   });
 
-  const dispatch = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn xuất kho cho lệnh này? Hàng sẽ bắt đầu được vận chuyển.')) return;
-    try {
-      const { dispatchStockTransfer } = await import('../../services/warehouseService.js');
-      await dispatchStockTransfer(id);
-      alert('Xuất kho thành công! Hàng đang trên đường tới kho đích.');
-      loadData();
-      setDetail(null);
-    } catch (err: unknown) { alert(getErrorMessage(err)); }
+  const dispatch = (id: string) => {
+    setConfirmConfig({
+      msg: 'Bạn có chắc chắn xuất kho cho lệnh này? Hàng sẽ bắt đầu được vận chuyển.',
+      action: async () => {
+        try {
+          const { dispatchStockTransfer } = await import('../../services/warehouseService.js');
+          await dispatchStockTransfer(id);
+          alert('Xuất kho thành công! Hàng đang trên đường tới kho đích.');
+          loadData();
+          setDetail(null);
+        } catch (err: unknown) { alert(getErrorMessage(err)); }
+      }
+    });
   };
 
-  const cancel = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn hủy lệnh này? Lệnh sẽ bị hủy bỏ và tồn kho sẽ được hoàn lại.')) return;
-    try {
-      const { cancelStockTransfer } = await import('../../services/warehouseService.js');
-      await cancelStockTransfer(id);
-      alert('Hủy lệnh thành công!');
-      loadData();
-      setDetail(null);
-    } catch (err: unknown) { alert(getErrorMessage(err)); }
+  const cancel = (id: string) => {
+    setConfirmConfig({
+      msg: 'Bạn có chắc chắn muốn hủy lệnh này? Lệnh sẽ bị hủy bỏ và tồn kho sẽ được hoàn lại.',
+      action: async () => {
+        try {
+          const { cancelStockTransfer } = await import('../../services/warehouseService.js');
+          await cancelStockTransfer(id);
+          alert('Hủy lệnh thành công!');
+          loadData();
+          setDetail(null);
+        } catch (err: unknown) { alert(getErrorMessage(err)); }
+      }
+    });
   }
 
-  const requestTransport = async (id: string) => {
-    if (!confirm('Gửi yêu cầu xếp xe cho bộ phận Sale?')) return;
-    try {
-      const { requestStockTransferTransport } = await import('../../services/warehouseService.js');
-      await requestStockTransferTransport(id);
-      alert('Đã gửi yêu cầu xếp xe thành công! Bộ phận Sale sẽ xếp xe vận chuyển.');
-      loadData();
-      setDetail(null);
-    } catch (err: unknown) { alert(getErrorMessage(err)); }
+  const requestTransport = (id: string) => {
+    setConfirmConfig({
+      msg: 'Gửi yêu cầu xếp xe cho bộ phận Sale?',
+      action: async () => {
+        try {
+          const { requestStockTransferTransport } = await import('../../services/warehouseService.js');
+          await requestStockTransferTransport(id);
+          alert('Đã gửi yêu cầu xếp xe thành công! Bộ phận Sale sẽ xếp xe vận chuyển.');
+          loadData();
+          setDetail(null);
+        } catch (err: unknown) { alert(getErrorMessage(err)); }
+      }
+    });
   };
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
@@ -616,6 +632,14 @@ export default function WarehouseStockTransfer() {
           {receiveTransfer && <ReceiveForm transfer={receiveTransfer} onClose={() => setReceiveTransfer(null)} onReceived={loadData} />}
         </DialogContent>
       </Dialog>
+
+      <ConfirmModal
+        isOpen={!!confirmConfig}
+        title="Xác nhận thao tác"
+        message={confirmConfig?.msg}
+        onConfirm={() => { confirmConfig?.action(); setConfirmConfig(null); }}
+        onCancel={() => setConfirmConfig(null)}
+      />
     </div>
   );
 }

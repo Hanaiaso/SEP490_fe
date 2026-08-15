@@ -280,6 +280,8 @@ export interface PurchaseOrderListItem {
   code: string;
   status: string;
   createdAt: string;
+  issuedAt?: string;
+  expectedDeliveryDate?: string;
   supplierName: string;
   warehouseName: string;
   totalItems: number;

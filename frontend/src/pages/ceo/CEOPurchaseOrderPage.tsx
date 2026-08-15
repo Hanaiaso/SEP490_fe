@@ -35,7 +35,10 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
   }, [loadData]);
 
   const PO_STATUS_MAP: Record<string, { label: string; style: string }> = {
-    'Draft': { label: 'Bản nháp', style: 'bg-gray-100 text-gray-700' },
+    // "Chờ CEO phát hành" thay vì "Bản nháp" chung chung — vì chỉ CEO tạo PO và cũng chỉ CEO
+    // được phát hành (IssueAsync), nên mọi PO Draft ĐỀU đang chờ chính CEO đang xem trang này bấm
+    // "Phát hành". Đổi nhãn + tô màu cam để nổi bật thành việc cần làm, không phải trạng thái trung tính.
+    'Draft': { label: 'Chờ phát hành', style: 'bg-amber-100 text-amber-800' },
     'Issued': { label: 'Đã phát hành', style: 'bg-blue-100 text-blue-700' },
     'SentToWarehouse': { label: 'Đã gửi kho', style: 'bg-purple-100 text-purple-700' },
     'PartiallyReceived': { label: 'Nhận một phần', style: 'bg-yellow-100 text-yellow-700' },
