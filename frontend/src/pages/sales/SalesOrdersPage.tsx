@@ -21,33 +21,44 @@ const WARNING = '#F97316';
 const ERROR = '#DC2626';
 const NEUTRAL = '#64748B';
 
+// Nhãn hiển thị cho badge trạng thái trong bảng — CHỈ chứa đúng các giá trị enum OrderStatus thật
+// (Models/Order.cs). Trước đây có thêm 6 key không hề tồn tại trong enum thật (New, Received,
+// Packing, Shortage, InTransit, Delivered — có vẻ chép nhầm từ FulfillmentStatus/DeliveryStatus) và
+// thiếu Returned. Vài key thật vẫn cố tình gộp chung 1 label ở đây cho gọn cột bảng (vd Draft/
+// PendingConfirmation đều "Chờ xác nhận") — KHÔNG dùng object này để dựng dropdown lọc (xem
+// ORDER_STATUS_FILTER_OPTIONS bên dưới), vì gộp label sẽ tạo lựa chọn trùng nhau trong dropdown.
 const ORDER_STATUS: Record<string, { label: string; bg: string }> = {
-  // Trạng thái đơn mới / chờ xác nhận
   Draft: { label: 'Chờ xác nhận', bg: WARNING },
-  New: { label: 'Chờ xác nhận', bg: WARNING },
   PendingConfirmation: { label: 'Chờ xác nhận', bg: WARNING },
-  
-  // Thanh toán
   PendingPayment: { label: 'Chờ thanh toán', bg: INFO },
   PaidReviewRequired: { label: 'Chờ duyệt TT', bg: '#8B5CF6' },
-  
-  // Xác nhận & Xử lý kho
   Confirmed: { label: 'Đã xác nhận', bg: '#2563EB' },
-  Received: { label: 'Đã nhận đơn', bg: '#2563EB' },
-  Processing: { label: 'Đang đóng gói', bg: '#8B5CF6' },
-  Packing: { label: 'Đang đóng gói', bg: '#8B5CF6' },
-  Shortage: { label: 'Thiếu hàng', bg: ERROR },
-  
-  // Giao hàng
-  InTransit: { label: 'Đang giao hàng', bg: WARNING },
-  Delivered: { label: 'Đã giao', bg: SUCCESS },
+  Processing: { label: 'Đang xử lý', bg: '#8B5CF6' },
   Completed: { label: 'Hoàn thành', bg: SUCCESS },
-  
-  // Hủy đơn
   CancelRequested: { label: 'Yêu cầu hủy', bg: ERROR },
   CancelledReallocated: { label: 'Đã hủy', bg: ERROR },
   Cancelled: { label: 'Đã hủy', bg: ERROR },
+  Returned: { label: 'Đã hoàn trả', bg: NEUTRAL },
 };
+
+// Danh sách lọc dropdown: 1 dòng riêng cho MỖI giá trị OrderStatus thật, nhãn không trùng nhau
+// (khác với ORDER_STATUS ở trên vốn cố tình gộp label để hiển thị badge gọn). Value gửi lên BE
+// (GetSalesOrdersAsync) phải khớp chính xác tên enum OrderStatus, nếu không Enum.TryParse sẽ fail
+// và BE ÂM THẦM bỏ qua điều kiện lọc (trả về toàn bộ danh sách) — đây là lý do 6 trạng thái giả ở
+// trên trước đây "không lọc được".
+const ORDER_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'Draft', label: 'Chờ thanh toán (đơn mới)' },
+  { value: 'PendingPayment', label: 'Chờ thanh toán' },
+  { value: 'PendingConfirmation', label: 'Chờ xác nhận (COD)' },
+  { value: 'PaidReviewRequired', label: 'Chờ duyệt thanh toán' },
+  { value: 'Confirmed', label: 'Đã xác nhận' },
+  { value: 'Processing', label: 'Đang xử lý' },
+  { value: 'Completed', label: 'Hoàn thành' },
+  { value: 'CancelRequested', label: 'Yêu cầu hủy' },
+  { value: 'CancelledReallocated', label: 'Đã hủy (đã phân bổ lại)' },
+  { value: 'Cancelled', label: 'Đã hủy' },
+  { value: 'Returned', label: 'Đã hoàn trả' },
+];
 
 type SalesOrder = {
   id: string;
@@ -358,8 +369,8 @@ export default function SalesOrdersPage() {
                 className="h-9 w-full rounded border border-[#D1D5DB] bg-white pl-9 pr-3 text-sm text-[#374151] outline-none transition-colors focus:border-[#1F3B64]"
               >
                 <option value="all">Tất cả trạng thái</option>
-                {Object.entries(ORDER_STATUS).map(([key, val]) => (
-                  <option key={key} value={key}>{val.label}</option>
+                {ORDER_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </label>
