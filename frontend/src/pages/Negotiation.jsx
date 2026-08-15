@@ -418,7 +418,7 @@ export default function Negotiation() {
                     className="rounded-xl gap-2 bg-white text-gray-900"
                   >
                     <MessageSquare className="w-4 h-4" />
-                    Thương lượng lại
+                    Chat với Sales
                   </Button>
                   <Button
                     onClick={handleRejectClick}
