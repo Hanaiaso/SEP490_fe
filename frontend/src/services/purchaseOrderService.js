@@ -68,6 +68,10 @@ export async function createGoodsReceipt(poId, payload) {
   return fetchWithToken('POST', `/purchase-orders/${poId}/receipts`, payload);
 }
 
+export async function updateGoodsReceipt(poId, receiptId, payload) {
+  return fetchWithToken('PUT', `/purchase-orders/${poId}/receipts/${receiptId}`, payload);
+}
+
 export async function uploadGoodsReceiptProof(poId, receiptId, file) {
   const formData = new FormData();
   formData.append('file', file);

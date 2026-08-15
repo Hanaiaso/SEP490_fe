@@ -4,7 +4,7 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, Printer, CheckCircle, Save, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
-import { getAllGoodsReceipts, postGoodsReceipt } from '../../services/purchaseOrderService.js';
+import { getAllGoodsReceipts, updateGoodsReceipt, postGoodsReceipt } from '../../services/purchaseOrderService.js';
 import type { GoodsReceipt as ApiGoodsReceipt } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -21,6 +21,7 @@ const STATUS_CFG: Record<string, { label: string; bg: string }> = {
 };
 
 interface ReceiptItem {
+  purchaseOrderItemId: string;
   sku: string; name: string; orderedQty: number; actualQty: number;
   acceptedQty: number; rejectedQty: number; damagedQty: number;
   warehouseLocation: string; batchNo: string; lotNo: string;
@@ -80,12 +81,13 @@ export default function WarehouseGoodsReceipt() {
         receiver: r.receivedByUserName,
         status: r.status,
         items: (r.items || []).map((i) => ({
+          purchaseOrderItemId: i.purchaseOrderItemId,
           sku: i.itemSku,
           name: i.itemName,
           orderedQty: 0,
           actualQty: i.acceptedQuantity + i.damagedQuantity + i.excessQuantity + i.wrongItemQuantity,
           acceptedQty: i.acceptedQuantity,
-          rejectedQty: i.damagedQuantity + i.excessQuantity + i.shortQuantity + i.wrongItemQuantity,
+          rejectedQty: i.wrongItemQuantity,
           damagedQty: i.damagedQuantity,
           warehouseLocation: '-',
           batchNo: i.batchNumber || '-',
@@ -119,7 +121,14 @@ export default function WarehouseGoodsReceipt() {
   };
 
   const updateQty = (idx: number, field: keyof ReceiptItem, value: number) => {
-    setEditItems(p => p.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+    setEditItems(p => p.map((item, i) => {
+      if (i !== idx) return item;
+      const updated = { ...item, [field]: value };
+      // Giữ actualQty đồng bộ trong state (không chỉ ở phần hiển thị bảng) — handlePrintReceipt đọc
+      // trực tiếp item.actualQty, nếu không đồng bộ thì bản in sẽ hiện SL thực tế cũ sau khi sửa.
+      updated.actualQty = updated.acceptedQty + updated.damagedQty + updated.rejectedQty;
+      return updated;
+    }));
   };
 
   const handleExportExcel = (itemsToExport?: GoodsReceipt[]) => {
@@ -231,21 +240,48 @@ export default function WarehouseGoodsReceipt() {
     printWindow.document.close();
   };
 
-  const handleSaveDraft = () => {
+  const buildUpdatePayload = (items: ReceiptItem[]) => ({
+    items: items.map(i => ({
+      purchaseOrderItemId: i.purchaseOrderItemId,
+      acceptedQuantity: i.acceptedQty,
+      damagedQuantity: i.damagedQty,
+      wrongItemQuantity: i.rejectedQty
+    }))
+  });
+
+  // BUGFIX: trước đây chỉ đổi state React cục bộ, không hề gọi API — mọi chỉnh sửa biến mất
+  // ngay khi tải lại trang. Nay gọi PUT /receipts/{id} thật (chỉ hoạt động khi phiếu còn Draft).
+  const handleSaveDraft = async () => {
     if (!detail) return;
-    const updated = { ...detail, items: [...editItems] };
-    setDetail(updated);
-    setDATA(prev => prev.map(d => d.id === detail.id ? updated : d));
-    setToast({ text: `Đã lưu nháp thay đổi của phiếu ${detail.code} thành công!`, type: 'success' });
+    setLoadingAction(true);
+    try {
+      await updateGoodsReceipt(detail.poNo, detail.id, buildUpdatePayload(editItems));
+      const updated = { ...detail, items: [...editItems] };
+      setDetail(updated);
+      setDATA(prev => prev.map(d => d.id === detail.id ? updated : d));
+      setToast({ text: `Đã lưu thay đổi của phiếu ${detail.code} thành công!`, type: 'success' });
+    } catch (err) {
+      setToast({ text: 'Lỗi khi lưu phiếu: ' + getErrorMessage(err), type: 'error' });
+    } finally {
+      setLoadingAction(false);
+    }
   };
 
+  // BUGFIX: trước đây lỗi từ postGoodsReceipt bị nuốt âm thầm (try/catch rỗng chỉ console.warn),
+  // UI vẫn báo "hoàn tất thành công" và đổi trạng thái local dù backend từ chối (vd thiếu ảnh minh
+  // chứng khi có hàng Hỏng/Sai loại) — dữ liệu thật vẫn ở Draft, tồn kho chưa được cộng. Nay để lỗi
+  // trồi lên catch ngoài, không báo thành công giả. Đồng thời lưu chỉnh sửa đang hiển thị TRƯỚC khi
+  // ghi sổ, để "Hoàn tất" luôn phản ánh đúng số liệu trên màn hình chứ không phải số liệu lúc tạo phiếu.
   const handleCompleteReceipt = async (receipt?: GoodsReceipt | null) => {
     const target = receipt || detail;
     if (!target) return;
     setLoadingAction(true);
     try {
       if (target.poNo && target.id) {
-        try { await postGoodsReceipt(target.poNo, target.id); } catch (e) { console.warn('API postGoodsReceipt fallback/warning:', e); }
+        if (target === detail) {
+          await updateGoodsReceipt(target.poNo, target.id, buildUpdatePayload(editItems));
+        }
+        await postGoodsReceipt(target.poNo, target.id);
       }
       const updated = { ...target, status: 'Posted', items: target === detail ? editItems : target.items };
       setDetail(updated);
@@ -258,19 +294,37 @@ export default function WarehouseGoodsReceipt() {
     }
   };
 
+  // BUGFIX: cùng lỗi "báo thành công giả" như trên — lỗi post của TỪNG phiếu bị nuốt, sau đó TOÀN
+  // BỘ phiếu đã chọn (kể cả những phiếu vừa lỗi) vẫn bị đổi trạng thái local thành "Posted". Nay chỉ
+  // đổi trạng thái cho phiếu thực sự post thành công, báo rõ danh sách phiếu lỗi, và giữ lại lựa chọn
+  // các phiếu lỗi để người dùng biết cần xử lý tiếp.
   const handleBulkComplete = async () => {
     if (selected.length === 0) return;
     setLoadingAction(true);
     try {
-      for (const id of selected) {
-        const item = DATA.find(d => d.id === id);
-        if (item && item.status !== 'completed' && item.status !== 'Posted') {
-          try { await postGoodsReceipt(item.poNo, item.id); } catch (e) { console.warn('API call error in bulk:', e); }
+      const targets = DATA.filter(d => selected.includes(d.id) && d.status !== 'completed' && d.status !== 'Posted');
+      const succeededIds: string[] = [];
+      const failed: { code: string; id: string; error: string }[] = [];
+
+      for (const item of targets) {
+        try {
+          await postGoodsReceipt(item.poNo, item.id);
+          succeededIds.push(item.id);
+        } catch (e) {
+          failed.push({ code: item.code, id: item.id, error: getErrorMessage(e) });
         }
       }
-      setDATA(prev => prev.map(d => selected.includes(d.id) ? { ...d, status: 'Posted' } : d));
-      setSelected([]);
-      setToast({ text: `Đã hoàn tất ${selected.length} phiếu nhập kho đã chọn!`, type: 'success' });
+
+      if (succeededIds.length > 0) {
+        setDATA(prev => prev.map(d => succeededIds.includes(d.id) ? { ...d, status: 'Posted' } : d));
+      }
+      setSelected(failed.map(f => f.id));
+
+      if (failed.length === 0) {
+        setToast({ text: `Đã hoàn tất ${succeededIds.length} phiếu nhập kho đã chọn!`, type: 'success' });
+      } else {
+        setToast({ text: `Hoàn tất ${succeededIds.length}/${targets.length} phiếu. Lỗi: ${failed.map(f => f.code).join(', ')}.`, type: 'error' });
+      }
     } catch (err) {
       setToast({ text: 'Lỗi xử lý hàng loạt: ' + getErrorMessage(err), type: 'error' });
     } finally {
@@ -385,7 +439,7 @@ export default function WarehouseGoodsReceipt() {
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">SL đặt</th>
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">SL thực tế</th>
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">Chấp nhận</th>
-                          <th className="text-center px-3 py-2 text-gray-700 font-semibold">Từ chối</th>
+                          <th className="text-center px-3 py-2 text-gray-700 font-semibold">Sai loại</th>
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">Hư hỏng</th>
                           <th className="text-left px-3 py-2 text-gray-700 font-semibold">Batch / Lot</th>
                           <th className="text-left px-3 py-2 text-gray-700 font-semibold">Vị trí lưu</th>
@@ -400,11 +454,10 @@ export default function WarehouseGoodsReceipt() {
                             </td>
                             <td className="px-3 py-2 text-center font-semibold text-gray-600">{item.orderedQty}</td>
                             <td className="px-3 py-2 text-center">
-                              {isReadOnly ? (
-                                <span className="font-semibold text-gray-900">{item.actualQty}</span>
-                              ) : (
-                                <Input type="number" value={item.actualQty} className="h-6 text-xs text-center w-16 mx-auto" onChange={e => updateQty(idx, 'actualQty', +e.target.value)} />
-                              )}
+                              {/* SL thực tế = Chấp nhận + Sai loại + Hư hỏng — luôn tự tính, không nhập tay
+                                  để không thể lệch với 3 số liệu thật sự lưu ở backend (Excess/Short cũng
+                                  do server tự tính lại theo đúng công thức này, xem UpdateDraftReceiptAsync). */}
+                              <span className="font-semibold text-gray-900">{item.acceptedQty + item.damagedQty + item.rejectedQty}</span>
                             </td>
                             <td className="px-3 py-2 text-center">
                               {isReadOnly ? (
@@ -438,7 +491,7 @@ export default function WarehouseGoodsReceipt() {
                     </table>
                   </div>
                   {!isReadOnly && (
-                    <p className="text-gray-400 mt-1 text-[10px]">* Chấp nhận + Từ chối phải bằng SL thực tế</p>
+                    <p className="text-gray-400 mt-1 text-[10px]">* SL thực tế = Chấp nhận + Sai loại + Hư hỏng (tự tính)</p>
                   )}
                 </div>
               )}
