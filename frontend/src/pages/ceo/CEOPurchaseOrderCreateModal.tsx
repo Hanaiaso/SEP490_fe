@@ -1,13 +1,13 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect, useRef } from 'react';
 import { getSuppliers } from '../../services/supplierService.js';
-import { getProducts } from '../../services/productService.js';
+import { getProductsForManagement } from '../../services/productService.js';
 import { getMaterials } from '../../services/materialService.js';
 import { createPurchaseOrder, updateDraftPurchaseOrder, getWarehouses, importPOFromExcel, importPOFromImage } from '../../services/purchaseOrderService.js';
 import { X, Plus, Trash2, FileSpreadsheet, Image as ImageIcon } from 'lucide-react';
 import type { Supplier } from '../../types/supplier';
 import type { WarehouseOption, CreatePurchaseOrderRequest, PurchaseOrder } from '../../types/warehouse';
-import type { Product, Material } from '../../types/catalog';
+import type { ProductManagementItem, Material } from '../../types/catalog';
 
 interface POItemDraft {
   itemId: string;
@@ -28,10 +28,11 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
   const isEdit = !!editingPO;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductManagementItem[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,10 +73,14 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
     async function loadInitialData() {
       try {
         setLoading(true);
+        // Dùng endpoint quản trị (/products/management, không lọc IsDiscontinued) thay vì catalog
+        // công khai (/products) — PO có thể tham chiếu sản phẩm đã ngừng kinh doanh (import Excel
+        // match SKU không lọc discontinued), nếu lấy danh sách từ catalog công khai thì sản phẩm đó
+        // không có trong danh sách <option> nên dropdown luôn hiện trống dù productId đã đúng.
         const [supData, whData, prodData, matData] = await Promise.all([
           getSuppliers().catch(() => []),
           getWarehouses().catch(() => []),
-          getProducts({ pageSize: 100 }).catch(() => ({ items: [] })),
+          getProductsForManagement({ pageSize: 500 }).catch(() => ({ items: [] })),
           getMaterials().catch(() => [])
         ]);
 
@@ -107,7 +112,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
   }, []);
 
   const handleItemChange = (index: number, itemId: string) => {
-    const selectedItem: Product | Material | undefined = poType === 'Product'
+    const selectedItem: ProductManagementItem | Material | undefined = poType === 'Product'
       ? products.find((p) => p.id === itemId)
       : materials.find((m) => m.id === itemId);
 
@@ -125,6 +130,12 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
   };
 
   const handleSave = async () => {
+    // Chặn bấm nhiều lần trong lúc đang lưu — trước đây không có khoá này, 2 request lưu gần như
+    // đồng thời cùng đọc RowVersion gốc, request đầu lưu xong, request sau bị EF Core từ chối với
+    // DbUpdateConcurrencyException ("Đơn đặt hàng đã bị thay đổi bởi tác vụ khác") dù thực ra
+    // không có ai khác sửa cả — chỉ là tự đụng chính request trước của mình.
+    if (saving) return;
+    setSaving(true);
     try {
       if (!formData.supplierId) {
         return alert("Vui lòng chọn Nhà cung cấp.");
@@ -171,6 +182,8 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
       onSuccess();
     } catch (err: unknown) {
       alert(getErrorMessage(err, "Đã xảy ra lỗi khi tạo PO (400 Bad Request)"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -363,7 +376,11 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
                           >
                             <option value="">-- Chọn {poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'} --</option>
                             {poType === 'Product'
-                              ? products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)
+                              ? products.map(p => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name} ({p.sku}){p.isDiscontinued ? ' — Ngừng kinh doanh' : ''}
+                                  </option>
+                                ))
                               : materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
                             }
                           </select>
@@ -428,8 +445,10 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
         </div>
 
         <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 rounded-b-lg">
-          <button onClick={onClose} className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-100 font-medium">Hủy bỏ</button>
-          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm">{isEdit ? 'Lưu thay đổi' : 'Lưu PO Nháp (Draft)'}</button>
+          <button onClick={onClose} disabled={saving} className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-100 font-medium disabled:opacity-50">Hủy bỏ</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? 'Đang lưu...' : (isEdit ? 'Lưu thay đổi' : 'Lưu PO Nháp (Draft)')}
+          </button>
         </div>
       </div>
     </div>

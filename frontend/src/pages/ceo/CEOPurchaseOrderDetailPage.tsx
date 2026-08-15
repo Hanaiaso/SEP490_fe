@@ -9,7 +9,7 @@ import {
   closePurchaseOrder,
   getGoodsReceipts
 } from '../../services/purchaseOrderService.js';
-import { ArrowLeft, Package, Truck, User, Image as ImageIcon, Pencil } from 'lucide-react';
+import { ArrowLeft, Package, Truck, User, Image as ImageIcon, Pencil, AlertTriangle } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import { Button } from '../../components/sales-ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
@@ -29,7 +29,10 @@ interface CEOPurchaseOrderDetailPageProps {
 }
 
 const PO_STATUS_MAP: Record<string, { label: string; style: string }> = {
-  'Draft': { label: 'Bản nháp', style: 'bg-gray-100 text-gray-700' },
+  // Chỉ CEO tạo và cũng chỉ CEO được phát hành PO -> mọi PO Draft đều đang chờ chính CEO bấm
+  // "Phát hành (Issue)" ngay bên dưới, nên nhãn "Chờ phát hành" (tô cam, nổi bật) đúng và rõ hơn
+  // "Bản nháp" (nghe như còn dở dang, chưa chắc cần làm gì).
+  'Draft': { label: 'Chờ phát hành', style: 'bg-amber-100 text-amber-800' },
   'Issued': { label: 'Đã phát hành', style: 'bg-blue-100 text-blue-700' },
   'SentToWarehouse': { label: 'Đã gửi kho', style: 'bg-purple-100 text-purple-700' },
   'PartiallyReceived': { label: 'Nhận một phần', style: 'bg-yellow-100 text-yellow-700' },
@@ -246,17 +249,31 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
           </thead>
           <tbody className="divide-y divide-gray-100">
             {po.items && po.items.length > 0 ? (
-              po.items.map((i) => (
-                <tr key={i.id} className="hover:bg-gray-50/60">
-                  <td className="px-3 py-2.5 font-mono text-gray-600">{i.itemSku || '-'}</td>
-                  <td className="px-3 py-2.5 font-medium text-gray-800">{i.itemName || 'Sản phẩm'}</td>
-                  <td className="px-3 py-2.5 text-center text-gray-600">{i.unit || 'Cái'}</td>
-                  <td className="px-3 py-2.5 text-right font-mono text-gray-700">{(i.unitPrice ?? 0).toLocaleString('vi-VN')} đ</td>
-                  <td className="px-3 py-2.5 text-right font-medium text-gray-800">{i.expectedQuantity ?? 0}</td>
-                  <td className="px-3 py-2.5 text-right text-green-700 font-bold">{i.receivedQuantity ?? 0}</td>
-                  <td className="px-3 py-2.5 text-right text-red-600 font-semibold">{Math.max(0, (i.expectedQuantity ?? 0) - (i.receivedQuantity ?? 0))}</td>
-                </tr>
-              ))
+              po.items.map((i) => {
+                // Dòng import từ Excel (SKU không khớp) hoặc ảnh OCR (không fuzzy-match được) —
+                // backend trả itemName = "N/A" đúng nghĩa đen. Tô đỏ để CEO sửa trước khi phát hành
+                // (backend chặn cứng ở bước Issue, nhưng nên thấy ngay ở đây thay vì đợi bị từ chối).
+                const isUnmatched = i.itemName === 'N/A';
+                return (
+                  <tr key={i.id} className={`hover:bg-gray-50/60 ${isUnmatched ? 'bg-red-50/60' : ''}`}>
+                    <td className="px-3 py-2.5 font-mono text-gray-600">{i.itemSku || '-'}</td>
+                    <td className="px-3 py-2.5 font-medium">
+                      {isUnmatched ? (
+                        <span className="inline-flex items-center gap-1.5 text-red-600" title="Chưa khớp được sản phẩm/nguyên liệu nào trong hệ thống — sửa PO trước khi phát hành">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Chưa xác định (N/A)
+                        </span>
+                      ) : (
+                        <span className="text-gray-800">{i.itemName || 'Sản phẩm'}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-gray-600">{i.unit || 'Cái'}</td>
+                    <td className="px-3 py-2.5 text-right font-mono text-gray-700">{(i.unitPrice ?? 0).toLocaleString('vi-VN')} đ</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-gray-800">{i.expectedQuantity ?? 0}</td>
+                    <td className="px-3 py-2.5 text-right text-green-700 font-bold">{i.receivedQuantity ?? 0}</td>
+                    <td className="px-3 py-2.5 text-right text-red-600 font-semibold">{Math.max(0, (i.expectedQuantity ?? 0) - (i.receivedQuantity ?? 0))}</td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={7} className="p-6 text-center text-gray-400 italic">Chưa có thông tin sản phẩm đặt mua</td>

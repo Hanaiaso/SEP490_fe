@@ -26,8 +26,12 @@ export function useChat(quotationId) {
     newConnection.start()
       .then(() => {
         console.log('Connected to SignalR ChatHub');
-        // Join the specific quotation room
-        newConnection.invoke('JoinQuotationChat', quotationId);
+        // Join the specific quotation room — có .catch() vì server có thể từ chối (báo giá không
+        // tồn tại, không phải khách/Sales phụ trách...); nếu không bắt, lỗi rơi thành unhandled
+        // promise rejection ("Uncaught (in promise)") thay vì hiển thị rõ nguyên nhân.
+        newConnection.invoke('JoinQuotationChat', quotationId).catch(e => {
+          console.error('Không thể tham gia phòng chat báo giá:', e);
+        });
         setIsConnecting(false);
       })
       .catch(e => {
