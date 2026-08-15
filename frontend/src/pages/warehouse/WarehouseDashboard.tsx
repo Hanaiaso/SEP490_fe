@@ -369,7 +369,7 @@ function WarehouseDrillDownModal({
                 {metric === 'returnQuarantine' && items.map((q: any, i: number) => (
                   <tr key={q.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
                     <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{q.quarantineCode || q.code || q.id?.slice(0, 8)}</td>
-                    <td className="px-3 py-2 text-gray-800 font-medium">{q.productName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{q.itemName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
                     <td className="px-3 py-2 font-mono text-[11px]">{q.quantity ?? 1}</td>
                     <td className="px-3 py-2 text-gray-600 max-w-[200px] truncate">{q.reason || q.notes || 'Chờ kiểm tra'}</td>
                     <td className="px-3 py-2 text-center">

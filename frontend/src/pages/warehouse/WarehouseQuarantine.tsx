@@ -5,6 +5,10 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, CheckCircle, XCircle, Archive } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+// Dùng type dùng chung đã đối chiếu với QuarantineListItemDto của BE (itemName/itemSku/itemType).
+// Trang này từng khai một interface riêng với tên field productName/productSku — không khớp JSON
+// backend trả về nên cột SKU và Sản phẩm luôn trống.
+import type { QuarantineListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -17,24 +21,6 @@ const STATUS_CFG: Record<string, { label: string; bg: string }> = {
   ApprovedAvailable: { label: 'Đã duyệt – Khả dụng', bg: SUCCESS },
   ApprovedDamaged:   { label: 'Đã duyệt – Hư hỏng', bg: ERROR },
 };
-
-interface QuarantineItem {
-  id: string;
-  quarantineCode: string;
-  orderId: string;
-  orderCode: string;
-  productId: string;
-  productName: string;
-  productSku: string;
-  quantity: number;
-  reason: string;
-  status: string;
-  receivedByName: string;
-  createdAt: string;
-  dispatchedAction: string | null;
-  dispatchedByName: string | null;
-  dispatchedAt: string | null;
-}
 
 function api(path: string, opts?: RequestInit) {
   return authFetch(path.startsWith('/api') ? path.slice(4) : path, {
@@ -58,8 +44,8 @@ function Badge({ status }: { status: string }) {
 export default function WarehouseQuarantine() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [detail, setDetail] = useState<QuarantineItem | null>(null);
-  const [items, setItems] = useState<QuarantineItem[]>([]);
+  const [detail, setDetail] = useState<QuarantineListItem | null>(null);
+  const [items, setItems] = useState<QuarantineListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dispatchLoading, setDispatchLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -75,7 +61,7 @@ export default function WarehouseQuarantine() {
     try {
       const res = await api('/api/warehouse-management/quarantine');
       if (!res.ok) throw new Error();
-      const data: QuarantineItem[] = await res.json();
+      const data: QuarantineListItem[] = await res.json();
       setItems(data);
     } catch {
       showToast('Không thể tải danh sách cách ly.', 'error');
@@ -107,18 +93,20 @@ export default function WarehouseQuarantine() {
 
   const filtered = items.filter((d) => {
     const q = search.toLowerCase();
+    // Hàng cách ly có thể là nguyên vật liệu (không có SKU) hoặc không gắn đơn hàng -> phải
+    // chịu được field rỗng, nếu không gõ tìm kiếm sẽ ném TypeError.
     const ms = !q || d.quarantineCode.toLowerCase().includes(q)
-      || d.productSku.toLowerCase().includes(q)
-      || d.productName.toLowerCase().includes(q)
-      || d.reason.toLowerCase().includes(q)
-      || d.orderCode.toLowerCase().includes(q);
+      || (d.itemSku ?? '').toLowerCase().includes(q)
+      || (d.itemName ?? '').toLowerCase().includes(q)
+      || (d.reason ?? '').toLowerCase().includes(q)
+      || (d.orderCode ?? '').toLowerCase().includes(q);
     return ms && (statusFilter === 'all' || d.status === statusFilter);
   });
 
   const toggleSelect = (id: string) => setSelected((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
   const toggleAll = () => setSelected((p) => p.length === filtered.length ? [] : filtered.map((d) => d.id));
 
-  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleString('vi-VN') : '—';
+  const fmtDate = (s: string | null | undefined) => s ? new Date(s).toLocaleString('vi-VN') : '—';
 
   const pendingCount = items.filter((i) => i.status === 'Waiting').length;
 
@@ -211,8 +199,8 @@ export default function WarehouseQuarantine() {
                   <td className="px-3 py-2.5"><input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleSelect(d.id)} /></td>
                   <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{d.quarantineCode}</td>
                   <td className="px-3 py-2.5 text-gray-600 font-mono">{d.orderCode}</td>
-                  <td className="px-3 py-2.5 font-mono text-gray-500">{d.productSku}</td>
-                  <td className="px-3 py-2.5 font-medium text-gray-800">{d.productName}</td>
+                  <td className="px-3 py-2.5 font-mono text-gray-500">{d.itemSku || '—'}</td>
+                  <td className="px-3 py-2.5 font-medium text-gray-800">{d.itemName || '—'}</td>
                   <td className="px-3 py-2.5 text-center font-semibold text-gray-800">{d.quantity}</td>
                   <td className="px-3 py-2.5 text-gray-600 max-w-[140px] truncate">{d.reason}</td>
                   <td className="px-3 py-2.5 text-gray-700">{d.receivedByName}</td>
@@ -268,8 +256,8 @@ export default function WarehouseQuarantine() {
                   <p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Thông tin hàng cách ly</p>
                   <div className="flex justify-between"><span className="text-gray-500">Mã cách ly:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.quarantineCode}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Đơn hàng:</span><span className="font-mono">{detail.orderCode}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">SKU:</span><span className="font-mono">{detail.productSku}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Sản phẩm:</span><span className="font-medium text-gray-800">{detail.productName}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">SKU:</span><span className="font-mono">{detail.itemSku || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{detail.itemType === 'Material' ? 'Nguyên vật liệu:' : 'Sản phẩm:'}</span><span className="font-medium text-gray-800">{detail.itemName || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Số lượng:</span><span className="font-semibold text-base" style={{ color: WARNING }}>{detail.quantity}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Người nhận:</span><span>{detail.receivedByName}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Ngày nhập QZ:</span><span>{fmtDate(detail.createdAt)}</span></div>

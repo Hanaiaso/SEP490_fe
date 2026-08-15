@@ -12,7 +12,6 @@ import {
   EyeOff,
   ExternalLink,
   FileText,
-  Mail,
   MapPin,
   MessageSquare,
   Package,
@@ -143,25 +142,6 @@ function normalizeQuotationStatus(status) {
   return String(status || '').toLowerCase().replace(/_/g, '')
 }
 
-function ToggleRow({ checked, label, onToggle }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-700">{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={onToggle}
-        className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
-      >
-        <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${checked ? 'left-6' : 'left-1'}`}
-        />
-      </button>
-    </div>
-  )
-}
-
 function PersonalInfoTab({ user, onSuccess }) {
   const { updateUser } = useAuth()
   const [fullName, setFullName] = useState(user?.fullName || '')
@@ -191,30 +171,6 @@ function PersonalInfoTab({ user, onSuccess }) {
   const [savingInfo, setSavingInfo] = useState(false)
   const [updatingPassword, setUpdatingPassword] = useState(false)
 
-  const notificationStorageKey = `user_email_notifications_${user?.id || user?.email || 'default'}`
-  const [notifications, setNotifications] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`user_email_notifications_${user?.id || user?.email || 'default'}`)
-      if (saved) return JSON.parse(saved)
-    } catch (e) {}
-    return {
-      orderConfirm: true,
-      shipStatus: true,
-      vatInvoice: true,
-      promotions: true,
-    }
-  })
-
-  const handleToggleNotification = (key) => {
-    setNotifications((prev) => {
-      const updated = { ...prev, [key]: !prev[key] }
-      try {
-        localStorage.setItem(notificationStorageKey, JSON.stringify(updated))
-      } catch (e) {}
-      onSuccess?.('Đã lưu cài đặt thông báo email')
-      return updated
-    })
-  }
 
   const isPhoneMatchedAndVerified = !phoneNumber || (user?.isPhoneVerified && user?.phoneNumber === phoneNumber);
 
@@ -507,36 +463,7 @@ function PersonalInfoTab({ user, onSuccess }) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-6">
-        <div className="mb-5 flex items-center gap-2">
-          <Mail className="h-4 w-4 text-gray-700" />
-          <h3 className="text-base font-semibold text-gray-900">Thông báo email</h3>
-        </div>
-        <div className="space-y-4">
-          <ToggleRow
-            checked={Boolean(notifications.orderConfirm)}
-            label="Nhận email xác nhận đơn hàng"
-            onToggle={() => handleToggleNotification('orderConfirm')}
-          />
-          <ToggleRow
-            checked={Boolean(notifications.shipStatus)}
-            label="Nhận email trạng thái giao hàng"
-            onToggle={() => handleToggleNotification('shipStatus')}
-          />
-          <ToggleRow
-            checked={Boolean(notifications.vatInvoice)}
-            label="Nhận email hóa đơn VAT"
-            onToggle={() => handleToggleNotification('vatInvoice')}
-          />
-          <ToggleRow
-            checked={Boolean(notifications.promotions)}
-            label="Nhận email khuyến mãi"
-            onToggle={() => handleToggleNotification('promotions')}
-          />
-        </div>
-      </section>
-
-      <PhoneVerificationModal 
+      <PhoneVerificationModal
         isOpen={isVerifyPhoneOpen}
         onClose={() => setIsVerifyPhoneOpen(false)}
         currentPhone={phoneNumber}

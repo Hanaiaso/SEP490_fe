@@ -1,4 +1,5 @@
 import { authFetch } from './httpClient';
+import { resolveApiFileUrl } from './apiBase.js';
 
 async function request(method, url, body) {
   const res = await authFetch(url, {
@@ -85,8 +86,9 @@ export async function requestVatInvoice(orderId) {
  * @param {string | null | undefined} invoicePdfUrl
  */
 export function downloadInvoicePdf(invoicePdfUrl) {
-  if (!invoicePdfUrl) throw new Error('Hóa đơn PDF chưa sẵn sàng.')
-  window.open(invoicePdfUrl, '_blank', 'noopener,noreferrer')
+  const url = resolveApiFileUrl(invoicePdfUrl)
+  if (!url) throw new Error('Hóa đơn PDF chưa sẵn sàng.')
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 // ─── Status Metadata ─────────────────────────────────────────────────────────

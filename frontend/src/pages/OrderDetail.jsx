@@ -657,24 +657,6 @@ export default function OrderDetail() {
                 </div>
               </section>
 
-              {/* Support */}
-              <section className="rounded-[1.75rem] border border-gray-100 bg-gradient-to-br from-gray-50 to-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Hỗ trợ</p>
-                <h2 className="mt-2 text-xl font-semibold text-gray-900">Cần hỗ trợ đơn hàng?</h2>
-                <p className="mt-3 text-sm leading-7 text-gray-500">
-                  Nếu bạn cần kiểm tra chứng từ, thay đổi người nhận hoặc xác nhận tiến độ giao hàng, đội Sales sẽ hỗ trợ nhanh nhất.
-                </p>
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Button className="rounded-full bg-gray-900 text-white hover:bg-gray-800">
-                    <ExternalLink className="h-4 w-4" />
-                    Liên hệ Sales
-                  </Button>
-                  <Link to="/profile?tab=orders">
-                    <Button variant="outline" className="rounded-full">Xem đơn khác</Button>
-                  </Link>
-                </div>
-              </section>
             </div>
           </div>
         </div>

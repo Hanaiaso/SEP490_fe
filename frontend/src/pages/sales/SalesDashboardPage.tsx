@@ -10,6 +10,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
 import { authFetch } from '../../services/httpClient';
+import { resolveApiFileUrl } from '../../services/apiBase.js';
+import { exportInvoiceToPdf } from '../../utils/exportPdf.js';
 import type {
   SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
   DashboardQuoteRequest, DashboardOrder,
@@ -282,6 +284,34 @@ export default function SalesDashboard() {
     setDrillDown({ metric, title });
     setDrillDownOrders([]);
     loadDrillDown(metric);
+  };
+
+  // Xem hóa đơn PDF của 1 đơn trong bảng "Đơn hàng gần đây".
+  // Đơn mới: backend đã lưu URL Cloudinary tuyệt đối -> mở thẳng.
+  // Đơn cũ (URL "/invoices/xxx.pdf" trỏ vào wwwroot đã mất sau redeploy) hoặc đơn chưa có PDF:
+  // dựng lại hóa đơn phía client, đúng cách SalesOrdersPage.handleExportPdf đang làm.
+  const [openingInvoiceId, setOpeningInvoiceId] = useState<string | null>(null);
+
+  const handleViewInvoice = async (order: DashboardOrder) => {
+    const storedUrl = resolveApiFileUrl(order.invoicePdfUrl);
+    if (storedUrl) {
+      window.open(storedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Mở tab ngay trong user-gesture, trước các await, để không bị chặn popup.
+    const targetWindow = window.open('', '_blank');
+    setOpeningInvoiceId(order.id);
+    try {
+      const response = await authFetch(`/orders/sales/${order.id}`);
+      if (!response.ok) throw new Error('Không thể lấy chi tiết đơn hàng để xuất hóa đơn.');
+      await exportInvoiceToPdf(await response.json(), 'view', targetWindow);
+    } catch (err) {
+      targetWindow?.close();
+      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xuất hóa đơn PDF.');
+    } finally {
+      setOpeningInvoiceId(null);
+    }
   };
 
   if (loading) {
@@ -581,21 +611,19 @@ export default function SalesDashboard() {
                         <StatusBadge label={ORDER_STATUS[o.orderStatus]?.label || o.orderStatus} bg={ORDER_STATUS[o.orderStatus]?.bg || NEUTRAL} />
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {o.invoicePdfUrl ? (
-                          <a
-                            href={o.invoicePdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#9CA3AF] hover:text-[#1F3B64] transition-colors inline-block"
-                            title="Xem hóa đơn PDF"
-                          >
+                        <button
+                          type="button"
+                          onClick={() => handleViewInvoice(o)}
+                          disabled={openingInvoiceId === o.id}
+                          className="text-[#9CA3AF] hover:text-[#1F3B64] transition-colors inline-block disabled:opacity-40 disabled:cursor-wait"
+                          title="Xem hóa đơn PDF"
+                        >
+                          {openingInvoiceId === o.id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
                             <Eye className="w-3.5 h-3.5" />
-                          </a>
-                        ) : (
-                          <span className="text-slate-200" title="Không có PDF">
-                            <Eye className="w-3.5 h-3.5 opacity-30" />
-                          </span>
-                        )}
+                          )}
+                        </button>
                       </td>
                     </tr>
                   ))

@@ -5,6 +5,7 @@ import { Search, Trash2, Printer, FileText, Check, Loader2, ArrowLeft } from 'lu
 import { getProducts } from '../../services/productService';
 import { placeDirectOrder } from '../../services/directOrderService';
 import { authFetch } from '../../services/httpClient';
+import { resolveApiFileUrl } from '../../services/apiBase.js';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { Product } from '../../types/catalog';
@@ -681,7 +682,7 @@ export default function DirectPurchasePage() {
 
               {successOrder.invoicePdfUrl && (
                 <a
-                  href={successOrder.invoicePdfUrl}
+                  href={resolveApiFileUrl(successOrder.invoicePdfUrl) ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex text-xs text-blue-600 hover:underline font-semibold"

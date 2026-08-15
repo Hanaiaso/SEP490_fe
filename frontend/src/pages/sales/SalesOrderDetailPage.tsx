@@ -7,6 +7,7 @@ import type { ReturnExchangeRequest } from '../../components/ReturnExchangeReque
 import { useAuth } from '../../context/AuthContext';
 import type { SalesOrderDetail } from '../../types/order';
 import { authFetch } from '../../services/httpClient';
+import { resolveApiFileUrl } from '../../services/apiBase.js';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, Building2,
@@ -316,7 +317,7 @@ export default function SalesOrderDetailPage() {
             )}
             {order.invoicePdfUrl && (
               <a
-                href={order.invoicePdfUrl}
+                href={resolveApiFileUrl(order.invoicePdfUrl) ?? undefined}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
