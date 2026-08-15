@@ -281,6 +281,27 @@ export default function AddressModal({
             />
           </div>
 
+          {/* Số điện thoại người nhận — bắt buộc phía backend (CreateAddressDto/UpdateAddressDto:
+              [Required] + ^0\d{9}$) nhưng trước đây form này không có ô nhập nào cho trường này,
+              khiến giá trị bị "câm" theo user.phoneNumber (có thể rỗng/sai định dạng nếu đăng ký
+              không nhập SĐT hoặc nhập sai) và luôn bị BE từ chối mà người dùng không biết sửa ở đâu. */}
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Số điện thoại người nhận</label>
+            <Input
+              type="tel"
+              inputMode="numeric"
+              placeholder="0912345678"
+              className="rounded-xl text-sm"
+              value={form.phone}
+              onChange={(e) => onChange('phone', e.target.value.replace(/[^\d]/g, '').slice(0, 10))}
+              pattern="0[0-9]{9}"
+              title="Số điện thoại phải có 10 số và bắt đầu bằng 0"
+              maxLength={10}
+              required
+            />
+            <p className="mt-1 text-[11px] text-gray-400">Định dạng: 10 số, bắt đầu bằng 0 (VD: 0912345678)</p>
+          </div>
+
           {/* Loại địa chỉ */}
           <div>
             <label className="mb-1 block text-xs text-gray-500">Loại địa chỉ</label>

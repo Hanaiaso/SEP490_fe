@@ -77,10 +77,14 @@ export default function Cart() {
     setDeselectedIds(allSelected ? new Set(cartItems.map((i) => i.id)) : new Set())
   }
 
-  // Fetch báo giá đã duyệt khi cart load
+  // Fetch báo giá đã duyệt khi cart load — CHỈ khi đã đăng nhập. Đây là API yêu cầu xác thực
+  // ([Authorize]); gọi cho khách vãng lai (không có access token) sẽ nhận 401, và authFetch()
+  // coi mọi 401 là phiên hết hạn nên tự ép chuyển hướng sang /login (window.location.href) —
+  // đây chính là nguyên nhân khách vãng lai bấm vào Giỏ hàng bị văng sang trang đăng nhập.
   useEffect(() => {
+    if (!isAuthenticated) { setNegotiatedQuotation(null); return }
     fetchNegotiatedQuotation().then(setNegotiatedQuotation);
-  }, []);
+  }, [isAuthenticated]);
 
   // Chiet khau tu dong hien thi tu backend — chỉ tính trên các dòng đang được chọn thanh toán.
   useEffect(() => {

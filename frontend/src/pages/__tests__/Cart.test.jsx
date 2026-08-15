@@ -69,4 +69,35 @@ describe('Cart', () => {
       screen.getByText(/Đã gửi yêu cầu về Mã đơn hàng thành công! Sales sẽ phản hồi nhanh nhất có thể/i),
     ).toBeInTheDocument()
   })
+
+  // Khách vãng lai (chưa đăng nhập) mở Giỏ hàng: trước đây bị văng sang /login vì trang gọi thẳng
+  // GET /api/Quotation (yêu cầu xác thực) ngay khi mount — 401 khiến authFetch() tự ép chuyển hướng.
+  // Giờ phải xem được giỏ hàng tạm (localStorage) bình thường, không gọi API cần đăng nhập nào.
+  it('khách vãng lai xem được giỏ hàng tạm mà không bị chuyển sang trang đăng nhập', async () => {
+    localStorage.setItem('guestCart', JSON.stringify([
+      { id: 'P1', productId: 'P1', productName: 'Ống PVC D21', imageUrl: '', quantity: 2, unitPrice: 50_000 },
+    ]))
+
+    let quotationRequested = false
+    server.use(
+      http.get('/api/Quotation', () => {
+        quotationRequested = true
+        return new HttpResponse(null, { status: 401 })
+      }),
+    )
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter initialEntries={['/cart']}>
+            <Cart />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('Ống PVC D21')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Giỏ Hàng/i })).toBeInTheDocument()
+    expect(quotationRequested).toBe(false)
+  })
 })

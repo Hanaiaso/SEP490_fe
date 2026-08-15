@@ -67,7 +67,7 @@ export async function deleteAvatar() {
 
 /**
  * Thay đổi mật khẩu
- * @param {{ currentPassword, newPassword, confirmPassword }} data
+ * @param {{ currentPassword, newPassword, confirmNewPassword }} data
  */
 export async function changePassword(data) {
   return request('POST', '/user/change-password', data)

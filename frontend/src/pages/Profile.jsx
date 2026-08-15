@@ -313,7 +313,7 @@ function PersonalInfoTab({ user, onSuccess }) {
 
     try {
       setUpdatingPassword(true)
-      await changePassword({ currentPassword, newPassword, confirmPassword })
+      await changePassword({ currentPassword, newPassword, confirmNewPassword: confirmPassword })
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')

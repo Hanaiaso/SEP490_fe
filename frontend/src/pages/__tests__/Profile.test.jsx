@@ -31,6 +31,11 @@ vi.mock('../../services/quotationService.js', () => ({
   ]),
 }))
 
+vi.mock('../../services/provinceService.js', () => ({
+  getProvinces: vi.fn().mockResolvedValue([{ code: 1, name: 'Hà Nội' }]),
+  getWards: vi.fn().mockResolvedValue([{ code: 11, name: 'Phường Ba Đình' }]),
+}))
+
 function renderProfile(initialEntry = '/profile') {
   return render(
     <AuthProvider>
@@ -67,6 +72,82 @@ describe('Profile', () => {
     })
 
     expect(screen.getByText(/Lưu thông tin MST thành công/i)).toBeInTheDocument()
+  })
+
+  // Backend ChangePasswordDto yêu cầu đúng field "confirmNewPassword" (có [Required]) — trước đây
+  // FE gửi "confirmPassword" (tên khác hoàn toàn, không phải lệch hoa/thường) nên model binding để
+  // trống field này, luôn bị BadRequest "Xác nhận mật khẩu không được để trống" dù nhập đúng.
+  it('gửi đúng field confirmNewPassword khi đổi mật khẩu và báo thành công', async () => {
+    let capturedBody = null
+    server.use(
+      http.post('/api/user/change-password', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({ message: 'Đổi mật khẩu thành công' })
+      }),
+    )
+
+    renderProfile('/profile')
+
+    const [currentInput, newInput, confirmInput] = await screen.findAllByPlaceholderText('••••••••')
+    fireEvent.change(currentInput, { target: { value: 'OldPass123' } })
+    fireEvent.change(newInput, { target: { value: 'NewPass123' } })
+    fireEvent.change(confirmInput, { target: { value: 'NewPass123' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Cập nhật mật khẩu/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Thay đổi mật khẩu thành công/i)).toBeInTheDocument()
+    })
+
+    expect(capturedBody).toMatchObject({
+      currentPassword: 'OldPass123',
+      newPassword: 'NewPass123',
+      confirmNewPassword: 'NewPass123',
+    })
+    expect(capturedBody).not.toHaveProperty('confirmPassword')
+  })
+
+  // Lần đầu đăng nhập, giỏ chưa có địa chỉ nào -> modal thêm địa chỉ tự mở (needAddress).
+  // Trước đây AddressModal không có ô nhập SĐT nào cả — giá trị gửi lên bị "câm" theo
+  // user.phoneNumber (rỗng nếu đăng ký không nhập SĐT) rồi bị BE từ chối bằng exception
+  // "Số điện thoại phải có 10 số..." mà người dùng không có cách nào tự sửa trên form.
+  it('modal thêm địa chỉ lần đầu có ô nhập SĐT và gửi đúng giá trị đã nhập', async () => {
+    let capturedBody = null
+    server.use(
+      http.get('/api/user/addresses', () => HttpResponse.json([])),
+      http.post('/api/user/addresses', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({ id: 'A1', ...capturedBody, fullAddress: 'demo' })
+      }),
+    )
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter initialEntries={[{ pathname: '/profile', search: '?tab=addresses', state: { needAddress: true } }]}>
+            <Routes>
+              <Route path="/profile" element={<Profile />} />
+            </Routes>
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>,
+    )
+
+    // Modal tự mở vì chưa có địa chỉ nào (needAddress).
+    expect(await screen.findByRole('heading', { name: /Thêm địa chỉ mới/i })).toBeInTheDocument()
+
+    // Ô SĐT phải thực sự tồn tại trên form — đây chính là phần trước đây bị thiếu.
+    const phoneInput = await screen.findByPlaceholderText('0912345678')
+    fireEvent.change(phoneInput, { target: { value: '0987654321' } })
+
+    fireEvent.change(await screen.findByDisplayValue('-- Chọn Tỉnh/Thành phố --'), { target: { value: '1' } })
+    fireEvent.change(await screen.findByDisplayValue('-- Chọn Phường/Xã --'), { target: { value: '11' } })
+    fireEvent.change(screen.getByPlaceholderText('123 Đường ABC'), { target: { value: '12 Ngõ Nhỏ' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu địa chỉ$/i }))
+
+    await waitFor(() => expect(capturedBody).not.toBeNull())
+    expect(capturedBody.phone).toBe('0987654321')
   })
 
   it('filters order history by search keyword', async () => {

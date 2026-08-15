@@ -72,12 +72,22 @@ export default function Register() {
     event.preventDefault()
     setErrorMsg('')
 
+    // SĐT là tuỳ chọn lúc đăng ký (có thể xác thực OTP sau ở trang Hồ sơ), nhưng nếu đã nhập thì
+    // phải đúng định dạng VN — khớp với ^0\d{9}$ mà backend (RegisterDto/CreateAddressDto...) và
+    // các màn hình khác của app đang dùng, tránh số sai định dạng lọt vào hồ sơ rồi gây lỗi khó
+    // hiểu ở bước thêm địa chỉ giao hàng sau này.
+    const trimmedPhone = formData.phoneNumber.trim()
+    if (trimmedPhone && !/^0\d{9}$/.test(trimmedPhone)) {
+      setErrorMsg('Số điện thoại phải có 10 số và bắt đầu bằng 0 (VD: 0912345678).')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setErrorMsg('Mật khẩu xác nhận không khớp.')
       return
     }
 
-    const result = await register(formData)
+    const result = await register({ ...formData, phoneNumber: trimmedPhone })
     if (result.success) {
       navigate('/verify-otp', {
         state: {
@@ -169,18 +179,21 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Số điện thoại</Label>
+              <Label htmlFor="phoneNumber">Số điện thoại (tuỳ chọn)</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="phoneNumber"
                   type="tel"
+                  inputMode="numeric"
                   placeholder="0912345678"
                   value={formData.phoneNumber}
-                  onChange={(event) => handleChange('phoneNumber', event.target.value)}
+                  onChange={(event) => handleChange('phoneNumber', event.target.value.replace(/[^\d]/g, '').slice(0, 10))}
                   className="h-12 pl-11"
+                  maxLength={10}
                 />
               </div>
+              <p className="text-xs text-gray-500">Định dạng: 10 số, bắt đầu bằng 0 (VD: 0912345678)</p>
             </div>
 
             <div className="space-y-2">
