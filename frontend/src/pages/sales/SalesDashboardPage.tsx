@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   ShoppingCart, TrendingUp, Truck, CheckCircle, AlertCircle,
-  Clock, Eye, ChevronRight, Plus, RefreshCw, ArrowUp, ArrowDown, Target,
+  Clock, Eye, ChevronRight, Plus, RefreshCw, ArrowUp, ArrowDown, Target, X,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -25,17 +25,32 @@ const ERROR    = '#DC2626';
 const NEUTRAL  = '#64748B';
 
 const ORDER_STATUS: Record<string, { label: string; bg: string }> = {
-  New:       { label: 'Đơn mới',   bg: NEUTRAL },
-  Received:  { label: 'Đã nhận',   bg: INFO },
-  InTransit: { label: 'Đang giao', bg: WARNING },
-  Delivered: { label: 'Đã giao',   bg: SUCCESS },
-  Cancelled: { label: 'Đã hủy',    bg: ERROR },
-  new:       { label: 'Đơn mới',   bg: NEUTRAL },
-  confirmed: { label: 'Xác nhận',  bg: INFO },
-  preparing: { label: 'Chuẩn bị',  bg: NEUTRAL },
-  shipping:  { label: 'Đang giao', bg: NEUTRAL },
-  delivered: { label: 'Đã giao',   bg: SUCCESS },
-  cancelled: { label: 'Đã hủy',    bg: ERROR },
+  // Trạng thái đơn mới / chờ xác nhận
+  Draft: { label: 'Chờ xác nhận', bg: WARNING },
+  New: { label: 'Chờ xác nhận', bg: WARNING },
+  PendingConfirmation: { label: 'Chờ xác nhận', bg: WARNING },
+
+  // Thanh toán
+  PendingPayment: { label: 'Chờ thanh toán', bg: INFO },
+  PaidReviewRequired: { label: 'Chờ duyệt TT', bg: '#8B5CF6' },
+
+  // Xác nhận & Xử lý kho
+  Confirmed: { label: 'Đã xác nhận', bg: '#2563EB' },
+  Received: { label: 'Đã nhận đơn', bg: '#2563EB' },
+  Processing: { label: 'Đang đóng gói', bg: '#8B5CF6' },
+  Packing: { label: 'Đang đóng gói', bg: '#8B5CF6' },
+  Shortage: { label: 'Thiếu hàng', bg: ERROR },
+
+  // Giao hàng
+  InTransit: { label: 'Đang giao hàng', bg: WARNING },
+  Delivered: { label: 'Đã giao', bg: SUCCESS },
+  Completed: { label: 'Hoàn thành', bg: SUCCESS },
+  Returned: { label: 'Đã trả hàng', bg: NEUTRAL },
+
+  // Hủy đơn
+  CancelRequested: { label: 'Yêu cầu hủy', bg: ERROR },
+  CancelledReallocated: { label: 'Đã hủy', bg: ERROR },
+  Cancelled: { label: 'Đã hủy', bg: ERROR },
 };
 
 function StatusBadge({ label, bg }: { label: string; bg: string }) {
@@ -65,11 +80,14 @@ function PaymentBadge({ method }: { method: string }) {
   );
 }
 
-function KpiRow({ label, value, sub, delta, up, icon }: {
-  label: string; value: string; sub?: string; delta?: string; up?: boolean; icon: React.ReactNode;
+function KpiRow({ label, value, sub, delta, up, icon, onClick }: {
+  label: string; value: string; sub?: string; delta?: string; up?: boolean; icon: React.ReactNode; onClick?: () => void;
 }) {
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-lg p-3.5 shadow-sm">
+    <div
+      onClick={onClick}
+      className={`bg-white border border-[#E5E7EB] rounded-lg p-3.5 shadow-sm ${onClick ? 'cursor-pointer hover:border-[#1F3B64] hover:shadow-md transition-all' : ''}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] text-[#6B7280] leading-none font-bold uppercase tracking-wider">{label}</span>
         <span className="text-[#9CA3AF]">{icon}</span>
@@ -82,6 +100,75 @@ function KpiRow({ label, value, sub, delta, up, icon }: {
           {delta}
         </p>
       )}
+    </div>
+  );
+}
+
+function DrillDownModal({ title, loading, error, orders, onClose, onRetry, onRowClick }: {
+  title: string; loading: boolean; error: string; orders: DashboardOrder[];
+  onClose: () => void; onRetry: () => void; onRowClick: (id: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-4xl max-h-[80vh] bg-white rounded-lg shadow-xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 h-12 border-b border-[#E5E7EB] flex-shrink-0">
+          <span className="text-[13px] font-bold text-[#374151]">{title}</span>
+          <button onClick={onClose} className="text-[#9CA3AF] hover:text-[#374151] cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16">
+              <RefreshCw className="w-6 h-6 animate-spin text-[#1F3B64]" />
+              <span className="text-xs text-slate-500 font-semibold">Đang tải danh sách...</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <span className="text-xs text-red-500 font-bold">{error}</span>
+              <button onClick={onRetry} className="px-3 py-1 bg-[#1F3B64] text-white rounded text-xs font-semibold cursor-pointer">
+                Thử lại
+              </button>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="py-16 text-center text-xs text-slate-400">Không có đơn hàng nào phù hợp.</div>
+          ) : (
+            <table className="w-full text-left" style={{ fontSize: 12 }}>
+              <thead className="sticky top-0">
+                <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                  {['Mã đơn', 'Khách hàng', 'Thời gian', 'Số tiền (₫)', 'Thanh toán', 'Trạng thái'].map(h => (
+                    <th key={h} className={`px-3 py-2 text-[11px] font-bold text-[#6B7280] whitespace-nowrap uppercase tracking-wider ${h === 'Số tiền (₫)' ? 'text-right' : ''}`}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o, i) => (
+                  <tr
+                    key={o.id}
+                    onClick={() => onRowClick(o.id)}
+                    className="cursor-pointer hover:bg-blue-50/30 transition-colors"
+                    style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}
+                  >
+                    <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{o.orderCode}</td>
+                    <td className="px-3 py-2 text-[#374151] max-w-[200px] truncate">{o.customerName}</td>
+                    <td className="px-3 py-2 text-[#6B7280] whitespace-nowrap tabular-nums">{formatTimeOrDate(o.createdAt)}</td>
+                    <td className="px-3 py-2 text-right font-bold text-[#374151] whitespace-nowrap tabular-nums">{formatPrice(o.finalPayment)}</td>
+                    <td className="px-3 py-2"><PaymentBadge method={o.paymentMethod} /></td>
+                    <td className="px-3 py-2">
+                      <StatusBadge label={ORDER_STATUS[o.orderStatus]?.label || o.orderStatus} bg={ORDER_STATUS[o.orderStatus]?.bg || NEUTRAL} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -167,6 +254,35 @@ export default function SalesDashboard() {
 
   const last7DaysRevenue = stats?.last7DaysRevenue || [];
   const topProductsMock = stats?.topProducts || [];
+
+  // Drill-down: bấm vào 1 con số KPI -> hiện danh sách đơn hàng đứng sau con số đó.
+  const [drillDown, setDrillDown] = useState<{ metric: string; title: string } | null>(null);
+  const [drillDownOrders, setDrillDownOrders] = useState<DashboardOrder[]>([]);
+  const [drillDownLoading, setDrillDownLoading] = useState(false);
+  const [drillDownError, setDrillDownError] = useState('');
+
+  const loadDrillDown = async (metric: string) => {
+    setDrillDownLoading(true);
+    setDrillDownError('');
+    try {
+      const response = await authFetch(`/orders/sales-dashboard/drill-down?metric=${metric}`);
+      if (response.ok) {
+        setDrillDownOrders(await response.json());
+      } else {
+        setDrillDownError('Không thể tải danh sách đơn hàng.');
+      }
+    } catch {
+      setDrillDownError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setDrillDownLoading(false);
+    }
+  };
+
+  const openDrillDown = (metric: string, title: string) => {
+    setDrillDown({ metric, title });
+    setDrillDownOrders([]);
+    loadDrillDown(metric);
+  };
 
   if (loading) {
     return (
@@ -276,12 +392,12 @@ export default function SalesDashboard() {
 
         {/* KPI row */}
         <div className="grid grid-cols-6 gap-2">
-          <KpiRow label="Đơn mới hôm nay"     value={String(stats?.kpi?.newOrdersCount ?? 0)}       sub="Cần xử lý ngay"          icon={<ShoppingCart className="w-4 h-4" />} />
-          <KpiRow label="Đang xử lý"           value={String(stats?.kpi?.processingOrdersCount ?? 0)}      sub="Awaiting action"                                      icon={<Clock className="w-4 h-4" />} />
-          <KpiRow label="Đang vận chuyển"      value={String(stats?.kpi?.shippingOrdersCount ?? 0)}      sub="Dự kiến giao hôm nay"                                           icon={<Truck className="w-4 h-4" />} />
-          <KpiRow label="Đã giao hôm nay"      value={String(stats?.kpi?.deliveredTodayCount ?? 0)}      sub="Thành công"              icon={<CheckCircle className="w-4 h-4" />} />
-          <KpiRow label="Doanh thu hôm nay"    value={formatPrice(stats?.kpi?.revenueToday ?? 0) + ' đ'} sub="Hôm nay"           icon={<TrendingUp className="w-4 h-4" />} />
-          <KpiRow label="Công nợ cần thu"      value={formatPrice(stats?.kpi?.pendingDebt ?? 0) + ' đ'} sub="Unpaid orders"          icon={<AlertCircle className="w-4 h-4" />} />
+          <KpiRow label="Đơn mới chờ xác nhận" value={String(stats?.kpi?.newOrdersCount ?? 0)}       sub="Cần xử lý ngay"          icon={<ShoppingCart className="w-4 h-4" />} onClick={() => openDrillDown('newOrders', 'Đơn mới chờ xác nhận')} />
+          <KpiRow label="Đang xử lý"           value={String(stats?.kpi?.processingOrdersCount ?? 0)}      sub="Đang chờ xử lý"                                      icon={<Clock className="w-4 h-4" />} onClick={() => openDrillDown('processing', 'Đơn đang xử lý')} />
+          <KpiRow label="Đang vận chuyển"      value={String(stats?.kpi?.shippingOrdersCount ?? 0)}      sub="Dự kiến giao hôm nay"                                           icon={<Truck className="w-4 h-4" />} onClick={() => openDrillDown('shipping', 'Đơn đang vận chuyển')} />
+          <KpiRow label="Đã giao hôm nay"      value={String(stats?.kpi?.deliveredTodayCount ?? 0)}      sub="Thành công"              icon={<CheckCircle className="w-4 h-4" />} onClick={() => openDrillDown('deliveredToday', 'Đơn đã giao hôm nay')} />
+          <KpiRow label="Doanh thu hôm nay"    value={formatPrice(stats?.kpi?.revenueToday ?? 0) + ' đ'} sub="Hôm nay"           icon={<TrendingUp className="w-4 h-4" />} onClick={() => openDrillDown('revenueToday', 'Đơn có doanh thu hôm nay')} />
+          <KpiRow label="Công nợ cần thu"      value={formatPrice(stats?.kpi?.pendingDebt ?? 0) + ' đ'} sub="Đơn chưa thanh toán"          icon={<AlertCircle className="w-4 h-4" />} onClick={() => openDrillDown('pendingDebt', 'Đơn có công nợ cần thu')} />
         </div>
 
         {/* Charts */}
@@ -293,7 +409,7 @@ export default function SalesDashboard() {
                 <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] inline-block" style={{ background: PRIMARY }} /> Thực tế</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 inline-block" style={{ borderTop: '2px dashed #D1D5DB' }} /> Mục tiêu</span>
               </div>
-              <ResponsiveContainer width="100%" height={150}>
+              <ResponsiveContainer width="100%" height={175}>
                 <AreaChart data={last7DaysRevenue} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
@@ -318,12 +434,25 @@ export default function SalesDashboard() {
           <div className="col-span-2 bg-white border border-[#E5E7EB] rounded-lg shadow-sm">
             <PanelHeader title="Top sản phẩm (triệu đồng)" />
             <div className="p-3">
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={topProductsMock} layout="vertical" margin={{ top: 0, right: 28, left: 0, bottom: 0 }} barSize={9}>
+              <ResponsiveContainer width="100%" height={175}>
+                <BarChart data={topProductsMock} layout="vertical" margin={{ top: 2, right: 28, left: 10, bottom: 2 }} barSize={12}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10, fill: '#374151' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [`${v} tr đ`]} />
-                  <Bar dataKey="revenue" fill={PRIMARY} radius={[0, 2, 2, 0]} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={140}
+                    tick={{ fontSize: 10, fill: '#374151' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    tickFormatter={(val: string) => (val && val.length > 18 ? `${val.slice(0, 16)}...` : val)}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(v: unknown) => [`${v} tr đ (${formatPrice(Number(v) * 1_000_000)} ₫)`, 'Doanh thu']}
+                    labelFormatter={(label) => `Sản phẩm: ${String(label)}`}
+                  />
+                  <Bar dataKey="revenue" fill={PRIMARY} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -476,6 +605,18 @@ export default function SalesDashboard() {
           </div>
         </div>
       </div>
+
+      {drillDown && (
+        <DrillDownModal
+          title={drillDown.title}
+          loading={drillDownLoading}
+          error={drillDownError}
+          orders={drillDownOrders}
+          onClose={() => setDrillDown(null)}
+          onRetry={() => loadDrillDown(drillDown.metric)}
+          onRowClick={(id) => { setDrillDown(null); navigate(`/sales/orders/${id}`); }}
+        />
+      )}
     </div>
   );
 }

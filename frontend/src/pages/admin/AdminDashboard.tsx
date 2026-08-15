@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getAdminDashboard } from '../../services/dashboardService.js';
+import { getErrorMessage } from '../../lib/errors';
 
 type Period = 'day' | 'week' | 'month' | 'quarter';
 
@@ -70,18 +71,27 @@ export default function AdminDashboard() {
   const [period, setPeriod] = useState<Period>('week');
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = (p: Period) => {
     let cancelled = false;
     setLoading(true);
+    setError('');
     const to = new Date();
-    const from = new Date(to.getTime() - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000);
+    const from = new Date(to.getTime() - PERIOD_DAYS[p] * 24 * 60 * 60 * 1000);
     getAdminDashboard({ from: from.toISOString(), to: to.toISOString() })
       .then((result) => { if (!cancelled) setData(result); })
-      .catch(() => { if (!cancelled) setData(null); })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setData(null);
+          setError(getErrorMessage(err, 'Không thể tải dữ liệu tổng quan.'));
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [period]);
+  };
+
+  useEffect(() => load(period), [period]);
 
   const revenueTrend = data ? trendFromPeriods(data.revenue, data.previousPeriodRevenue) : null;
   const cancelledTrend = data ? trendFromPeriods(data.cancelledOrderCount, data.previousPeriodCancelledOrderCount) : null;
@@ -111,8 +121,14 @@ export default function AdminDashboard() {
           Đang tải dữ liệu...
         </div>
       ) : !data ? (
-        <div className="bg-white border border-[#e5e7eb] rounded-[8px] p-[32px] text-center text-[12px] text-[#dc2626]">
-          Không thể tải dữ liệu tổng quan. Vui lòng thử lại.
+        <div className="bg-white border border-[#e5e7eb] rounded-[8px] p-[32px] flex flex-col items-center gap-[12px] text-center text-[12px] text-[#dc2626]">
+          <span>{error || 'Không thể tải dữ liệu tổng quan. Vui lòng thử lại.'}</span>
+          <button
+            onClick={() => load(period)}
+            className="px-[12px] py-[6px] bg-[#1f3b64] text-white rounded-[4px] text-[12px] font-medium"
+          >
+            Thử lại
+          </button>
         </div>
       ) : (
         <>

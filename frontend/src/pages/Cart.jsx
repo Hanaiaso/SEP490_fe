@@ -201,7 +201,10 @@ export default function Cart() {
 
   const shippingFee = 0
   const afterDiscount = subtotal - automaticDiscountAmount
-  const vatAmount = Math.round(afterDiscount * 0.10)
+  // VAT chỉ được cộng khi hồ sơ khách có MST (khớp GetCheckoutSummaryAsync ở backend) — trước đây
+  // dòng này cộng cứng 10% bất kể có MST hay không, khiến tổng hiển thị ở Giỏ hàng khác với tổng
+  // thật ở trang Thanh toán khi khách chưa khai MST (backend trả vatAmount = 0).
+  const vatAmount = hasServerDiscount ? checkoutSummary.vatAmount : 0
   const total = afterDiscount + shippingFee + vatAmount
 
   const requiresQuotationFlow = subtotal >= 100000000 && !hasNegotiatedPrices && !hasMismatchedQuotation
@@ -509,10 +512,12 @@ export default function Cart() {
                         <span className="font-medium">-{formatPrice(automaticDiscountAmount)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-gray-600">
-                      <span>Thuế VAT (10%)</span>
-                      <span className="font-medium text-gray-900">+{formatPrice(vatAmount)}</span>
-                    </div>
+                    {vatAmount > 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Thuế VAT (10%)</span>
+                        <span className="font-medium text-gray-900">+{formatPrice(vatAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-600">
                       <span>Vận Chuyển</span>
                       <span className="font-medium">{shippingFee === 0 ? 'Miễn Phí' : formatPrice(shippingFee)}</span>
@@ -527,16 +532,18 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  <Button
-                    size="lg"
-                    className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={goToCheckout}
-                    disabled={isPriceExpired}
-                    title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
-                  >
-                    Đặt Hàng & Xem Hóa Đơn
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  {!requiresQuotationFlow && (
+                    <Button
+                      size="lg"
+                      className="mb-4 w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={goToCheckout}
+                      disabled={isPriceExpired}
+                      title={isPriceExpired ? 'Vui lòng làm mới giá trước khi thanh toán' : undefined}
+                    >
+                      Đặt Hàng & Xem Hóa Đơn
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
 
                   {subtotal >= 100000000 && (
                     <Link to="/negotiations" className="block mb-3">
