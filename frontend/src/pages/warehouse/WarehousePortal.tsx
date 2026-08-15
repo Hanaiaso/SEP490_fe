@@ -56,9 +56,8 @@ const buildNavItems = (role?: string): NavItem[] => [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/warehouse/dashboard' },
   {
     id: 'fulfillment', label: 'Xuất kho (Fulfillment)', icon: <Package className="w-4 h-4" />, path: '/warehouse/fulfillment',
-    badge: 3,
     children: [
-      { id: 'fulfillment-orders', label: 'Lệnh xuất kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/orders', badge: 3 },
+      { id: 'fulfillment-orders', label: 'Lệnh xuất kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/orders' },
       { id: 'pick-packing', label: 'Pick & Packing', icon: <Package className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/pick-packing' },
       { id: 'consolidation', label: 'Khu tập kết hàng', icon: <PackageCheck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/consolidation' },
       { id: 'handover', label: 'Bàn giao Sales', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/handover' },
@@ -95,7 +94,7 @@ const buildNavItems = (role?: string): NavItem[] => [
   {
     id: 'inventory', label: 'Theo dõi tồn kho', icon: <BarChart3 className="w-4 h-4" />, path: '/warehouse/inventory',
     children: [
-      { id: 'low-stock', label: 'Cảnh báo gần hết hàng', icon: <AlertCircle className="w-3.5 h-3.5" />, path: '/warehouse/inventory/low-stock', badge: 5 },
+      { id: 'low-stock', label: 'Cảnh báo gần hết hàng', icon: <AlertCircle className="w-3.5 h-3.5" />, path: '/warehouse/inventory/low-stock' },
       { id: 'slow-moving', label: 'Hàng chậm luân chuyển', icon: <TrendingDown className="w-3.5 h-3.5" />, path: '/warehouse/inventory/slow-moving' },
       { id: 'inv-report', label: 'Báo cáo tồn kho', icon: <FileBarChart className="w-3.5 h-3.5" />, path: '/warehouse/inventory/report' },
     ],
@@ -123,7 +122,7 @@ function NavItemRow({ item, level = 0, onNavigate }: { item: NavItem; level?: nu
       <button
         onClick={handleClick}
         className={[
-          'w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-left transition-colors text-[11px] group',
+          'w-full flex items-center gap-2 px-2.5 py-2 rounded text-left transition-colors text-[12px] group',
           level === 0 ? 'font-medium' : 'font-normal',
           isExactActive ? 'bg-white/15 text-white' :
             isActive && item.children ? 'text-white/90' :
@@ -172,16 +171,16 @@ export default function WarehousePortal() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F5F7FA] overflow-hidden">
-      <aside className="w-[228px] min-w-[228px] flex flex-col h-full" style={{ backgroundColor: '#1F3B64' }}>
+    <div className="warehouse-hallmark-type flex h-screen bg-[#F5F7FA] overflow-hidden">
+      <aside className="w-[260px] min-w-[260px] flex flex-col h-full" style={{ backgroundColor: '#1F3B64' }}>
         <div className="h-12 flex items-center px-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 bg-white rounded flex items-center justify-center flex-shrink-0">
               <span className="text-[#1F3B64] font-black text-[10px]">VT</span>
             </div>
             <div>
-              <p className="text-white font-semibold text-[13px] leading-tight">Việt Tiến ERP</p>
-              <p className="text-white/40 text-[10px] leading-tight">Nhân viên kho</p>
+              <p className="text-[13px] font-semibold leading-tight text-white">Việt Tiến ERP</p>
+              <p className="text-[10px] leading-tight text-white/40">Nhân viên kho</p>
             </div>
           </div>
         </div>
@@ -200,8 +199,8 @@ export default function WarehousePortal() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-white truncate">{userName}</p>
-              <p className="text-[10px] text-white/45 truncate">NV Kho</p>
+              <p className="truncate text-[11px] font-semibold text-white">{userName}</p>
+              <p className="truncate text-[10px] text-white/45">NV Kho</p>
             </div>
             <button onClick={handleLogout} className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0" title="Đăng xuất">
               <LogOut className="w-3.5 h-3.5" />
@@ -212,12 +211,6 @@ export default function WarehousePortal() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-11 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
-          <div className="flex-1 max-w-xs">
-            <div className="w-full flex items-center gap-2 px-2.5 h-7 rounded border border-gray-300 bg-gray-50 text-[12px] text-gray-400">
-              <Search className="w-3 h-3 flex-shrink-0" />
-              <span className="flex-1 truncate">Tìm kiếm...</span>
-            </div>
-          </div>
           <div className="flex-1" />
           <div className="flex items-center gap-0.5">
             <NotificationBell role={user?.role || ''} onViewAll={() => navigate('/warehouse/notifications')} />

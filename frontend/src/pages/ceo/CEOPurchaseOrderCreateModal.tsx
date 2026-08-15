@@ -207,16 +207,18 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-[850px] max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-lg font-semibold text-[#1f3b64]">{isEdit ? `Sửa Purchase Order (Draft): ${editingPO?.code}` : 'Tạo Purchase Order (CEO phát hành PO)'}</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-500 hover:text-gray-700" /></button>
+    <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-6">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-gray-200 overflow-hidden">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h2 className="text-sm font-bold text-[#1F3B64] flex items-center gap-2">
+            <span>📑</span> {isEdit ? `Sửa Purchase Order (Draft): ${editingPO?.code}` : 'Tạo Purchase Order (CEO phát hành PO)'}
+          </h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-200/60"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4 flex flex-col gap-6">
+        <div className="flex-1 overflow-auto p-6 flex flex-col gap-6 text-xs">
           {loading ? (
-            <div className="py-8 text-center text-sm text-gray-500">Đang tải danh mục nhà cung cấp & sản phẩm...</div>
+            <div className="py-12 text-center text-xs text-gray-500">Đang tải danh mục nhà cung cấp & sản phẩm...</div>
           ) : (
             <>
               <div className="flex gap-3 pb-4 border-b">

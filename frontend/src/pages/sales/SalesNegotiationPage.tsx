@@ -133,12 +133,20 @@ export default function SalesNegotiationPage() {
   const discount = totalOriginal - totalProposed;
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* ── Col 1: Danh sách báo giá ── */}
-      <div className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        <div className="px-3 py-3 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-bold text-gray-900">Báo giá & Đàm phán</h3>
+    <div className="flex h-full flex-col bg-[#F5F7FA]">
+      <div className="flex h-11 flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-5">
+        <div>
+          <span className="text-[15px] font-bold text-[#374151]">Báo giá & Đàm phán</span>
+        </div>
+       
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* ── Col 1: Danh sách báo giá ── */}
+        <div className="w-[300px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+          <div className="px-3 py-3 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-gray-900">Danh sách báo giá</h3>
             <span className="text-[10px] bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
               {quotationsList.length}
             </span>
@@ -387,7 +395,7 @@ export default function SalesNegotiationPage() {
 
       {/* ── Col 3: Chat ── */}
       {isChatOpen && (
-        <div className="w-80 flex-shrink-0 bg-white flex flex-col border-l border-gray-200">
+        <div className="w-100 flex-shrink-0 bg-white flex flex-col border-l border-gray-200">
           {!active ? (
             <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
             Chọn một báo giá để trò chuyện
@@ -464,6 +472,7 @@ export default function SalesNegotiationPage() {
         )}
       </div>
       )}
+      </div>
     </div>
   );
 }

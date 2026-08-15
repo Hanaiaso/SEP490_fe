@@ -83,12 +83,12 @@ export default function WarehouseStockAdjustment() {
   });
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-200 px-5 py-3 flex-shrink-0">
+    <div className="warehouse-hallmark-type flex flex-col h-full">
+      <div className="bg-white border-b border-gray-200 px-5 py-4 flex-shrink-0">
         <div className="flex items-center gap-1.5 text-[11px] mb-0.5"><span className="text-gray-400">Kho hàng</span><span className="text-gray-300">/</span><span className="text-gray-400">Quản lý tồn kho (Inventory)</span><span className="text-gray-300">/</span><span className="text-gray-800 font-semibold">Lịch sử điều chỉnh tồn kho</span></div>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Lịch sử đề xuất điều chỉnh tồn kho</h2>
+            <h2 className="text-base font-bold text-gray-900 leading-tight">Lịch sử đề xuất điều chỉnh tồn kho</h2>
             <p className="text-xs text-gray-500 mt-0.5">{items.length} đề xuất · {items.filter(i => i.status === 'Pending').length} đang chờ CEO duyệt</p>
           </div>
           <div className="flex items-center gap-2">
@@ -117,42 +117,44 @@ export default function WarehouseStockAdjustment() {
       </div>
 
       <div className="flex-1 overflow-auto bg-gray-50 p-4">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Sản phẩm / Vật tư</th>
-                <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Kho</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">SL hệ thống</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">SL thực tế</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Chênh lệch</th>
-                <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Ngày đề xuất</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Trạng thái</th>
-                <th className="text-center px-3 py-2.5 text-gray-700 font-semibold">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-gray-200 text-gray-700 font-semibold text-sm">
+                <tr>
+                  <th className="px-4 py-3">Sản phẩm / Vật tư</th>
+                  <th className="px-4 py-3">Kho</th>
+                  <th className="text-center px-4 py-3">SL hệ thống</th>
+                  <th className="text-center px-4 py-3">SL thực tế</th>
+                  <th className="text-center px-4 py-3">Chênh lệch</th>
+                  <th className="px-4 py-3">Ngày đề xuất</th>
+                  <th className="text-center px-4 py-3">Trạng thái</th>
+                  <th className="text-center px-4 py-3">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={8} className="py-12 text-center"><div className="flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span className="text-gray-400 text-xl">📋</span></div><p className="text-sm font-medium text-gray-500">Chưa có đề xuất nào</p><p className="text-xs text-gray-400">Tạo đề xuất mới ở trang "Kiểm kê tồn kho"</p></div></td></tr>
               )}
               {filtered.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                  <td className="px-3 py-2.5"><p className="font-mono text-gray-500">{d.itemSku || '-'}</p><p className="text-gray-800 font-medium">{d.itemName}</p></td>
-                  <td className="px-3 py-2.5 text-gray-700">{d.warehouseName}</td>
-                  <td className="px-3 py-2.5 text-center font-semibold">{d.systemQuantity}</td>
-                  <td className="px-3 py-2.5 text-center font-semibold">{d.physicalQuantity}</td>
-                  <td className="px-3 py-2.5 text-center font-mono font-semibold" style={{ color: d.variance < 0 ? ERROR : d.variance > 0 ? SUCCESS : NEUTRAL }}>
+                  <td className="px-4 py-3"><p className="font-mono text-gray-500">{d.itemSku || '-'}</p><p className="text-gray-800 font-medium">{d.itemName}</p></td>
+                  <td className="px-4 py-3 text-gray-700">{d.warehouseName}</td>
+                  <td className="px-4 py-3 text-center font-semibold">{d.systemQuantity}</td>
+                  <td className="px-4 py-3 text-center font-semibold">{d.physicalQuantity}</td>
+                  <td className="px-4 py-3 text-center font-mono font-semibold" style={{ color: d.variance < 0 ? ERROR : d.variance > 0 ? SUCCESS : NEUTRAL }}>
                     {d.variance > 0 ? '+' : ''}{d.variance}
                   </td>
-                  <td className="px-3 py-2.5 text-gray-500">{formatDate(d.proposedAt)}</td>
-                  <td className="px-3 py-2.5 text-center"><Badge status={d.status} /></td>
-                  <td className="px-3 py-2.5 text-center">
+                  <td className="px-4 py-3 text-gray-500">{formatDate(d.proposedAt)}</td>
+                  <td className="px-4 py-3 text-center"><Badge status={d.status} /></td>
+                  <td className="px-4 py-3 text-center">
                     <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={() => setDetail(d)}><Eye className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
             <span className="text-xs text-gray-500">Hiển thị {filtered.length} / {items.length} bản ghi</span>
           </div>

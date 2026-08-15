@@ -104,24 +104,24 @@ export default function SalesReviewsPage() {
   const pendingCount = items.filter((r) => !r.replyText).length;
 
   return (
-    <div className="p-5">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex h-full flex-col bg-[#F5F7FA]">
+      <div className="flex h-11 flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-5">
         <div>
-          <h1 className="flex items-center gap-2 text-[18px] font-bold text-[#374151]">
-            <MessageSquareText className="h-5 w-5" style={{ color: PRIMARY }} />
-            Đánh giá của khách hàng
-          </h1>
-          <p className="mt-0.5 text-[12px] text-gray-500">
-            {items.length} đánh giá · {pendingCount} chưa phản hồi
-          </p>
+          <span className="text-[15px] font-bold text-[#374151]">Đánh giá của khách hàng</span>
+          <span className="ml-3 text-[11px] text-[#9CA3AF]">Tổng: {items.length} đánh giá · {pendingCount} chưa phản hồi</span>
         </div>
-        <button
-          onClick={fetchData}
-          className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-gray-50"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Làm mới
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchData}
+            className="flex h-7 items-center gap-1.5 rounded border border-[#D1D5DB] bg-white px-3 text-[12px] text-[#374151] transition-colors hover:bg-gray-50"
+          >
+            <RefreshCw className={`h-3 w-3 text-[#9CA3AF] ${loading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </button>
+        </div>
       </div>
+
+      <div className="flex-1 overflow-auto p-4">
 
       {loading ? (
         <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-white py-16 text-[13px] text-gray-500">
@@ -161,6 +161,7 @@ export default function SalesReviewsPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

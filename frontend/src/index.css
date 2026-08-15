@@ -80,6 +80,79 @@
     font-size: clamp(18px, 1.3vw, 24px);
   }
 
+  /* Hallmark typography boost for operational portals. */
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[9px\] {
+    font-size: 12px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[10px\] {
+    font-size: 13px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[11px\] {
+    font-size: 14px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) :is(.text-xs, .text-\[12px\]) {
+    font-size: 15px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[13px\] {
+    font-size: 16px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) :is(.text-sm, .text-\[14px\]) {
+    font-size: 17px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[15px\] {
+    font-size: 18px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-base {
+    font-size: 19px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) :is(.text-lg, .text-\[18px\]) {
+    font-size: 21px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) :is(.text-xl, .text-\[20px\]) {
+    font-size: 24px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-\[22px\] {
+    font-size: 26px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-2xl {
+    font-size: 28px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-3xl {
+    font-size: 34px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-4xl {
+    font-size: 40px;
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-fluid-xs {
+    font-size: clamp(14px, calc(0.7vw + 3px), 15px);
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-fluid-body {
+    font-size: clamp(16px, calc(0.8vw + 3px), 18px);
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-fluid-title {
+    font-size: clamp(18px, calc(1vw + 3px), 21px);
+  }
+
+  :is(.sales-hallmark-type, body.sales-hallmark-type-active, .warehouse-hallmark-type, body.warehouse-hallmark-type-active) .text-fluid-heading {
+    font-size: clamp(22px, calc(1.3vw + 4px), 28px);
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

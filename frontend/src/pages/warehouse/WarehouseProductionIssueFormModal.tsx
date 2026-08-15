@@ -6,6 +6,12 @@ import { createGoodsIssue, getWarehouseInventory, getWarehouses } from '../../se
 import { getProducts } from '../../services/productService';
 import type { Warehouse } from '../../types/warehouse';
 import type { Material, Product } from '../../types/catalog';
+import { Button } from '../../components/sales-ui/button';
+import { Input } from '../../components/sales-ui/input';
+
+const PRIMARY = '#1F3B64';
+const ERROR = '#DC2626';
+const WARNING = '#D97706';
 
 interface DraftIssueItem {
   id: string;
@@ -160,13 +166,13 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
   const selectedWarehouseName = warehouses.find(w => w.id === warehouseId)?.name;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="warehouse-hallmark-type fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
-        <div className="h-12 bg-slate-900 text-white flex items-center justify-between px-5 flex-shrink-0">
-          <h2 className="text-sm font-bold flex items-center gap-2">
-            <Package className="w-4 h-4" /> Tạo Phiếu Xuất Nguyên Liệu Cho Sản Xuất
+        <div className="h-14 text-white flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: PRIMARY }}>
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <Package className="w-5 h-5" /> Tạo Phiếu Xuất Nguyên Liệu Cho Sản Xuất
           </h2>
-          <button className="text-gray-400 hover:text-white" onClick={onClose}><X className="w-5 h-5" /></button>
+          <button className="text-white/80 hover:text-white" onClick={onClose}><X className="w-5 h-5" /></button>
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-50 text-xs">
@@ -178,7 +184,7 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4">
               <Field label="Kho xuất hàng" required hint={!warehouseId ? 'Chọn đúng kho đang giữ nguyên liệu — hàng thường chỉ tồn ở một kho cụ thể.' : undefined}>
                 <select
-                  className={`w-full border rounded-md px-3 py-1.5 bg-white text-xs font-medium ${!warehouseId ? 'border-amber-400 text-gray-400' : 'border-gray-300'}`}
+                  className={`w-full border rounded-md px-3 h-10 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${!warehouseId ? 'border-amber-400 text-gray-400' : 'border-gray-300 focus:border-blue-500'}`}
                   value={warehouseId}
                   onChange={e => setWarehouseId(e.target.value)}
                 >
@@ -189,22 +195,22 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
                 </select>
               </Field>
               <Field label="Bộ phận sản xuất nhận" required>
-                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs font-medium" value={department} onChange={e => setDepartment(e.target.value)} placeholder="Ví dụ: Xưởng May A, Tổ PE..." />
+                <Input type="text" className="w-full text-sm font-medium" value={department} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDepartment(e.target.value)} placeholder="Ví dụ: Xưởng May A, Tổ PE..." />
               </Field>
               <Field label="Mục đích sử dụng" required>
-                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs" value={usagePurpose} onChange={e => setUsagePurpose(e.target.value)} placeholder="Ví dụ: Phục vụ sản xuất đơn PO-2026..." />
+                <Input type="text" className="w-full text-sm" value={usagePurpose} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsagePurpose(e.target.value)} placeholder="Ví dụ: Phục vụ sản xuất đơn PO-2026..." />
               </Field>
               <Field label="Số biên bản giấy" hint="Có thể để trống, bổ sung sau khi bàn giao.">
-                <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs font-mono uppercase" value={paperDocumentNumber} onChange={e => setPaperDocumentNumber(e.target.value)} placeholder="Mã biên bản (Duy nhất)" />
+                <Input type="text" className="w-full text-sm font-mono uppercase" value={paperDocumentNumber} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaperDocumentNumber(e.target.value)} placeholder="Mã biên bản (Duy nhất)" />
               </Field>
               <div className="col-span-2">
                 <Field label="Đại diện sản xuất nhận (Ngoài hệ thống)">
-                  <input type="text" className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs" value={externalRecipientName} onChange={e => setExternalRecipientName(e.target.value)} placeholder="Nhập họ tên người nhận đại diện xưởng sản xuất..." />
+                  <Input type="text" className="w-full text-sm" value={externalRecipientName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalRecipientName(e.target.value)} placeholder="Nhập họ tên người nhận đại diện xưởng sản xuất..." />
                 </Field>
               </div>
               <div className="col-span-2">
                 <Field label="Ghi chú phiếu">
-                  <textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-1.5 bg-white text-xs resize-none" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm cho phiếu xuất (không bắt buộc)..." />
+                  <textarea rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm cho phiếu xuất (không bắt buộc)..." />
                 </Field>
               </div>
             </div>
@@ -306,9 +312,9 @@ export default function WarehouseProductionIssueFormModal({ onClose, onSuccess }
           </div>
         </div>
 
-        <div className="h-14 bg-gray-50 border-t flex items-center justify-end px-5 gap-2 flex-shrink-0">
-          <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-100" onClick={onClose}>Hủy bỏ</button>
-          <button className="px-4 py-2 bg-blue-900 text-white rounded-lg text-xs font-bold hover:bg-blue-800 shadow-md disabled:opacity-50" onClick={handleSubmit} disabled={loading}>{loading ? 'Đang khởi tạo...' : 'Tạo Lệnh Xuất Kho'}</button>
+        <div className="h-16 bg-gray-50 border-t flex items-center justify-end px-5 gap-3 flex-shrink-0">
+          <Button variant="outline" onClick={onClose}>Hủy bỏ</Button>
+          <Button style={{ backgroundColor: PRIMARY }} className="text-white font-bold shadow-md" onClick={handleSubmit} disabled={loading}>{loading ? 'Đang khởi tạo...' : 'Tạo Lệnh Xuất Kho'}</Button>
         </div>
       </div>
     </div>
