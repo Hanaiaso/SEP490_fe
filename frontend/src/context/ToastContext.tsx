@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -44,12 +44,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, [removeToast]);
 
-  const toast = {
+  // Phải giữ nguyên identity của "toast" (và value của Provider bên dưới) qua các lần render —
+  // trước đây là object literal tạo mới mỗi render, nên bất kỳ trang nào có
+  // useCallback(fetchX, [..., toast]) + useEffect(() => fetchX(), [fetchX]) sẽ tự động fetch lại
+  // MỖI KHI có bất kỳ toast nào (ở bất kỳ đâu trong app) xuất hiện/biến mất — dữ liệu vừa gán ở
+  // client (chưa lưu server) bị ghi đè ngay lập tức, trông như "bị nảy ra" (vd trang Sắp xếp vận
+  // chuyển: cảnh báo "khác địa điểm" tự kích hoạt refetch, xóa mất đơn vừa kéo vào xe).
+  const toast = useMemo(() => ({
     success: (msg: string, title?: string) => showToast('success', msg, title || 'Thành công'),
     error: (msg: string, title?: string) => showToast('error', msg, title || 'Lỗi'),
     warning: (msg: string, title?: string) => showToast('warning', msg, title || 'Cảnh báo'),
     info: (msg: string, title?: string) => showToast('info', msg, title || 'Thông báo'),
-  };
+  }), [showToast]);
 
   // Override window.alert mặc định của trình duyệt để hiển thị Toast đẹp mắt
   useEffect(() => {
@@ -70,8 +76,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, [showToast]);
 
+  const contextValue = useMemo(() => ({ toast, showToast, removeToast }), [toast, showToast, removeToast]);
+
   return (
-    <ToastContext.Provider value={{ toast, showToast, removeToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       
       {/* Toast Container - Góc trên bên phải */}
