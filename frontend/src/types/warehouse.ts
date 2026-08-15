@@ -308,6 +308,7 @@ export interface GoodsReceiptItem {
 export interface GoodsReceipt {
   id: string;
   purchaseOrderId: string;
+  purchaseOrderCode: string;
   receivedByUserId: string;
   receivedByUserName: string;
   code: string;

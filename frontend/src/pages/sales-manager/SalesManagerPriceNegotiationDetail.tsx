@@ -46,7 +46,7 @@ export default function SalesManagerPriceNegotiationDetail() {
     return <div className="p-8 text-center text-red-500">Không tìm thấy báo giá.</div>;
   }
 
-  const latestVersion = quotation.versions?.[quotation.versions.length - 1] || quotation.versions?.[0];
+  const latestVersion = quotation.versions?.[0];
   if (!latestVersion) {
     return (
       <div className="p-8 text-center text-red-500">

@@ -161,7 +161,8 @@ export default function WarehouseQuarantine() {
         )}
 
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-3 py-2.5"><input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
@@ -237,6 +238,7 @@ export default function WarehouseQuarantine() {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
             <span className="text-xs text-gray-500">Hiển thị {filtered.length} / {items.length} bản ghi</span>
           </div>

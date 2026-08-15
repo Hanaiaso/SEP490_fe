@@ -1,11 +1,11 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { AlertTriangle, Eye, ShieldCheck, TrendingUp, XCircle } from 'lucide-react';
+import { Eye, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
-import { getPurchaseOrders, getPurchaseOrderById } from '../../services/purchaseOrderService.js';
+import { getPurchaseOrders, getPurchaseOrderById, getGoodsReceipts } from '../../services/purchaseOrderService.js';
 import { useEffect } from 'react';
-import type { PurchaseOrder, PurchaseOrderListItem } from '../../types/warehouse';
+import type { PurchaseOrder, PurchaseOrderListItem, GoodsReceipt } from '../../types/warehouse';
 
 const WARNING = '#D97706';
 const ERROR   = '#DC2626';
@@ -49,20 +49,41 @@ export default function WarehouseReceivingComparison() {
     try {
       const data: PurchaseOrder = await getPurchaseOrderById(id);
       setPoDetail(data);
+
+      // PurchaseOrderItem.receivedQuantity chỉ được cộng phần AcceptedQuantity khi Post phiếu nhập
+      // (xem GoodsReceiptService.PostReceiptAsync) — không phản ánh hàng Hỏng/Sai loại đã thực nhận.
+      // Nếu chỉ dựa vào receivedQuantity, hàng Hỏng sẽ bị hiểu nhầm thành "Thiếu" (NCC giao thiếu)
+      // thay vì đúng bản chất là "đã giao đủ nhưng có phần hỏng". Nên phải tổng hợp trực tiếp từ các
+      // phiếu nhập (Goods Receipts) đã Posted của PO này để lấy đúng Đạt/Hỏng/Thừa/Thiếu thực tế.
+      const receipts: GoodsReceipt[] = await getGoodsReceipts(id);
+      const postedReceiptItems = receipts
+        .filter((r) => r.status === 'Posted')
+        .flatMap((r) => r.items);
+
       const mapped: ComparisonItem[] = data.items.map((i) => {
-        const received = i.receivedQuantity;
         const ordered = i.expectedQuantity;
-        const diff = received - ordered;
+        const relevant = postedReceiptItems.filter((ri) => ri.purchaseOrderItemId === i.id);
+
+        const totalAccepted = relevant.reduce((s, ri) => s + ri.acceptedQuantity, 0);
+        const totalDamaged = relevant.reduce((s, ri) => s + ri.damagedQuantity, 0);
+        const totalWrongItem = relevant.reduce((s, ri) => s + ri.wrongItemQuantity, 0);
+        const totalExcess = relevant.reduce((s, ri) => s + ri.excessQuantity, 0);
+        const totalShort = relevant.reduce((s, ri) => s + ri.shortQuantity, 0);
+
+        // Thực nhận = Đạt + Hỏng + Sai loại — đúng công thức backend dùng để tính Thừa/Thiếu.
+        const actualReceived = totalAccepted + totalDamaged + totalWrongItem;
+        const diff = actualReceived - ordered;
         const varPct = ordered > 0 ? (diff / ordered) * 100 : 0;
+
         return {
           sku: i.itemSku || '-',
           product: i.itemName || '-',
           orderedQty: ordered,
-          receivedQty: received,
+          receivedQty: actualReceived,
           difference: diff,
-          damageQty: 0, // Should come from receipts, but currently PO item doesn't expose it directly in Dto unless we fetch GRs. For now mock 0.
-          missingQty: diff < 0 ? Math.abs(diff) : 0,
-          extraQty: diff > 0 ? diff : 0,
+          damageQty: totalDamaged,
+          missingQty: totalShort,
+          extraQty: totalExcess,
           variancePct: varPct,
           qcRequired: false,
         };
@@ -120,21 +141,6 @@ export default function WarehouseReceivingComparison() {
             <option value="Kho HCM">Kho HCM</option>
             <option value="Kho Đà Nẵng">Kho Đà Nẵng</option>
           </select>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
-            <span style={{ color: WARNING }}><AlertTriangle className="w-4 h-4" /></span>
-            <div><p className="text-[10px] text-gray-500">Thiếu</p><p className="text-base font-bold" style={{ color: WARNING }}>{items.filter(i => i.missingQty > 0).length}</p></div>
-          </div>
-          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
-            <span style={{ color: INFO }}><TrendingUp className="w-4 h-4" /></span>
-            <div><p className="text-[10px] text-gray-500">Dư</p><p className="text-base font-bold" style={{ color: INFO }}>{items.filter(i => i.extraQty > 0).length}</p></div>
-          </div>
-          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
-            <span style={{ color: ERROR }}><XCircle className="w-4 h-4" /></span>
-            <div><p className="text-[10px] text-gray-500">Hư hỏng</p><p className="text-base font-bold" style={{ color: ERROR }}>{items.filter(i => i.damageQty > 0).length}</p></div>
-          </div>
         </div>
       </div>
 

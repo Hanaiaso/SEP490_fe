@@ -34,12 +34,13 @@ interface ReceiptItem {
   purchaseOrderItemId: string;
   sku: string; name: string; orderedQty: number; actualQty: number;
   acceptedQty: number; rejectedQty: number; damagedQty: number;
+  excessQty: number; shortQty: number;
   warehouseLocation: string; batchNo: string; lotNo: string;
   expirationDate: string; storageLocation: string;
 }
 
 interface GoodsReceipt {
-  id: string; poNo: string; supplier: string; warehouse: string;
+  id: string; poNo: string; poCode: string; supplier: string; warehouse: string;
   receivingDate: string; receiver: string; code: string;
   status: string;
   items: ReceiptItem[];
@@ -81,6 +82,7 @@ export default function WarehouseGoodsReceipt() {
         id: r.id,
         code: r.code,
         poNo: r.purchaseOrderId,
+        poCode: r.purchaseOrderCode,
         supplier: 'NCC (Từ PO)',
         warehouse: 'Kho Hệ Thống',
         receivingDate: r.receivedDate,
@@ -91,10 +93,15 @@ export default function WarehouseGoodsReceipt() {
           sku: i.itemSku,
           name: i.itemName,
           orderedQty: 0,
-          actualQty: i.acceptedQuantity + i.damagedQuantity + i.excessQuantity + i.wrongItemQuantity,
+          // Thừa (excessQuantity) là phần NẰM TRONG Đạt+Hỏng+Sai loại vượt số lượng còn thiếu của PO
+          // (xem GoodsReceiptService.UpdateDraftReceiptAsync), không phải số lượng cộng thêm — cộng nó
+          // vào đây sẽ đếm trùng và thổi phồng SL thực tế mỗi khi phiếu có hàng thừa.
+          actualQty: i.acceptedQuantity + i.damagedQuantity + i.wrongItemQuantity,
           acceptedQty: i.acceptedQuantity,
           rejectedQty: i.wrongItemQuantity,
           damagedQty: i.damagedQuantity,
+          excessQty: i.excessQuantity,
+          shortQty: i.shortQuantity,
           warehouseLocation: '-',
           batchNo: i.batchNumber || '-',
           lotNo: '-',
@@ -114,7 +121,7 @@ export default function WarehouseGoodsReceipt() {
 
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
-    const ms = !q || d.id.toLowerCase().includes(q) || d.poNo.toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || (d.code && d.code.toLowerCase().includes(q));
+    const ms = !q || d.id.toLowerCase().includes(q) || d.poNo.toLowerCase().includes(q) || (d.poCode ?? '').toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || (d.code && d.code.toLowerCase().includes(q));
     return ms && (statusFilter === 'all' || mapStatus(d.status) === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter);
   });
 
@@ -149,7 +156,7 @@ export default function WarehouseGoodsReceipt() {
     lines.push('');
     lines.push('Ma phieu,Ma PO,Nha cung cap,Kho nhap,Ngay nhap,Nguoi nhap,Trang thai,So mat hang');
     list.forEach(r => {
-      lines.push(`"${r.code}","${r.poNo}","${r.supplier}","${r.warehouse}","${r.receivingDate}","${r.receiver}","${r.status}","${r.items.length}"`);
+      lines.push(`"${r.code}","${r.poCode || r.poNo}","${r.supplier}","${r.warehouse}","${r.receivingDate}","${r.receiver}","${r.status}","${r.items.length}"`);
     });
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -175,6 +182,7 @@ export default function WarehouseGoodsReceipt() {
         <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.actualQty}</td>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: green; font-weight: bold;">${item.acceptedQty}</td>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: red;">${item.damagedQty}</td>
+        <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2563eb; font-weight: bold;">${item.excessQty > 0 ? '+' + item.excessQty : '0'}</td>
         <td style="border: 1px solid #ddd; padding: 8px;">${item.batchNo || '-'}</td>
         <td style="border: 1px solid #ddd; padding: 8px;">${item.storageLocation || '-'}</td>
       </tr>
@@ -204,7 +212,7 @@ export default function WarehouseGoodsReceipt() {
         <div class="meta">
           <div><strong>Nhà cung cấp:</strong> ${target.supplier}</div>
           <div><strong>Kho nhập:</strong> ${target.warehouse}</div>
-          <div><strong>Mã đơn PO:</strong> ${target.poNo}</div>
+          <div><strong>Mã đơn PO:</strong> ${target.poCode || target.poNo}</div>
           <div><strong>Người nhập hàng:</strong> ${target.receiver || 'Thủ kho'}</div>
         </div>
         <table>
@@ -215,12 +223,13 @@ export default function WarehouseGoodsReceipt() {
               <th style="width: 90px;">SL Thực tế</th>
               <th style="width: 90px;">Đạt (Nhập kho)</th>
               <th style="width: 90px;">Hỏng / Lỗi</th>
+              <th style="width: 70px;">Thừa</th>
               <th style="width: 100px;">Lô / Batch</th>
               <th style="width: 100px;">Vị trí</th>
             </tr>
           </thead>
           <tbody>
-            ${itemsToPrint || '<tr><td colspan="7" style="text-align: center; padding: 20px;">Không có dữ liệu mặt hàng</td></tr>'}
+            ${itemsToPrint || '<tr><td colspan="8" style="text-align: center; padding: 20px;">Không có dữ liệu mặt hàng</td></tr>'}
           </tbody>
         </table>
         <div class="footer">
@@ -400,7 +409,7 @@ export default function WarehouseGoodsReceipt() {
                 <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''} ${selected.includes(d.id) ? 'bg-blue-50/50' : ''}`}>
                   <td className="px-3 py-2.5"><input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleSelect(d.id)} className="w-3.5 h-3.5 cursor-pointer" /></td>
                   <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{d.code}</td>
-                  <td className="px-3 py-2.5 text-gray-600">{d.poNo?.substring(0, 8)}...</td>
+                  <td className="px-3 py-2.5 text-gray-600">{d.poCode || `${d.poNo?.substring(0, 8)}...`}</td>
                   <td className="px-3 py-2.5 font-medium text-gray-800">{d.supplier}</td>
                   <td className="px-3 py-2.5 text-gray-700">{d.warehouse}</td>
                   <td className="px-3 py-2.5 text-gray-500">{d.receivingDate}</td>
@@ -423,7 +432,7 @@ export default function WarehouseGoodsReceipt() {
           {detail && (
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-gray-50 rounded p-3 space-y-1.5"><p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Thông tin phiếu</p><div className="flex justify-between"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.code}</span></div><div className="flex justify-between"><span className="text-gray-500">Mã PO:</span><span>{detail.poNo}</span></div><div className="flex justify-between"><span className="text-gray-500">Ngày nhập:</span><span>{detail.receivingDate}</span></div><div className="flex justify-between"><span className="text-gray-500">Người nhập:</span><span className="font-medium">{detail.receiver || 'Thủ kho'}</span></div></div>
+                <div className="bg-gray-50 rounded p-3 space-y-1.5"><p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Thông tin phiếu</p><div className="flex justify-between"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.code}</span></div><div className="flex justify-between"><span className="text-gray-500">Mã PO:</span><span>{detail.poCode || detail.poNo}</span></div><div className="flex justify-between"><span className="text-gray-500">Ngày nhập:</span><span>{detail.receivingDate}</span></div><div className="flex justify-between"><span className="text-gray-500">Người nhập:</span><span className="font-medium">{detail.receiver || 'Thủ kho'}</span></div></div>
                 <div className="bg-gray-50 rounded p-3 space-y-1.5"><p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Nhà cung cấp</p><div className="flex justify-between"><span className="text-gray-500">Tên NCC:</span><span className="font-semibold text-gray-800">{detail.supplier}</span></div><div className="flex justify-between"><span className="text-gray-500">Kho nhập:</span><span>{detail.warehouse}</span></div></div>
                 <div className="bg-gray-50 rounded p-3 space-y-1.5"><p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Trạng thái</p><div className="flex justify-between"><span className="text-gray-500">Trạng thái:</span><Badge status={detail.status} /></div></div>
               </div>
@@ -447,6 +456,8 @@ export default function WarehouseGoodsReceipt() {
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">Chấp nhận</th>
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">Sai loại</th>
                           <th className="text-center px-3 py-2 text-gray-700 font-semibold">Hư hỏng</th>
+                          <th className="text-center px-3 py-2 text-gray-700 font-semibold">Thừa</th>
+                          <th className="text-center px-3 py-2 text-gray-700 font-semibold">Thiếu</th>
                           <th className="text-left px-3 py-2 text-gray-700 font-semibold">Batch / Lot</th>
                           <th className="text-left px-3 py-2 text-gray-700 font-semibold">Vị trí lưu</th>
                         </tr>
@@ -486,6 +497,12 @@ export default function WarehouseGoodsReceipt() {
                                 <Input type="number" value={item.damagedQty} className="h-6 text-xs text-center w-16 mx-auto text-red-600 font-semibold" onChange={e => updateQty(idx, 'damagedQty', +e.target.value)} />
                               )}
                             </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className={item.excessQty > 0 ? 'font-bold text-blue-600' : 'text-gray-300'}>{item.excessQty > 0 ? `+${item.excessQty}` : '0'}</span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className={item.shortQty > 0 ? 'font-bold text-orange-600' : 'text-gray-300'}>{item.shortQty > 0 ? `-${item.shortQty}` : '0'}</span>
+                            </td>
                             <td className="px-3 py-2">
                               <p className="text-gray-600">{item.batchNo || '-'}</p>
                               <p className="text-gray-400">{item.lotNo || '-'}</p>
@@ -497,7 +514,7 @@ export default function WarehouseGoodsReceipt() {
                     </table>
                   </div>
                   {!isReadOnly && (
-                    <p className="text-gray-400 mt-1 text-[10px]">* SL thực tế = Chấp nhận + Sai loại + Hư hỏng (tự tính)</p>
+                    <p className="text-gray-400 mt-1 text-[10px]">* SL thực tế = Chấp nhận + Sai loại + Hư hỏng (tự tính). Thừa/Thiếu do hệ thống tính lại khi bấm "Lưu nháp".</p>
                   )}
                 </div>
               )}
