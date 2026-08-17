@@ -32,6 +32,12 @@ export async function pickUpQuotation(id) {
   return fetchWithToken('POST', `/Quotation/${id}/pickup`);
 }
 
+// Sales Manager phân công thủ công 1 nhân viên Sale cho báo giá ≥100tr thay cho việc Sale tự nhận
+// xử lý (pickUpQuotation ở trên nay luôn bị BE từ chối cho mọi báo giá vì tất cả đều ≥100tr).
+export async function assignQuotation(id, staffId) {
+  return fetchWithToken('POST', `/Quotation/${id}/assign`, { staffId });
+}
+
 export async function createVersion(id, payload) {
   return fetchWithToken('POST', `/Quotation/${id}/versions`, payload);
 }

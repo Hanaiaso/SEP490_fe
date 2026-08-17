@@ -3,16 +3,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import {
-  Send, Check,
+  Send,
   DollarSign, User, Loader2, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useChat } from '../../hooks/useChat.js';
-import { getQuotations, getQuotationById, getMessages, pickUpQuotation, createVersion } from '../../services/quotationService.js';
+import { getQuotations, getQuotationById, getMessages, createVersion } from '../../services/quotationService.js';
 import type { Quotation, QuotationItem, QuotationVersion, QuotationVersionItem, ChatMessage } from '../../types/quotation';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string }> = {
-  Draft:                    { label: 'Chờ xử lý',       bg: '#64748B' },
+  Draft:                    { label: 'Chờ Manager phân công', bg: '#64748B' },
   Negotiating:              { label: 'Đang đàm phán',    bg: '#7C3AED' },
   PendingManager:           { label: 'Chờ Manager duyệt', bg: '#F97316' },
   PendingCeo:               { label: 'Chờ CEO duyệt',     bg: '#F97316' },
@@ -79,19 +79,6 @@ export default function SalesNegotiationPage() {
     if (!input.trim() || isConnecting) return;
     sendMessage(input.trim());
     setInput('');
-  };
-
-  const handlePickUp = async () => {
-    if (!active) return;
-    try {
-      await pickUpQuotation(active.id);
-      alert('Đã nhận xử lý báo giá!');
-      // Reload full detail sau khi pickup
-      handleSelectQuotation(active);
-      loadData();
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Có lỗi xảy ra'));
-    }
   };
 
   const handleProposePriceSubmit = async () => {
@@ -224,9 +211,9 @@ export default function SalesNegotiationPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {active.status === 'Draft' ? (
-                    <Button size="sm" className="h-7 text-xs gap-1" style={{ backgroundColor: '#16A34A' }} onClick={handlePickUp}>
-                      <Check className="w-3.5 h-3.5" /> Nhận xử lý
-                    </Button>
+                    <span className="h-7 flex items-center gap-1.5 px-2.5 rounded text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200">
+                      Chờ Sales Manager phân công
+                    </span>
                   ) : active.status === 'Negotiating' ? (
                     <Button
                       size="sm"
