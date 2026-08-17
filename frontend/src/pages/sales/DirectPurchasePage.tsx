@@ -104,7 +104,6 @@ export default function DirectPurchasePage() {
   // ─── Checkout configs ──────────────────────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'SePay'>('Cash');
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [hasVat, setHasVat] = useState(false);
   const [paperSize, setPaperSize] = useState<'A5' | 'A4'>('A5');
 
   // ─── API Submit status ──────────────────────────────────────────────────────
@@ -392,7 +391,9 @@ export default function DirectPurchasePage() {
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
   const discountAmount = Math.round((subtotal * discountPercent) / 100);
   const totalAfterDiscount = subtotal - discountAmount;
-  const vatAmount = hasVat ? Math.round(totalAfterDiscount * 0.1) : 0;
+  // VAT 10% bắt buộc trên mọi đơn — không còn cho Sale tự bật/tắt (backend cũng tự tính lại,
+  // không tin giá trị client gửi lên).
+  const vatAmount = Math.round(totalAfterDiscount * 0.1);
   const totalAmount = totalAfterDiscount + vatAmount;
 
   // Format date Vietnamese
@@ -949,17 +950,9 @@ export default function DirectPurchasePage() {
                 className="w-full text-xs h-8 border border-slate-300 rounded px-2 outline-none focus:border-blue-900"
               />
             </div>
-            <div className="col-span-2 flex items-center gap-2 py-1">
-              <input
-                type="checkbox"
-                id="vatCheckbox"
-                checked={hasVat}
-                onChange={e => setHasVat(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-900 border-slate-300 focus:ring-blue-900 accent-blue-900"
-              />
-              <label htmlFor="vatCheckbox" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
-                Tính thêm thuế VAT (10%)
-              </label>
+            <div className="col-span-2 flex items-center gap-2 py-1 text-xs font-semibold text-slate-600">
+              <Check className="w-3.5 h-3.5 text-green-600" />
+              Đã bao gồm thuế VAT (10%) — áp dụng bắt buộc trên mọi đơn
             </div>
           </div>
         </div>
@@ -990,7 +983,7 @@ export default function DirectPurchasePage() {
             >
               {/* INVOICE TITLE */}
               <div className="text-center mt-2 mb-4">
-                <h1 className="text-[22px] font-bold tracking-wide uppercase leading-tight">Phiếu Giao Hàng</h1>
+                <h1 className="text-[22px] font-bold tracking-wide uppercase leading-tight">Hóa Đơn</h1>
               </div>
 
               {/* CUSTOMER & DETAILS INFO */}
@@ -1080,8 +1073,8 @@ export default function DirectPurchasePage() {
                       </tr>
                     )}
 
-                    {/* VAT row if checked */}
-                    {hasVat && (
+                    {/* VAT row — bắt buộc trên mọi đơn */}
+                    {vatAmount > 0 && (
                       <tr>
                         <td colSpan={4} className="border border-black px-2 py-1 text-right text-[11px] font-semibold" style={{ color: '#64748b' }}>
                           Thuế VAT (10%)
@@ -1094,7 +1087,7 @@ export default function DirectPurchasePage() {
                     )}
 
                     {/* Final payment total row */}
-                    {(discountPercent > 0 || hasVat) && (
+                    {(discountPercent > 0 || vatAmount > 0) && (
                       <tr className="font-bold" style={{ backgroundColor: '#f1f5f9' }}>
                         <td colSpan={4} className="border border-black px-2 py-1.5 text-center uppercase tracking-wider">
                           Tổng thanh toán

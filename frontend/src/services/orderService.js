@@ -1,5 +1,4 @@
 import { authFetch } from './httpClient';
-import { resolveApiFileUrl } from './apiBase.js';
 
 async function request(method, url, body) {
   const res = await authFetch(url, {
@@ -82,13 +81,36 @@ export async function requestVatInvoice(orderId) {
 }
 
 /**
- * Tải PDF hóa đơn – mở URL trực tiếp trong tab mới.
- * @param {string | null | undefined} invoicePdfUrl
+ * Sale/Manager nhập lại thông tin hóa đơn đỏ THẬT lấy từ bên thứ 3 cho đơn hàng khách đã yêu cầu
+ * xuất hóa đơn. Gọi lại được nhiều lần để sửa.
+ * @param {string} orderId
+ * @param {{ redInvoiceNumber: string, redInvoiceIssuedAt: string, documentBase64?: string }} payload
+ * @returns {Promise<SalesOrderDetailDto>}
  */
-export function downloadInvoicePdf(invoicePdfUrl) {
-  const url = resolveApiFileUrl(invoicePdfUrl)
-  if (!url) throw new Error('Hóa đơn PDF chưa sẵn sàng.')
-  window.open(url, '_blank', 'noopener,noreferrer')
+export async function submitRedInvoice(orderId, payload) {
+  return request('POST', `/orders/${orderId}/red-invoice`, payload)
+}
+
+/**
+ * Tải Hóa đơn PDF chính thức (server sinh theo yêu cầu, luôn phản ánh dữ liệu mới nhất kể cả hóa
+ * đơn đỏ được nhập sau khi tạo đơn) — thay cho bản PDF tự tạo ở trình duyệt trước đây.
+ * @param {string} orderId
+ */
+export async function downloadOfficialInvoicePdf(orderId) {
+  const res = await authFetch(`/orders/${orderId}/invoice-pdf`, { method: 'GET' })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(json.message || `Lỗi ${res.status}`)
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `hoa-don-${orderId}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
 }
 
 // ─── Status Metadata ─────────────────────────────────────────────────────────

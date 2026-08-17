@@ -10,8 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getSalesStaffDashboard } from '../../services/dashboardService.js';
 import { authFetch } from '../../services/httpClient';
-import { resolveApiFileUrl } from '../../services/apiBase.js';
-import { exportInvoiceToPdf } from '../../utils/exportPdf.js';
+import { downloadOfficialInvoicePdf } from '../../services/orderService.js';
 import type {
   SalesDashboardStats, DashboardUrgentOrder, DashboardWarehouseQueueItem,
   DashboardQuoteRequest, DashboardOrder,
@@ -292,23 +291,14 @@ export default function SalesDashboard() {
   // dựng lại hóa đơn phía client, đúng cách SalesOrdersPage.handleExportPdf đang làm.
   const [openingInvoiceId, setOpeningInvoiceId] = useState<string | null>(null);
 
+  // Hóa đơn PDF chính thức sinh phía server theo yêu cầu (luôn có VAT + số hóa đơn đỏ nếu đã nhập) —
+  // thay cho bản PDF tự tạo ở trình duyệt trước đây, không còn phụ thuộc order.invoicePdfUrl đã lưu.
   const handleViewInvoice = async (order: DashboardOrder) => {
-    const storedUrl = resolveApiFileUrl(order.invoicePdfUrl);
-    if (storedUrl) {
-      window.open(storedUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    // Mở tab ngay trong user-gesture, trước các await, để không bị chặn popup.
-    const targetWindow = window.open('', '_blank');
     setOpeningInvoiceId(order.id);
     try {
-      const response = await authFetch(`/orders/sales/${order.id}`);
-      if (!response.ok) throw new Error('Không thể lấy chi tiết đơn hàng để xuất hóa đơn.');
-      await exportInvoiceToPdf(await response.json(), 'view', targetWindow);
+      await downloadOfficialInvoicePdf(order.id);
     } catch (err) {
-      targetWindow?.close();
-      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xuất hóa đơn PDF.');
+      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi tải hóa đơn PDF.');
     } finally {
       setOpeningInvoiceId(null);
     }

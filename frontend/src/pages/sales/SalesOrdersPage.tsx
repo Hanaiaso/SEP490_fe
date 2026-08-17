@@ -10,7 +10,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { exportInvoiceToPdf } from '../../utils/exportPdf';
+import { downloadOfficialInvoicePdf } from '../../services/orderService.js';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { authFetch } from '../../services/httpClient';
 
@@ -260,21 +260,12 @@ export default function SalesOrdersPage() {
     }
   };
 
+  // Hóa đơn PDF chính thức sinh phía server theo yêu cầu (luôn có VAT + số hóa đơn đỏ nếu đã nhập).
   const handleExportPdf = async (orderId: string) => {
     try {
-      // 1. Lấy thông tin chi tiết đơn hàng (vì list không có đủ item và giá)
-      const response = await authFetch(`/orders/sales/${orderId}`);
-
-      if (!response.ok) {
-        throw new Error('Không thể lấy chi tiết đơn hàng để xuất PDF.');
-      }
-
-      const orderDetail = await response.json();
-
-      // 2. Gọi hàm xuất PDF (chế độ xem trước)
-      await exportInvoiceToPdf(orderDetail, 'view');
+      await downloadOfficialInvoicePdf(orderId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xuất PDF.');
+      alert(err instanceof Error ? err.message : 'Có lỗi xảy ra khi tải hóa đơn PDF.');
     }
   };
 

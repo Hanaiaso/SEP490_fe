@@ -7,7 +7,8 @@ import type { ReturnExchangeRequest } from '../../components/ReturnExchangeReque
 import { useAuth } from '../../context/AuthContext';
 import type { SalesOrderDetail } from '../../types/order';
 import { authFetch } from '../../services/httpClient';
-import { resolveApiFileUrl } from '../../services/apiBase.js';
+import { downloadOfficialInvoicePdf } from '../../services/orderService.js';
+import RedInvoiceForm from '../../components/RedInvoiceForm';
 import {
   Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, Building2,
@@ -315,17 +316,13 @@ export default function SalesOrderDetailPage() {
                 </button>
               </>
             )}
-            {order.invoicePdfUrl && (
-              <a
-                href={resolveApiFileUrl(order.invoicePdfUrl) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Tải hóa đơn
-              </a>
-            )}
+            <button
+              onClick={() => downloadOfficialInvoicePdf(order.id).catch((err) => alert(getErrorMessage(err, 'Lỗi khi tải hóa đơn')))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Tải hóa đơn
+            </button>
           </div>
         </div>
       </div>
@@ -698,6 +695,10 @@ export default function SalesOrderDetailPage() {
                 )}
               </div>
             </div>
+
+            {order.requiresRedInvoice && (
+              <RedInvoiceForm order={order} onSubmitted={(updated) => setOrder(updated)} />
+            )}
           </div>
 
           {/* ── Right Column: Product List ─────────────────────────────── */}

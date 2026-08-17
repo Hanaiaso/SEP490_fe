@@ -20,8 +20,10 @@ import Header from '../components/Header.jsx'
 import { Badge } from '../components/ui/Badge.jsx'
 import { Button } from '../components/ui/Button.jsx'
 import { authFetch } from '../services/httpClient.js'
+import { resolveApiFileUrl } from '../services/apiBase.js'
 import {
   downloadInvoicePdf,
+  downloadOfficialInvoicePdf,
   getOrderDetail,
   getOrderTimeline,
   orderStatusMeta,
@@ -31,7 +33,6 @@ import {
   requestCancelOrder,
   createExchangeRequest
 } from '../services/orderService.js'
-import { exportInvoiceToPdf } from '../utils/exportPdf.js'
 import ExchangeRequestModal from './sales/ExchangeRequestModal.tsx'
 import { ReturnExchangeRequestDetailModal } from '../components/ReturnExchangeRequests'
 
@@ -175,8 +176,9 @@ export default function OrderDetail() {
   async function handleDownloadPdf() {
     try {
       if (!order) return
-      // Hiển thị trạng thái đang tải (có thể dùng button loading sau này)
-      await exportInvoiceToPdf(order)
+      // Hóa đơn PDF chính thức sinh phía server (luôn có VAT + số hóa đơn đỏ nếu đã nhập) — thay
+      // cho bản PDF tự tạo ở trình duyệt trước đây (exportInvoiceToPdf).
+      await downloadOfficialInvoicePdf(order.id)
     } catch (err) {
       alert(err.message)
     }
@@ -380,10 +382,33 @@ export default function OrderDetail() {
           )}
 
           {/* VAT done banner */}
-          {vatDone && (
+          {vatDone && !order.redInvoiceNumber && (
             <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               <Receipt className="h-4 w-4 flex-shrink-0" />
               Yêu cầu hóa đơn VAT đã được ghi nhận. Đội kế toán sẽ liên hệ trong thời gian sớm nhất.
+            </div>
+          )}
+
+          {/* Hóa đơn đỏ đã xuất */}
+          {order.redInvoiceNumber && (
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 flex-shrink-0" />
+                <span>
+                  Hóa đơn đỏ số <strong>{order.redInvoiceNumber}</strong>
+                  {order.redInvoiceIssuedAt && ` — ngày ${new Date(order.redInvoiceIssuedAt).toLocaleDateString('vi-VN')}`}
+                </span>
+              </div>
+              {order.redInvoiceDocumentUrl && (
+                <a
+                  href={resolveApiFileUrl(order.redInvoiceDocumentUrl) ?? undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="whitespace-nowrap text-xs font-medium text-emerald-800 underline"
+                >
+                  Tải hóa đơn
+                </a>
+              )}
             </div>
           )}
 

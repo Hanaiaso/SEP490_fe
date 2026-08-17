@@ -532,16 +532,10 @@ export default function Checkout() {
   const discountRate = hasServerSummary ? checkoutSummary.discountPercentage / 100 : getAutomaticDiscount(subtotal)
   const discountAmount = hasServerSummary ? checkoutSummary.discountAmount : Math.round(subtotal * discountRate)
   const afterDiscount = subtotal - discountAmount
-  // Cùng lý do với discountAmount ở trên: BE chỉ tính VAT khi hồ sơ khách có MST (không phải cứ
-  // có giỏ hàng là +10%) — trước đây dòng này luôn cộng cứng 10% bất kể BE có tính VAT hay không,
-  // khiến số tiền hiển thị ở Checkout khác với FinalPayment thật của Order/số tiền SePay yêu cầu
-  // chuyển khoản khi khách không có MST (BE trả VAT=0 nhưng FE vẫn cộng thêm 10%).
+  // VAT 10% bắt buộc trên mọi đơn (không còn điều kiện MST) — ưu tiên số thật từ backend
+  // (checkoutSummary), fallback ước tính 10% khi chưa tải xong summary.
   const vat = hasServerSummary ? checkoutSummary.vatAmount : Math.round(afterDiscount * 0.1)
   const total = hasServerSummary ? checkoutSummary.finalPayment : afterDiscount + vat
-  // Số VAT sẽ CỘNG THÊM sau khi khách bổ sung MST — chỉ để xem trước ở bước Địa chỉ khi đã tick
-  // "Yêu cầu hóa đơn VAT" nhưng hồ sơ chưa có MST (nút "Tiếp tục" vẫn khoá lúc này nên không có
-  // rủi ro thu sai tiền, khác với bug cộng cứng VAT trước đây).
-  const vatPreviewAmount = Math.round(afterDiscount * 0.1)
   const availableCredit = profileFull?.availableCredit || 0
   const creditApplied = Math.min(total, availableCredit)
   const finalPayment = total - creditApplied
@@ -1310,11 +1304,11 @@ export default function Checkout() {
                   </div>
                 </section>
 
-                {/* VAT */}
+                {/* Hóa đơn đỏ (VAT của đơn hàng luôn được tính, không phụ thuộc mục này — xem tổng kết bên dưới) */}
                 <section className="rounded-[1.5rem] border border-gray-100 p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <FileText className="h-5 w-5 text-gray-700" />
-                    <h2 className="text-lg font-semibold text-gray-900">Hóa đơn VAT</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Hóa đơn đỏ cho công ty</h2>
                   </div>
                   <label className="mb-4 flex cursor-pointer items-center gap-3">
                     <input
@@ -1323,7 +1317,7 @@ export default function Checkout() {
                       onChange={(e) => { setVatRequested(e.target.checked); if (!e.target.checked) setIsEditingVat(false) }}
                       className="h-4 w-4 accent-gray-900"
                     />
-                    <span className="text-sm font-medium text-gray-800">Yêu cầu hóa đơn VAT (10%)</span>
+                    <span className="text-sm font-medium text-gray-800">Yêu cầu xuất hóa đơn đỏ (VAT công ty)</span>
                   </label>
                   <AnimatePresence>
                     {vatRequested && (
@@ -1343,7 +1337,7 @@ export default function Checkout() {
                         {vatRequestedWithoutTaxCode && (
                           <div className="mb-3 flex items-start gap-2 rounded-[1rem] bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
                             <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                            <span>Hồ sơ của bạn chưa có Mã số thuế. Vui lòng cập nhật MST để tiếp tục với yêu cầu hóa đơn VAT, hoặc bỏ chọn nếu không cần hóa đơn VAT.</span>
+                            <span>Hồ sơ của bạn chưa có Mã số thuế. Vui lòng cập nhật MST để tiếp tục với yêu cầu hóa đơn đỏ, hoặc bỏ chọn nếu không cần xuất hóa đơn đỏ.</span>
                           </div>
                         )}
                         <div className="flex flex-wrap items-center gap-3">
@@ -1377,16 +1371,10 @@ export default function Checkout() {
                           <span className="font-medium">-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && vat > 0 && (
+                      {vat > 0 && (
                         <div className="flex justify-between text-gray-600">
                           <span>VAT (10%)</span>
                           <span className="font-medium">+{formatPrice(vat)}</span>
-                        </div>
-                      )}
-                      {vatRequestedWithoutTaxCode && (
-                        <div className="flex justify-between text-amber-600">
-                          <span>VAT (10%) — dự kiến khi có MST</span>
-                          <span className="font-medium">+{formatPrice(vatPreviewAmount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-gray-600">
@@ -1398,12 +1386,9 @@ export default function Checkout() {
                       <div className="flex items-center justify-between">
                         <span className="text-lg font-semibold text-gray-900">Tổng cộng</span>
                         <span className="text-2xl font-bold text-gray-900">
-                          {formatPrice(vatRequestedWithoutTaxCode ? afterDiscount + vatPreviewAmount : total)}
+                          {formatPrice(total)}
                         </span>
                       </div>
-                      {vatRequestedWithoutTaxCode && (
-                        <p className="mt-1 text-right text-[11px] text-amber-600">Đã gồm VAT dự kiến — cần cập nhật MST để áp dụng</p>
-                      )}
                     </div>
                     <Button
                       size="lg"

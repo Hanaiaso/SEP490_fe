@@ -78,6 +78,11 @@ export interface SalesOrderDetail extends SalesOrderListItem {
   returnExchangeRequests: ReturnExchangeRequestSnapshot[];
   companyName?: string;
   items: SalesOrderItem[];
+  requiresRedInvoice: boolean;
+  redInvoiceStatus: string;
+  redInvoiceNumber?: string;
+  redInvoiceIssuedAt?: string;
+  redInvoiceDocumentUrl?: string;
 }
 
 // POST /api/orders/sales-dashboard

@@ -56,12 +56,11 @@ import {
   getOrderTimeline,
   getSpendingStats,
   requestVatInvoice,
-  downloadInvoicePdf,
+  downloadOfficialInvoicePdf,
   orderStatusMeta,
   paymentStatusMeta,
   redInvoiceStatusMeta,
 } from '../services/orderService.js'
-import { exportInvoiceToPdf } from '../utils/exportPdf.js'
 import { formatPrice } from '../data/products.js'
 import { getCustomerProfile, updateCustomerProfile } from '../services/authService.js'
 import { authFetch } from '../services/httpClient.js'
@@ -1033,8 +1032,8 @@ function OrderHistoryTab({ onSuccess }) {
 
   async function handleDownloadPdf(order) {
     try {
-      const detail = await getOrderDetail(order.id)
-      await exportInvoiceToPdf(detail)
+      // Hóa đơn PDF chính thức sinh phía server (luôn có VAT + số hóa đơn đỏ nếu đã nhập).
+      await downloadOfficialInvoicePdf(order.id)
     } catch (err) {
       alert(err.message || 'Lỗi khi tải PDF.')
     }

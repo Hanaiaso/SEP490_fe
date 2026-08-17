@@ -25,7 +25,7 @@ describe('Checkout', () => {
       </AuthProvider>,
     )
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Yêu cầu hóa đơn VAT/i }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Yêu cầu xuất hóa đơn đỏ/i }))
 
     const updateLink = screen.getByRole('link', { name: /Cập nhật thông tin MST trong Hồ sơ/i })
     expect(updateLink).toHaveAttribute('href', '/profile?tab=tax')
