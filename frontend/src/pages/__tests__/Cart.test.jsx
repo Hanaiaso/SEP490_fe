@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../../test/msw/server.js'
 import { AuthProvider } from '../../context/AuthContext.jsx'
 import { CartProvider } from '../../context/CartContext.jsx'
+import { formatPrice } from '../../services/productService.js'
 import Cart from '../Cart.jsx'
 
 // Header render NotificationBell, mở WebSocket thật khi có accessToken -> stub để chạy offline.
@@ -197,5 +198,53 @@ describe('Cart', () => {
 
     expect(await screen.findByText('Đã áp dụng giá đàm phán')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Gửi yêu cầu báo giá với Sales/i })).not.toBeInTheDocument()
+  })
+
+  // Giá đàm phán HIỆU LỰC phải dịch chuyển theo đúng % thay đổi của giá niêm yết hiện tại
+  // (currentListedPrice) — không đứng yên ở đúng con số đã duyệt lúc đàm phán (proposedUnitPrice).
+  // Ví dụ: đàm phán 40.000.000 -> 32.000.000 (giảm 20%), sau đó giá niêm yết giảm thêm -2% còn
+  // 39.200.000 -> giá đàm phán hiệu lực phải là 0.8 * 39.200.000 = 31.360.000 (vẫn giảm đúng 20%).
+  it('giá đàm phán hiệu lực dịch chuyển theo đúng tỉ lệ khi giá niêm yết hiện tại đã đổi', async () => {
+    localStorage.setItem('accessToken', 'jwt-1')
+    localStorage.setItem('authUser', JSON.stringify({ id: 'U1', role: 'Customer' }))
+
+    server.use(
+      http.get('/api/cart', () => HttpResponse.json({
+        id: 'C1',
+        items: [{ id: 'CI1', productId: 'P1', productName: 'Ống PVC D21', quantity: 3, unitPrice: 40_000_000 }],
+        totalItems: 3,
+        totalPrice: 120_000_000,
+      })),
+      http.get('/api/Quotation', () => HttpResponse.json([
+        { id: 'Q1', status: 'CustomerAccepted', validUntil: new Date(Date.now() + 7 * 86400_000).toISOString(), acceptedVersionId: 'V1' },
+      ])),
+      http.get('/api/Quotation/Q1', () => HttpResponse.json({
+        id: 'Q1',
+        acceptedVersionId: 'V1',
+        versions: [{
+          id: 'V1',
+          items: [{
+            productId: 'P1',
+            quantity: 3,
+            originalUnitPrice: 40_000_000,
+            proposedUnitPrice: 32_000_000, // đã đàm phán giảm 20% so với giá niêm yết LÚC ĐÓ
+            currentListedPrice: 39_200_000, // giá niêm yết SAU đó đã giảm thêm -2%
+          }],
+        }],
+      })),
+    )
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter>
+            <Cart />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('Đã áp dụng giá đàm phán')).toBeInTheDocument()
+    expect(screen.getByText((_, node) => node?.textContent === `Đàm phán: ${formatPrice(31_360_000)} / sp`)).toBeInTheDocument()
   })
 })

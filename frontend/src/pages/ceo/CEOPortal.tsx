@@ -8,11 +8,12 @@ import CEOPurchaseOrderDetailPage from './CEOPurchaseOrderDetailPage';
 import CEOMaterialManagementPage from './CEOMaterialManagementPage';
 import CEOProductManagementPage from './CEOProductManagementPage';
 import CEOStockAdjustmentPage from './CEOStockAdjustmentPage';
+import CEOPriceUpdateOrdersPage from './CEOPriceUpdateOrdersPage';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign,
-  Package, Users, LogOut, Building, Layers, ShoppingBag, SlidersHorizontal
+  Package, Users, LogOut, Building, Layers, ShoppingBag, SlidersHorizontal, TrendingUp
 } from 'lucide-react';
 import WarehouseManagement from '../warehouse/WarehouseManagement';
 import NotificationBell from '../../components/NotificationBell';
@@ -91,6 +92,8 @@ function CEOSidebar({ activeTab, setActiveTab, pendingQuotationCount }: { active
         <NavGroup title="Sản phẩm">
           <NavItem icon={<ShoppingBag className="w-4 h-4" />} label="Quản lý sản phẩm"
             active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
+          <NavItem icon={<TrendingUp className="w-4 h-4" />} label="Cập nhật giá hàng hóa"
+            active={activeTab === 'price-updates'} onClick={() => setActiveTab('price-updates')} />
         </NavGroup>
 
         <NavGroup title="Phê duyệt Báo Giá (≥100M)">
@@ -165,6 +168,8 @@ export default function CEOPortal() {
         return <CEOMaterialManagementPage />;
       case 'products':
         return <CEOProductManagementPage />;
+      case 'price-updates':
+        return <CEOPriceUpdateOrdersPage />;
       case 'stock-adjustments':
         return <CEOStockAdjustmentPage />;
       case 'warehouses':

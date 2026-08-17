@@ -475,9 +475,20 @@ export default function CEOProductManagementPage() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Giá niêm yết (VNĐ) *</label>
-                <input type="number" min="1" step="1" required
-                  className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                  value={formData.standardListedPrice} onChange={e => setFormData({ ...formData, standardListedPrice: e.target.value })} />
+                {editingProduct ? (
+                  <>
+                    <input type="number" readOnly disabled
+                      className="border rounded px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                      value={formData.standardListedPrice} />
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Giá sản phẩm đã có không còn sửa trực tiếp ở đây — vào mục &quot;Cập nhật giá hàng hóa&quot; để đề xuất đợt cập nhật giá mới.
+                    </p>
+                  </>
+                ) : (
+                  <input type="number" min="1" step="1" required
+                    className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.standardListedPrice} onChange={e => setFormData({ ...formData, standardListedPrice: e.target.value })} />
+                )}
               </div>
 
               <div className="flex flex-col gap-1">

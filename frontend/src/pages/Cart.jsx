@@ -209,10 +209,17 @@ export default function Cart() {
   // Toàn bộ dòng ĐÃ CHỌN đều thuộc báo giá đã duyệt — điều kiện thật sự BE dùng để áp giá đàm phán.
   const allLinesNegotiated = selectedItems.length > 0 && selectedItems.every(ci => negotiatedByProduct[ci.productId]);
 
+  // Giá đàm phán HIỆU LỰC dịch chuyển theo đúng % thay đổi của giá niêm yết hiện tại (currentListedPrice,
+  // giá SỐNG — khác originalUnitPrice là snapshot lúc đàm phán) — nếu sau đó có 1 đợt cập nhật giá sản
+  // phẩm thực thi thì giá đàm phán cũng tự dịch theo đúng tỉ lệ. KHÔNG dùng item.unitPrice của giỏ hàng
+  // ở đây vì giá đó cố tình có thể "cũ" do đang bị khoá giá 24h (xem PriceLockedAt). Mirror đúng công
+  // thức EffectiveNegotiatedUnitPrice ở OrderService.CalculateDiscountAsync.
   const negotiatedPrices = useMemo(() => {
     const map = {};
     for (const [productId, item] of Object.entries(negotiatedByProduct)) {
-      map[productId] = item.proposedUnitPrice;
+      map[productId] = item.originalUnitPrice > 0
+        ? Math.round((item.proposedUnitPrice / item.originalUnitPrice) * item.currentListedPrice)
+        : item.proposedUnitPrice;
     }
     return map;
   }, [negotiatedByProduct]);

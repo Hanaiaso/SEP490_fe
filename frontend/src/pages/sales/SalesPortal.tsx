@@ -28,6 +28,7 @@ import {
   X,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 import SalesDashboardPage from './SalesDashboardPage';
 import SalesNegotiationPage from './SalesNegotiationPage';
@@ -43,6 +44,7 @@ import SalesMyCustomersPage from './SalesMyCustomersPage';
 import SalesReviewsPage from './SalesReviewsPage';
 import SalesChangeRequestExplainPage from './SalesChangeRequestExplainPage';
 import SalesAiContentStudio from './SalesAiContentStudio';
+import SalesPriceUpdateExecutionPage from './SalesPriceUpdateExecutionPage';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
@@ -111,6 +113,13 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Mua hàng trực tiếp',
     icon: <ShoppingCart className="w-4 h-4" />,
     path: '/sales/direct-purchase',
+    roles: ['SalesStaff', 'Admin'],
+  },
+  {
+    id: 'price-updates',
+    label: 'Cập nhật giá hàng hóa',
+    icon: <TrendingUp className="w-4 h-4" />,
+    path: '/sales/price-updates',
     roles: ['SalesStaff', 'Admin'],
   },
   {
@@ -416,6 +425,7 @@ export default function SalesPortal() {
             <Route path="orders/:id" element={<SalesOrderDetailPage />} />
             <Route path="negotiation" element={<SalesNegotiationPage />} />
             <Route path="direct-purchase" element={<DirectPurchasePage />} />
+            <Route path="price-updates" element={<SalesPriceUpdateExecutionPage />} />
             <Route path="delivery" element={<SalesDeliveryPage />} />
             <Route path="delivery/handover" element={<SalesWarehouseHandoverPage />} />
             <Route path="delivery/warehouse" element={<SalesWarehouseCoordPage />} />

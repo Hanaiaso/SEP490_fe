@@ -12,6 +12,7 @@ import {
   Lock,
   Truck,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 import SalesManagerDashboardPage from './SalesManagerDashboardPage';
 import SalesManagerRoundRobinPage from './SalesManagerRoundRobinPage';
@@ -26,6 +27,7 @@ import SalesManagerChangeRequestsPage from './SalesManagerChangeRequestsPage';
 import SalesManagerChangeRequestDetailPage from './SalesManagerChangeRequestDetailPage';
 import SalesManagerDeliveryConflictsPage from './SalesManagerDeliveryConflictsPage';
 import SalesManagerMarketingApproval from './SalesManagerMarketingApproval';
+import SalesManagerPriceUpdateQueuePage from './SalesManagerPriceUpdateQueuePage';
 import DirectPurchasePage from '../sales/DirectPurchasePage';
 import { useAuth } from '../../context/AuthContext';
 import { getQuotations } from '../../services/quotationService.js';
@@ -66,6 +68,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Duyệt Báo giá (Quản lý)',
     icon: <CheckSquare className="w-4 h-4" />,
     path: '/sales-manager/manager-negotiation',
+  },
+  {
+    id: 'price-updates',
+    label: 'Cập nhật giá hàng hóa',
+    icon: <TrendingUp className="w-4 h-4" />,
+    path: '/sales-manager/price-updates',
   },
   {
     id: 'orders',
@@ -233,6 +241,7 @@ export default function SalesManagerPortal() {
             <Route path="sales-targets" element={<SalesManagerTargetsPage />} />
             <Route path="manager-negotiation" element={<SalesManagerPriceNegotiation />} />
             <Route path="manager-negotiation/:id" element={<SalesManagerPriceNegotiationDetail />} />
+            <Route path="price-updates" element={<SalesManagerPriceUpdateQueuePage />} />
             <Route path="orders" element={<SalesManagerOrdersPage />} />
             <Route path="orders/:id" element={<SalesManagerOrderDetailPage />} />
             <Route path="direct-purchase" element={<DirectPurchasePage />} />
