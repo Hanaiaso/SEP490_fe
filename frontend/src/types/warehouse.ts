@@ -159,6 +159,9 @@ export interface StockTransfer {
   deliveryShift?: string;
   scheduledDeliveryDate?: string;
   items: StockTransferItem[];
+  // Chỉ có giá trị ngay tại thời điểm vừa Dispatch xong (không nạp lại ở các lần GET sau).
+  goodsIssueId?: string;
+  goodsIssueCode?: string;
 }
 
 export interface GoodsIssueItem {
@@ -198,12 +201,20 @@ export interface GoodsIssue {
   items: GoodsIssueItem[];
 }
 
+export interface WarehouseStockBreakdown {
+  warehouseId: string;
+  warehouseName: string;
+  onHandQuantity: number;
+}
+
 export interface WarehouseOrderItem {
   productId: string;
   productName: string;
   sku: string;
   requestedQuantity: number;
+  // Tổng CỘNG DỒN across mọi kho — ở cấp PickTask.items thì đây là tồn TẠI ĐÚNG KHO của task đó (xem stockByWarehouse chỉ có ở cấp đơn hàng).
   physicalStock: number;
+  stockByWarehouse?: WarehouseStockBreakdown[];
   isStockSufficient: boolean;
   packedQuantity: number;
   remainingQuantity: number;

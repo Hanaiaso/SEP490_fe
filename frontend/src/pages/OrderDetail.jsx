@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarDays,
   ChevronRight,
+  Clock,
   CreditCard,
   Download,
   ExternalLink,
@@ -460,6 +461,12 @@ export default function OrderDetail() {
                     <InfoRow icon={CalendarDays} label="Ngày giao dự kiến" value={order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate).toLocaleDateString('vi-VN') : '—'} />
                     <InfoRow icon={MapPin} label="Ca giao" value={order.deliveryShift || '—'} />
                     <InfoRow icon={Package} label="Xe giao hàng" value={order.deliveryVehicleId ? `Xe ${order.deliveryVehicleId}` : '—'} />
+                    {order.plannedDepartureAt && (
+                      <InfoRow icon={Clock} label="Giờ xuất phát dự kiến" value={new Date(order.plannedDepartureAt).toLocaleString('vi-VN')} />
+                    )}
+                    {order.plannedArrivalAt && (
+                      <InfoRow icon={Clock} label="Giờ đến dự kiến" value={new Date(order.plannedArrivalAt).toLocaleString('vi-VN')} />
+                    )}
                     <InfoRow icon={CreditCard} label="Số tiền đã thu (COD)" value={formatPrice(order.amountPaid)} />
                     {order.failedDeliveryCount > 0 && (
                       <InfoRow icon={AlertCircle} label="Số lần giao thất bại" value={`${order.failedDeliveryCount} lần`} />

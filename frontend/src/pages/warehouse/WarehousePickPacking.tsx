@@ -4,6 +4,8 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, Download, RefreshCw, Play, CheckCircle, Upload, Package, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
+import ConfirmModal from '../../components/ui/ConfirmModal';
+import CameraCapture from '../../components/ui/CameraCapture';
 import type { PickTask as ApiPickTask, WarehouseOrderDetail } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -28,10 +30,12 @@ interface PickItem {
   barcode: string; batch: string; lot: string;
   requestedQty: number; pickedQty: number;
   productId: string; evidenceUrl?: string;
+  // Tồn TẠI ĐÚNG KHO của pick task này (không phải tổng 3 kho) — xem WarehouseOrderItemDto.PhysicalStock.
+  physicalStock?: number;
 }
 
 interface PickTask {
-  id: string; fulfillmentId: string; warehouse: string; picker: string; orderCode: string;
+  id: string; orderId?: string; fulfillmentId: string; warehouse: string; picker: string; orderCode: string;
   priority: 'urgent' | 'high' | 'normal';
   totalItems: number; pickedItems: number; packingStatus: string;
   startedTime: string; completedTime: string;
@@ -72,6 +76,11 @@ export default function WarehousePickPacking() {
 
   const [uploadingTask, setUploadingTask] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [confirmAction, setConfirmAction] = useState<'start' | 'complete' | 'completePacking' | null>(null);
+  const [packingBoxCount, setPackingBoxCount] = useState('');
+  const [packingWeight, setPackingWeight] = useState('');
+  const [packingEvidenceFiles, setPackingEvidenceFiles] = useState<File[]>([]);
+  const [packingSubmitting, setPackingSubmitting] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -83,6 +92,7 @@ export default function WarehousePickPacking() {
         const tPacked = d.items?.reduce((s, i) => s + i.packedQuantity, 0) || 0;
         return {
           id: d.pickTaskId,
+          orderId: d.orderId,
           orderCode: d.orderCode || '—',
           fulfillmentId: d.pickTaskId.substring(0, 8).toUpperCase(),
           warehouse: d.warehouseName,
@@ -123,6 +133,13 @@ export default function WarehousePickPacking() {
   React.useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Reset form đóng gói mỗi khi mở lại 1 tác vụ khác — tránh mang nhầm số liệu/ảnh của tác vụ trước.
+  React.useEffect(() => {
+    setPackingBoxCount('');
+    setPackingWeight('');
+    setPackingEvidenceFiles([]);
+  }, [detail?.id]);
 
   const filtered = tasks.filter(t => {
     const q = search.toLowerCase();
@@ -184,13 +201,52 @@ export default function WarehousePickPacking() {
       for (const item of detail.items) {
         await updateItemPickProgress(detail.id, item.productId, item.pickedQty, null);
       }
-      
+
       await completePickTask(detail.id);
       alert('Hoàn tất Pick Task thành công!');
       updateStatus(detail.id, 'picked');
     } catch (err: unknown) {
       alert(getErrorMessage(err, 'Lỗi khi hoàn tất Pick Task'));
     }
+  };
+
+  const handleStartPicking = async () => {
+    if (!detail) return;
+    try {
+      const { acceptPickTask } = await import('../../services/warehouseService.js');
+      await acceptPickTask(detail.id);
+      updateStatus(detail.id, 'picking');
+      alert('Bắt đầu Picking thành công!');
+    } catch (e: unknown) {
+      alert('Lỗi: ' + getErrorMessage(e));
+    }
+  };
+
+  const handleCompletePacking = async () => {
+    if (!detail || !detail.orderId) {
+      alert('Không xác định được đơn hàng cho tác vụ này.');
+      return;
+    }
+    setPackingSubmitting(true);
+    try {
+      const { completePacking } = await import('../../services/warehouseService.js');
+      await completePacking(detail.orderId, Number(packingBoxCount), Number(packingWeight), packingEvidenceFiles);
+      alert('Hoàn tất đóng gói thành công!');
+      updateStatus(detail.id, 'completed');
+      fetchTasks();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi khi hoàn tất đóng gói'));
+    } finally {
+      setPackingSubmitting(false);
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === 'start') await handleStartPicking();
+    else if (action === 'complete') await handleCompletePick();
+    else if (action === 'completePacking') await handleCompletePacking();
   };
 
   return (
@@ -298,7 +354,8 @@ export default function WarehousePickPacking() {
                             requestedQty: i.requestedQuantity,
                             pickedQty: i.packedQuantity || 0,
                             productId: i.productId,
-                            evidenceUrl: i.evidenceImageUrl
+                            evidenceUrl: i.evidenceImageUrl,
+                            physicalStock: i.physicalStock
                           }));
                           setDetail({ ...t,
                             items: mappedItems,
@@ -376,6 +433,9 @@ export default function WarehousePickPacking() {
                         <th className="text-left px-3 py-2 text-gray-700 font-semibold">Mã SP</th>
                         <th className="text-left px-3 py-2 text-gray-700 font-semibold">Sản phẩm</th>
                         <th className="text-center px-3 py-2 text-gray-700 font-semibold">Yêu cầu</th>
+                        <th className="text-center px-3 py-2 text-gray-700 font-semibold" title={`Tồn khả dụng riêng tại kho ${detail.warehouse} — KHÔNG phải tổng 3 kho`}>
+                          Tồn tại {detail.warehouse}
+                        </th>
                         <th className="text-center px-3 py-2 text-gray-700 font-semibold">Đã đóng gói</th>
                         <th className="text-center px-3 py-2 text-gray-700 font-semibold">Còn lại</th>
                         <th className="text-center px-3 py-2 text-gray-700 font-semibold">Bằng chứng</th>
@@ -389,6 +449,9 @@ export default function WarehousePickPacking() {
                             <td className="px-3 py-2 font-mono text-gray-500">{item.sku}</td>
                             <td className="px-3 py-2 text-gray-800">{item.name}</td>
                             <td className="px-3 py-2 text-center font-semibold">{item.requestedQty}</td>
+                            <td className="px-3 py-2 text-center font-semibold" style={{ color: (item.physicalStock ?? 0) >= item.requestedQty ? SUCCESS : ERROR }}>
+                              {item.physicalStock ?? '—'}
+                            </td>
                             <td className="px-3 py-2 text-center">
                               {detail.status === 'picking' ? (
                                 <Input 
@@ -428,18 +491,39 @@ export default function WarehousePickPacking() {
                 </div>
               )}
 
+              {(detail.status === 'picked' || detail.status === 'packing') && (
+                <div className="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-3">
+                  <p className="font-semibold text-gray-600 text-[10px] uppercase tracking-wide">Hoàn tất đóng gói — bắt buộc đủ thông tin</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-600">Số thùng đóng gói *</label>
+                      <Input type="number" min="1" className="h-8 text-xs" value={packingBoxCount} onChange={(e) => setPackingBoxCount(e.target.value)} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-600">Tổng trọng lượng (kg) *</label>
+                      <Input type="number" min="0.1" step="0.1" className="h-8 text-xs" value={packingWeight} onChange={(e) => setPackingWeight(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-gray-600">Ảnh bằng chứng đóng gói * (ít nhất 1 ảnh)</label>
+                    <CameraCapture onCapture={(file) => setPackingEvidenceFiles((prev) => [...prev, file])} label="Chụp ảnh đóng gói" />
+                    {packingEvidenceFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {packingEvidenceFiles.map((f, idx) => (
+                          <span key={idx} className="flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                            {f.name}
+                            <button type="button" onClick={() => setPackingEvidenceFiles((prev) => prev.filter((_, i) => i !== idx))} className="text-blue-400 hover:text-blue-700">✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2 border-t border-gray-100">
                 {detail.status === 'waiting' && (
-                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={async () => {
-                    try {
-                      const { acceptPickTask } = await import('../../services/warehouseService.js');
-                      await acceptPickTask(detail.id);
-                      updateStatus(detail.id, 'picking');
-                      alert('Bắt đầu Picking thành công!');
-                    } catch (e: unknown) {
-                      alert('Lỗi: ' + getErrorMessage(e));
-                    }
-                  }}>
+                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => setConfirmAction('start')}>
                     <Play className="w-3.5 h-3.5" /> Bắt đầu Picking
                   </Button>
                 )}
@@ -449,14 +533,18 @@ export default function WarehousePickPacking() {
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={handleSaveProgress}>
                       <Save className="w-3.5 h-3.5" /> Lưu tiến độ
                     </Button>
-                    <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} onClick={handleCompletePick}>
+                    <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} onClick={() => setConfirmAction('complete')}>
                       <CheckCircle className="w-3.5 h-3.5" /> Hoàn tất Picking
                     </Button>
                   </>
                 )}
                 {(detail.status === 'picked' || detail.status === 'packing') && (
-                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PURPLE }} onClick={() => updateStatus(detail.id, 'completed')}>
-                    <CheckCircle className="w-3.5 h-3.5" /> Hoàn tất Packing
+                  <Button
+                    size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PURPLE }}
+                    disabled={packingSubmitting || !packingBoxCount || Number(packingBoxCount) <= 0 || !packingWeight || Number(packingWeight) <= 0 || packingEvidenceFiles.length === 0}
+                    onClick={() => setConfirmAction('completePacking')}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" /> {packingSubmitting ? 'Đang xử lý...' : 'Hoàn tất Packing'}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
@@ -465,6 +553,37 @@ export default function WarehousePickPacking() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmModal
+        isOpen={!!confirmAction && !!detail}
+        title={
+          confirmAction === 'start' ? 'Xác nhận bắt đầu Picking' :
+          confirmAction === 'completePacking' ? 'Xác nhận hoàn tất đóng gói' :
+          'Xác nhận hoàn tất Picking'
+        }
+        message={detail && (
+          <>
+            Đơn hàng <strong>{detail.orderCode}</strong> — {detail.items.length} sản phẩm,{' '}
+            {detail.items.reduce((s, i) => s + i.requestedQty, 0)} tổng số lượng yêu cầu.
+            {confirmAction === 'complete' && (
+              <span className="block mt-2 font-bold text-gray-900">
+                Đã pick {detail.items.reduce((s, i) => s + (i.pickedQty || 0), 0)}/{detail.items.reduce((s, i) => s + i.requestedQty, 0)} —
+                sau khi xác nhận sẽ không sửa lại được số lượng đã pick.
+              </span>
+            )}
+            {confirmAction === 'completePacking' && (
+              <span className="block mt-2 font-bold text-gray-900">
+                {packingBoxCount} thùng, tổng {packingWeight}kg, {packingEvidenceFiles.length} ảnh bằng chứng —
+                sau khi xác nhận sẽ không sửa lại được.
+              </span>
+            )}
+          </>
+        )}
+        confirmText={confirmAction === 'start' ? 'Bắt đầu Picking' : confirmAction === 'completePacking' ? 'Hoàn tất đóng gói' : 'Hoàn tất Picking'}
+        cancelText="Hủy"
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

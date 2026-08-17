@@ -6,6 +6,7 @@ import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Plus, Truck, CheckCircle, X, ArrowRight, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import CameraCapture from '../../components/ui/CameraCapture';
 import type { InventoryItem, StaffUser, StockTransfer, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -229,6 +230,7 @@ function ReceiveForm({ transfer, onClose, onReceived }: { transfer: StockTransfe
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirmReceiveOpen, setConfirmReceiveOpen] = useState(false);
 
   const handleReceive = async () => {
     try {
@@ -280,20 +282,65 @@ function ReceiveForm({ transfer, onClose, onReceived }: { transfer: StockTransfe
           <textarea className="w-full h-20 text-sm border border-gray-200 rounded p-3 bg-white" placeholder="Ví dụ: Thiếu 2 kiện do móp méo..." value={note} onChange={e => setNote(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <label className="text-gray-500 font-medium">Tải lên bằng chứng (Hình ảnh thiếu/hỏng hàng, có thể chọn nhiều ảnh)</label>
-          <div className="flex items-center gap-2">
-            <Input type="file" accept="image/*" multiple className="h-10 text-sm flex-1 pt-1.5" onChange={e => setFiles(e.target.files ? Array.from(e.target.files) : [])} />
-          </div>
-          {files.length > 0 && <p className="text-xs text-blue-600 font-medium">Đã chọn {files.length} ảnh</p>}
+          <label className="text-gray-500 font-medium">Tải lên bằng chứng (Hình ảnh thiếu/hỏng hàng, có thể thêm nhiều ảnh)</label>
+          <CameraCapture onCapture={(file) => setFiles(prev => [...prev, file])} label="Chụp thêm ảnh" />
+          {files.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-1">
+              {files.map((f, idx) => (
+                <span key={idx} className="flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                  {f.name}
+                  <button type="button" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} className="text-blue-400 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex gap-2 pt-4 border-t border-gray-100 mt-4">
-        <Button size="sm" className="h-9 text-sm gap-2 px-4" style={{ backgroundColor: SUCCESS }} onClick={handleReceive} disabled={loading}>
+        <Button size="sm" className="h-9 text-sm gap-2 px-4" style={{ backgroundColor: SUCCESS }} onClick={() => setConfirmReceiveOpen(true)} disabled={loading}>
           {loading ? 'Đang xử lý...' : <><CheckCircle className="w-4 h-4" /> Hoàn tất nhập kho</>}
         </Button>
         <Button variant="outline" size="sm" className="h-9 text-sm ml-auto px-4" onClick={onClose} disabled={loading}>Hủy</Button>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmReceiveOpen}
+        title="Kiểm tra & xác nhận trước khi hoàn tất nhập kho"
+        message={
+          <div className="text-left">
+            <p className="mb-2">Đối chiếu số lượng thực nhận với phiếu gốc — kiểm tra kỹ trước khi xác nhận, sau khi xác nhận không thể sửa lại:</p>
+            <table className="w-full text-xs border border-gray-200 rounded overflow-hidden mb-2">
+              <thead><tr className="bg-gray-50"><th className="text-left px-2 py-1.5">Sản phẩm</th><th className="text-center px-2 py-1.5">Yêu cầu</th><th className="text-center px-2 py-1.5">Thực nhận</th><th className="text-center px-2 py-1.5">Chênh lệch</th></tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((item, idx) => {
+                  const original = transfer.items.find(i => i.productId === item.productId);
+                  const diff = item.receivedQuantity - (original?.quantity ?? 0);
+                  return (
+                    <tr key={idx}>
+                      <td className="px-2 py-1.5">{original?.itemName || 'N/A'}</td>
+                      <td className="px-2 py-1.5 text-center">{original?.quantity}</td>
+                      <td className="px-2 py-1.5 text-center">{item.receivedQuantity}</td>
+                      <td className="px-2 py-1.5 text-center font-semibold" style={{ color: diff === 0 ? SUCCESS : ERROR }}>
+                        {diff === 0 ? 'Đủ' : (diff > 0 ? `+${diff}` : diff)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {items.some((item) => item.receivedQuantity !== (transfer.items.find(i => i.productId === item.productId)?.quantity ?? 0)) && !note && (
+              <p className="text-red-600 font-medium">⚠ Có chênh lệch nhưng chưa nhập ghi chú — nên bổ sung lý do trước khi tiếp tục.</p>
+            )}
+          </div>
+        }
+        confirmText="Xác nhận hoàn tất nhập kho"
+        cancelText="Kiểm tra lại"
+        onConfirm={() => { setConfirmReceiveOpen(false); handleReceive(); }}
+        onCancel={() => setConfirmReceiveOpen(false)}
+      />
     </div>
   )
 }
@@ -313,6 +360,8 @@ export default function WarehouseStockTransfer() {
   // Thay window.confirm() (modal xám xịt của trình duyệt, không đồng bộ giao diện app) bằng
   // ConfirmModal riêng của hệ thống — dùng chung 1 state cho cả 3 thao tác cần xác nhận bên dưới.
   const [confirmConfig, setConfirmConfig] = useState<{ msg: string; action: () => void | Promise<void> } | null>(null);
+  const [dispatchedGoodsIssue, setDispatchedGoodsIssue] = useState<{ id: string; code: string } | null>(null);
+  const [exportingGI, setExportingGI] = useState(false);
 
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -376,13 +425,30 @@ export default function WarehouseStockTransfer() {
       action: async () => {
         try {
           const { dispatchStockTransfer } = await import('../../services/warehouseService.js');
-          await dispatchStockTransfer(id);
-          alert('Xuất kho thành công! Hàng đang trên đường tới kho đích.');
+          const result = await dispatchStockTransfer(id);
+          if (result?.goodsIssueId) {
+            setDispatchedGoodsIssue({ id: result.goodsIssueId, code: result.goodsIssueCode });
+          } else {
+            alert('Xuất kho thành công! Hàng đang trên đường tới kho đích.');
+          }
           loadData();
           setDetail(null);
         } catch (err: unknown) { alert(getErrorMessage(err)); }
       }
     });
+  };
+
+  const handleExportTransferGoodsIssue = async () => {
+    if (!dispatchedGoodsIssue) return;
+    setExportingGI(true);
+    try {
+      const { exportGoodsIssueExcel } = await import('../../services/warehouseService.js');
+      await exportGoodsIssueExcel(dispatchedGoodsIssue.id, dispatchedGoodsIssue.code);
+    } catch (err: unknown) {
+      alert('Lỗi tải Excel: ' + getErrorMessage(err));
+    } finally {
+      setExportingGI(false);
+    }
   };
 
   const cancel = (id: string) => {
@@ -639,6 +705,28 @@ export default function WarehouseStockTransfer() {
         message={confirmConfig?.msg}
         onConfirm={() => { confirmConfig?.action(); setConfirmConfig(null); }}
         onCancel={() => setConfirmConfig(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!dispatchedGoodsIssue}
+        title="Đã xuất kho — phiếu xuất kho đã được tạo tự động"
+        message={dispatchedGoodsIssue && (
+          <>
+            Mã phiếu: <strong>{dispatchedGoodsIssue.code}</strong>
+            <button
+              type="button"
+              disabled={exportingGI}
+              onClick={handleExportTransferGoodsIssue}
+              className="block mt-2 text-blue-600 hover:underline font-medium disabled:opacity-50"
+            >
+              {exportingGI ? 'Đang tải Excel...' : 'Tải Excel phiếu xuất kho'}
+            </button>
+          </>
+        )}
+        confirmText="Đóng"
+        cancelText="Đóng"
+        onConfirm={() => setDispatchedGoodsIssue(null)}
+        onCancel={() => setDispatchedGoodsIssue(null)}
       />
     </div>
   );

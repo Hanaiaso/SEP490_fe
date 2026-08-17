@@ -43,8 +43,55 @@ export async function postGoodsIssueWarehouseOrder(orderId) {
   return request('POST', `/warehouse/orders/${orderId}/goods-issue`);
 }
 
+/**
+ * Tải Excel phiếu xuất kho — GoodsIssue được tạo tự động ngay khi bàn giao xong (xem
+ * handoverWarehouseOrder), không cần bước Post thủ công riêng cho loại SalesOrder.
+ * @param {string} goodsIssueId
+ * @param {string} goodsIssueCode dùng để đặt tên file tải về
+ */
+export async function exportGoodsIssueExcel(goodsIssueId, goodsIssueCode) {
+  const res = await authFetch(`/goods-issues/${goodsIssueId}/export-excel`, { method: 'GET' });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.message || `Lỗi ${res.status}`);
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${goodsIssueCode || 'phieu-xuat-kho'}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export async function reportShortage(orderId, data) {
   return request('POST', `/warehouse/orders/${orderId}/shortage-alert`, data);
+}
+
+/**
+ * Hoàn tất đóng gói (Packing) — bắt buộc số thùng + tổng cân nặng + ít nhất 1 ảnh bằng chứng.
+ * @param {string} orderId
+ * @param {number} boxCount
+ * @param {number} totalWeightKg
+ * @param {File[]} evidenceFiles
+ */
+export async function completePacking(orderId, boxCount, totalWeightKg, evidenceFiles) {
+  const formData = new FormData();
+  formData.append('boxCount', String(boxCount));
+  formData.append('totalWeightKg', String(totalWeightKg));
+  evidenceFiles.forEach((f) => formData.append('evidenceFiles', f));
+
+  const res = await authFetch(`/warehouse/orders/${orderId}/complete-packing`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.message || `Lỗi ${res.status}`);
+  }
+  return res.json();
 }
 
 // ─── Advanced Warehouse (v6.0) ───────────────────────────────────────────────

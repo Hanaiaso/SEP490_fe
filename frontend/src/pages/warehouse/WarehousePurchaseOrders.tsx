@@ -6,6 +6,7 @@ import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, Download, RefreshCw, Upload, FileSpreadsheet, ScanLine, Play, CheckCircle, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import CameraCapture from '../../components/ui/CameraCapture';
 import { getPurchaseOrders, getPurchaseOrderById, createGoodsReceipt, uploadGoodsReceiptProof, postGoodsReceipt } from '../../services/purchaseOrderService.js';
 import { useEffect } from 'react';
 import type { PurchaseOrder as ApiPurchaseOrder, PurchaseOrderListItem } from '../../types/warehouse';
@@ -587,7 +588,14 @@ export default function WarehousePurchaseOrders() {
                         Đính kèm tệp / ảnh minh chứng
                         {(totalDamaged > 0 || totalWrong > 0) && <span className="text-red-500 ml-1">*</span>}
                       </label>
-                      <input type="file" className="text-xs" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+                      {proofFile ? (
+                        <div className="flex items-center gap-2 text-xs text-gray-700">
+                          <span className="truncate">{proofFile.name}</span>
+                          <button type="button" className="text-blue-600 hover:underline flex-shrink-0" onClick={() => setProofFile(null)}>Đổi ảnh khác</button>
+                        </div>
+                      ) : (
+                        <CameraCapture onCapture={setProofFile} label="Chụp ảnh minh chứng" />
+                      )}
                       {(totalDamaged > 0 || totalWrong > 0) && !proofFile && (
                         <span className="text-[10px] text-red-500">Bắt buộc khi có hàng Hỏng hoặc Sai loại</span>
                       )}

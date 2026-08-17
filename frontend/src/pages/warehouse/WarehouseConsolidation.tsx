@@ -6,6 +6,7 @@ import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, ArrowRight, Clock, Package2, CheckCircle, AlertTriangle, Truck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getWarehouseOrders, consolidateWarehouseOrder } from '../../services/warehouseService';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import type { WarehouseOrderDetail, WarehouseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -44,6 +45,7 @@ export default function WarehouseConsolidation() {
   const [warehouseFilter, setWarehouseFilter] = useState('all');
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<ConsolidationItem | null>(null);
+  const [confirmConsolidateId, setConfirmConsolidateId] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -190,7 +192,7 @@ export default function WarehouseConsolidation() {
                         } catch (e: unknown) { alert(getErrorMessage(e)); }
                       }}><Eye className="w-3.5 h-3.5" /></button>
                       {(!d.requiresTransfer) ? (
-                        <button className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Hoàn tất tập kết" onClick={() => handleConsolidate(d.id)}><ArrowRight className="w-3.5 h-3.5" /></button>
+                        <button className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Hoàn tất tập kết" onClick={() => setConfirmConsolidateId(d.id)}><ArrowRight className="w-3.5 h-3.5" /></button>
                       ) : (
                         <button className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title="Điều chuyển nội bộ" onClick={async () => {
                           try {
@@ -303,7 +305,7 @@ export default function WarehouseConsolidation() {
               )}
               <div className="flex gap-2 pt-2 border-t border-gray-100">
                 {(!detail.products || detail.products.every((p) => p.requiredTransferQuantity === undefined || p.requiredTransferQuantity === 0)) ? (
-                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => handleConsolidate(detail.id)}>
+                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: PRIMARY }} onClick={() => setConfirmConsolidateId(detail.id)}>
                     <ArrowRight className="w-3.5 h-3.5" /> Hoàn tất tập kết
                   </Button>
                 ) : (
@@ -322,6 +324,25 @@ export default function WarehouseConsolidation() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmModal
+        isOpen={!!confirmConsolidateId}
+        title="Xác nhận hoàn tất tập kết"
+        message={(() => {
+          const target = data.find((d) => d.id === confirmConsolidateId);
+          if (!target) return '';
+          return (
+            <>
+              Đơn hàng <strong>{target.fulfillmentId}</strong> — {target.quantity} sản phẩm, kho {target.warehouse}.
+              <span className="block mt-2 font-bold text-gray-900">Xác nhận đã tập kết đủ hàng, sẵn sàng bàn giao cho Sales?</span>
+            </>
+          );
+        })()}
+        confirmText="Hoàn tất tập kết"
+        cancelText="Hủy"
+        onConfirm={() => { if (confirmConsolidateId) handleConsolidate(confirmConsolidateId); setConfirmConsolidateId(null); }}
+        onCancel={() => setConfirmConsolidateId(null)}
+      />
     </div>
   );
 }

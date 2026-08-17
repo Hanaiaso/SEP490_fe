@@ -7,6 +7,7 @@ import { Search, Eye, RefreshCw, Upload, Send, CheckCircle, Camera, FileText, Pl
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getGoodsIssues, postGoodsIssue, uploadGoodsIssueProof, updateGoodsIssueHandover, createGoodsIssueReversal } from '../../services/warehouseService';
 import WarehouseProductionIssueFormModal from './WarehouseProductionIssueFormModal';
+import CameraCapture from '../../components/ui/CameraCapture';
 import type { GoodsIssue } from '../../types/warehouse';
 
 interface ProductionIssueLine {
@@ -518,12 +519,14 @@ export default function WarehouseProductionIssue() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-xs">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors relative bg-gray-50">
-              <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={e => setFileToUpload(e.target.files?.[0] || null)} />
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="font-semibold text-gray-700">{fileToUpload ? fileToUpload.name : 'Nhấp để chọn ảnh biên bản giấy đã ký'}</p>
-              <p className="text-gray-400 text-[11px] mt-1">Dung lượng tối đa 10MB (JPG, PNG)</p>
-            </div>
+            {fileToUpload ? (
+              <div className="border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-2 bg-gray-50">
+                <span className="font-semibold text-gray-700 truncate">{fileToUpload.name}</span>
+                <button type="button" className="text-blue-600 hover:underline flex-shrink-0" onClick={() => setFileToUpload(null)}>Đổi ảnh khác</button>
+              </div>
+            ) : (
+              <CameraCapture onCapture={setFileToUpload} label="Chụp ảnh biên bản giấy" />
+            )}
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setShowUpload(false)}>Hủy</Button>

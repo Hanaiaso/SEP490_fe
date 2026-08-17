@@ -18,6 +18,28 @@ export interface DeliveryOrderListItem {
   failedDeliveryCount: number;
   isBlocked: boolean;
   itemCount: number;
+  totalPackedWeightKg?: number;
+}
+
+// GET/POST /api/delivery/trips
+export interface DeliveryTrip {
+  id: string;
+  vehicleId: string;
+  vehicleNumber: number;
+  shift: string;
+  tripDate: string;
+  status: 'Scheduled' | 'Loading' | 'InDelivery' | 'Completed' | 'Cancelled';
+  createdByUserId: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  plannedDepartureAt?: string;
+  plannedArrivalAt?: string;
+  totalWeightKg: number;
+  vehicleCapacityKg?: number;
+  remainingCapacityKg?: number;
+  orderIds: string[];
+  orderCodes: string[];
 }
 
 export interface DeliveryResultResponse {

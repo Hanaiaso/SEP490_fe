@@ -2,9 +2,10 @@ import { getErrorMessage } from '../../lib/errors';
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
-import { Search, Eye, RefreshCw, Download, CheckCircle2, ShieldCheck, CheckCircle, Clock, Truck } from 'lucide-react';
+import { Search, Eye, RefreshCw, CheckCircle2, ShieldCheck, CheckCircle, Clock, Truck, FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
-import { getWarehouseOrders, handoverWarehouseOrder } from '../../services/warehouseService';
+import { getWarehouseOrders, handoverWarehouseOrder, exportGoodsIssueExcel } from '../../services/warehouseService';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import type { WarehouseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
@@ -126,6 +127,9 @@ export default function WarehouseHandover() {
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<Handover | null>(null);
   const [warehouseSig, setWarehouseSig] = useState('');
+  const [completedResult, setCompletedResult] = useState<{ goodsIssueId: string; goodsIssueCode: string } | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [confirmSignOpen, setConfirmSignOpen] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -173,14 +177,36 @@ export default function WarehouseHandover() {
     }
     
     try {
-      await handoverWarehouseOrder(detail.id, warehouseSig, null);
-      alert('Đã xác nhận phần chữ ký Kho thành công!');
-      setDetail(null);
+      const result = await handoverWarehouseOrder(detail.id, warehouseSig, null);
       setWarehouseSig('');
+      if (result?.isConfirmed && result?.goodsIssueId) {
+        // Cả 2 bên đã ký -> phiếu xuất kho vừa được tạo tự động, giữ dialog mở để hiện mã phiếu + nút xuất Excel.
+        setCompletedResult({ goodsIssueId: result.goodsIssueId, goodsIssueCode: result.goodsIssueCode });
+      } else {
+        alert('Đã xác nhận phần chữ ký Kho thành công!');
+        setDetail(null);
+      }
       fetchOrders();
     } catch (e: unknown) {
       alert('Lỗi: ' + getErrorMessage(e));
     }
+  };
+
+  const handleExportExcel = async () => {
+    if (!completedResult) return;
+    setExporting(true);
+    try {
+      await exportGoodsIssueExcel(completedResult.goodsIssueId, completedResult.goodsIssueCode);
+    } catch (e: unknown) {
+      alert('Lỗi tải Excel: ' + getErrorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const closeDetailDialog = () => {
+    setDetail(null);
+    setCompletedResult(null);
   };
 
   const filtered = data.filter(d => {
@@ -209,7 +235,6 @@ export default function WarehouseHandover() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={fetchOrders}><RefreshCw className="w-3 h-3" /> Làm mới</Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5"><Download className="w-3 h-3" /> Xuất Excel</Button>
           </div>
         </div>
 
@@ -280,12 +305,27 @@ export default function WarehouseHandover() {
         </div>
       </div>
 
-      <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
+      <Dialog open={!!detail} onOpenChange={closeDetailDialog}>
         <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-sm font-bold">Chi tiết bàn giao</DialogTitle>
           </DialogHeader>
-          {detail && (
+          {detail && completedResult && (
+            <div className="space-y-4 text-xs">
+              <div className="bg-green-50 border border-green-200 rounded p-4 flex flex-col items-center gap-2 text-center">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+                <p className="font-semibold text-green-700">Bàn giao hoàn tất — phiếu xuất kho đã được tạo tự động</p>
+                <p className="text-gray-600">Mã phiếu: <span className="font-bold" style={{ color: PRIMARY }}>{completedResult.goodsIssueCode}</span></p>
+                <Button size="sm" className="h-8 text-xs gap-1.5 mt-1" onClick={handleExportExcel} disabled={exporting}>
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> {exporting ? 'Đang tải...' : 'Xuất Excel'}
+                </Button>
+              </div>
+              <div className="flex justify-end pt-2 border-t border-gray-100">
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={closeDetailDialog}>Đóng</Button>
+              </div>
+            </div>
+          )}
+          {detail && !completedResult && (
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">
@@ -309,19 +349,34 @@ export default function WarehouseHandover() {
 
               <div className="flex gap-2 pt-4 border-t border-gray-100">
                 {detail.status !== 'completed' && detail.status !== 'cancelled' && !detail.warehouseConfirmed && (
-                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} onClick={handleHandover}>
+                  <Button size="sm" className="h-7 text-xs gap-1.5" style={{ backgroundColor: SUCCESS }} disabled={!warehouseSig} onClick={() => setConfirmSignOpen(true)}>
                     <ShieldCheck className="w-3.5 h-3.5" /> Xác nhận chữ ký Kho
                   </Button>
                 )}
                 {detail.warehouseConfirmed && detail.status !== 'completed' && (
                   <span className="text-sm text-orange-600 font-medium my-auto">Đang chờ Sales xác nhận chữ ký...</span>
                 )}
-                <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={closeDetailDialog}>Đóng</Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmModal
+        isOpen={confirmSignOpen}
+        title="Xác nhận bàn giao"
+        message={detail ? (
+          <>
+            Xác nhận Kho đã bàn giao đơn <strong>{detail.id}</strong> ({detail.packageCount} sản phẩm) cho Sales?
+            <span className="block mt-2 font-bold text-gray-900">Chữ ký sẽ được ghi nhận, không thể thu hồi sau khi xác nhận.</span>
+          </>
+        ) : ''}
+        confirmText="Xác nhận chữ ký Kho"
+        cancelText="Hủy"
+        onConfirm={() => { setConfirmSignOpen(false); handleHandover(); }}
+        onCancel={() => setConfirmSignOpen(false)}
+      />
     </div>
   );
 }
