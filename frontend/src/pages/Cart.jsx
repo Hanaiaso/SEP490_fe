@@ -467,6 +467,14 @@ export default function Cart() {
                       <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
                       <h3 className="font-bold text-green-900">Đã áp dụng đơn giá đàm phán</h3>
                     </div>
+                    <button
+                      type="button"
+                      onClick={openQuotationModal}
+                      className="mt-3 inline-flex items-center gap-1 text-xs text-green-700 underline underline-offset-2 hover:text-green-900"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Không hài lòng với mức giá này? Yêu cầu đàm phán lại
+                    </button>
                   </motion.div>
                 )}
 
@@ -504,10 +512,20 @@ export default function Cart() {
                     <p className="text-sm text-green-700">
                       Giá trong giỏ hàng đã được cập nhật theo bảng giá đàm phán được Admin phê duyệt. Bạn có thể tiến hành thanh toán.
                     </p>
-                    <Link to="/negotiations" className="mt-3 inline-flex items-center gap-1 text-xs text-green-700 underline underline-offset-2">
-                      <ClipboardList className="h-3.5 w-3.5" />
-                      Xem chi tiết yêu cầu đàm phán
-                    </Link>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                      <Link to="/negotiations" className="inline-flex items-center gap-1 text-xs text-green-700 underline underline-offset-2">
+                        <ClipboardList className="h-3.5 w-3.5" />
+                        Xem chi tiết yêu cầu đàm phán
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={openQuotationModal}
+                        className="inline-flex items-center gap-1 text-xs text-green-700 underline underline-offset-2 hover:text-green-900"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Không hài lòng? Yêu cầu đàm phán lại
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 

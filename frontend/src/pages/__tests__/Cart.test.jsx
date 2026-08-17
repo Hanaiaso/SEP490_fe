@@ -100,4 +100,55 @@ describe('Cart', () => {
     expect(screen.getByRole('heading', { name: /Giỏ Hàng/i })).toBeInTheDocument()
     expect(quotationRequested).toBe(false)
   })
+
+  // Khi giỏ đã khớp 1 báo giá đàm phán còn hạn (giá tự động áp dụng), khách vẫn phải có cách yêu
+  // cầu đàm phán lại — trước đây nút "Gửi yêu cầu báo giá" chỉ hiện khi CHƯA có giá đàm phán nào,
+  // nên một khi giá cũ tự áp dụng thì không còn cách nào trên Giỏ hàng để xin thương lượng lại.
+  it('đơn ≥100tr đã áp giá đàm phán vẫn hiện nút yêu cầu đàm phán lại', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('accessToken', 'jwt-1')
+    localStorage.setItem('authUser', JSON.stringify({ id: 'U1', role: 'Customer' }))
+
+    let newQuotationRequested = false
+    server.use(
+      http.get('/api/cart', () => HttpResponse.json({
+        id: 'C1',
+        items: [{ id: 'CI1', productId: 'P1', productName: 'Ống PVC D21', quantity: 3, unitPrice: 40_000_000 }],
+        totalItems: 3,
+        totalPrice: 120_000_000,
+      })),
+      http.get('/api/Quotation', () => HttpResponse.json([
+        { id: 'Q1', status: 'CustomerAccepted', validUntil: new Date(Date.now() + 7 * 86400_000).toISOString(), acceptedVersionId: 'V1' },
+      ])),
+      http.get('/api/Quotation/Q1', () => HttpResponse.json({
+        id: 'Q1',
+        acceptedVersionId: 'V1',
+        versions: [{ id: 'V1', items: [{ productId: 'P1', quantity: 3, proposedUnitPrice: 35_000_000 }] }],
+      })),
+      http.post('/api/Quotation/from-cart', () => {
+        newQuotationRequested = true
+        return HttpResponse.json({ id: 'Q2' })
+      }),
+    )
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter>
+            <Cart />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('Đã áp dụng giá đàm phán')).toBeInTheDocument()
+    // Nút gửi báo giá "lần đầu" không còn (đã có giá đàm phán áp dụng) ...
+    expect(screen.queryByRole('button', { name: /Gửi yêu cầu báo giá với Sales/i })).not.toBeInTheDocument()
+    // ... nhưng vẫn phải có lối yêu cầu đàm phán LẠI.
+    await user.click(screen.getByRole('button', { name: /Yêu cầu đàm phán lại/i }))
+    expect(screen.getByRole('heading', { name: /Gửi yêu cầu báo giá\?/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^Gửi yêu cầu$/i }))
+    await waitFor(() => expect(newQuotationRequested).toBe(true))
+  })
 })
