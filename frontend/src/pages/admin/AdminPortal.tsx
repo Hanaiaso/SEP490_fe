@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
   Package, Users,
-  LogOut, BarChart2, Settings,
+  LogOut, Settings,
   ScrollText, Activity, Truck, Percent,
   Warehouse, Building2, Clock, Plug
 } from 'lucide-react';
@@ -66,14 +66,6 @@ const NAV_GROUPS: AdminNavGroup[] = [
   {
     title: 'Quản lý Nhân sự', items: [
       { id: 'users', label: 'Danh sách người dùng', icon: <Users className="w-4 h-4" />, path: '/admin/users' },
-    ]
-  },
-  {
-    title: 'Thống kê tổng hợp', items: [
-      { id: 'report-customer', label: 'Báo cáo Khách hàng', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-customer' },
-      { id: 'report-staff', label: 'Báo cáo Nhân viên', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-staff' },
-      { id: 'report-product', label: 'Báo cáo Sản phẩm', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-product' },
-      { id: 'report-revenue', label: 'Báo cáo Doanh thu', icon: <BarChart2 className="w-4 h-4" />, path: '/admin/report-revenue' },
     ]
   },
   {

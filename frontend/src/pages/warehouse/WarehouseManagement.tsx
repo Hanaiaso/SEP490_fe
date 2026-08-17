@@ -143,22 +143,21 @@ export default function WarehouseManagement() {
             <thead className="bg-slate-50 border-b border-gray-200 text-gray-700 font-semibold text-sm">
               <tr>
                 <th className="px-4 py-3 w-24">Mã Kho</th>
-                <th className="px-4 py-3 w-48">Tên Kho</th>
-                <th className="px-4 py-3">Vị trí (Kệ/Khu)</th>
+                <th className="px-4 py-3">Tên Kho</th>
                 <th className="px-4 py-3 text-center w-32">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-gray-500">
+                  <td colSpan={3} className="text-center py-12 text-gray-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }}></div>
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : warehouses.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-gray-500">
+                  <td colSpan={3} className="text-center py-12 text-gray-500">
                     <div className="flex flex-col items-center justify-center">
                       <Building className="w-10 h-10 text-gray-300 mb-2" />
                       Chưa có kho nào trong hệ thống.
@@ -170,19 +169,6 @@ export default function WarehouseManagement() {
                   <tr key={wh.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono font-medium" style={{ color: PRIMARY }}>{wh.code}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{wh.name}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {wh.locations && wh.locations.length > 0 ? (
-                          wh.locations.map((loc) => (
-                            <span key={loc.id} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-gray-200">
-                              {loc.name}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Chưa cập nhập vị trí</span>
-                        )}
-                      </div>
-                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {/* Nút Chỉnh sửa */}

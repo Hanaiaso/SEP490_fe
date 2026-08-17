@@ -51,7 +51,14 @@ function numberToVietnameseWords(amount) {
   return resultStr.charAt(0).toUpperCase() + resultStr.slice(1) + ' đồng chẵn.'
 }
 
-export async function exportInvoiceToPdf(order, action = 'save') {
+/**
+ * @param {object} order
+ * @param {'save' | 'view'} action
+ * @param {Window | null} targetWindow - Tab đã được caller mở sẵn ngay lúc click. Việc render PDF
+ *   mất 2 lần await (html2canvas + jsPDF) nên tới lúc gọi window.open thì user-gesture đã hết hạn
+ *   và trình duyệt chặn popup — nút bấm trông như không làm gì. Truyền tab mở sẵn vào đây để tránh.
+ */
+export async function exportInvoiceToPdf(order, action = 'save', targetWindow = null) {
   // 1. Tạo container ẩn
   const container = document.createElement('div')
   container.style.position = 'absolute'
@@ -297,7 +304,8 @@ export async function exportInvoiceToPdf(order, action = 'save') {
     // 6. Lưu file hoặc xem trước
     if (action === 'view') {
       const blobUrl = pdf.output('bloburl')
-      window.open(blobUrl, '_blank')
+      if (targetWindow) targetWindow.location = blobUrl
+      else window.open(blobUrl, '_blank')
     } else {
       pdf.save(`HoaDon_VietTien_${orderCode || Date.now()}.pdf`)
     }

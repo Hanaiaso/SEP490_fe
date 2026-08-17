@@ -1,9 +1,9 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useEffect, useState } from 'react';
-import { getQuotationById, ceoReview } from '../../services/quotationService.js';
+import { getQuotationById, ceoReview, getMessages } from '../../services/quotationService.js';
 import { Input } from '../../components/sales-ui/input';
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
-import type { Quotation } from '../../types/quotation';
+import { ArrowLeft, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import type { Quotation, ChatMessage } from '../../types/quotation';
 
 interface Props {
   negotiationId: string | null;
@@ -15,6 +15,7 @@ export default function CEOPriceNegotiationDetail({ negotiationId, onBack }: Pro
   const [loading, setLoading] = useState(true);
   const [ceoNote, setCeoNote] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     if (!negotiationId) return;
@@ -23,6 +24,12 @@ export default function CEOPriceNegotiationDetail({ negotiationId, onBack }: Pro
         setLoading(true);
         const data = await getQuotationById(negotiationId);
         setQuotation(data);
+        try {
+          const msgs = await getMessages(negotiationId);
+          setMessages(msgs);
+        } catch (e) {
+          console.error('Failed to load chat history', e);
+        }
       } catch (error) {
         console.error(error);
         alert('Không thể tải dữ liệu báo giá');
@@ -41,7 +48,7 @@ export default function CEOPriceNegotiationDetail({ negotiationId, onBack }: Pro
     return <div className="p-8 text-center text-red-500">Không tìm thấy báo giá.</div>;
   }
 
-  const latestVersion = quotation.versions?.[quotation.versions.length - 1] || quotation.versions?.[0];
+  const latestVersion = quotation.versions?.[0];
   if (!latestVersion) {
     return (
       <div className="p-8 text-center text-red-500">
@@ -152,6 +159,50 @@ export default function CEOPriceNegotiationDetail({ negotiationId, onBack }: Pro
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Lịch sử Chat */}
+        <div>
+          <h3 className="font-semibold text-[14px] text-[#1f3b64] mb-3 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Lịch sử trao đổi với khách hàng
+          </h3>
+          <div className="border border-[#e5e7eb] rounded-[6px] bg-gray-50 h-[300px] overflow-y-auto p-4 flex flex-col gap-3">
+            {messages.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 my-auto">Chưa có tin nhắn nào</p>
+            ) : (
+              messages.map((msg, index) => {
+                const isSystem = msg.senderRole === 'System';
+                const isCustomer = msg.senderRole === 'Customer' || msg.senderRole === 'User';
+                const content = msg.messageText;
+                const time = msg.sentAt;
+
+                if (isSystem) {
+                  return (
+                    <div key={index} className="flex justify-center my-2">
+                      <span className="text-[11px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                        {content}
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={index} className={`flex flex-col max-w-[80%] ${isCustomer ? 'self-start' : 'self-end'}`}>
+                    <span className="text-[10px] text-gray-500 mb-1 ml-1">
+                      {isCustomer ? 'Khách hàng' : 'Nhân viên Sales'} • {time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                    <div className={`p-2.5 rounded-xl text-[13px] ${
+                      isCustomer
+                        ? 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
+                        : 'bg-blue-600 text-white rounded-tr-none'
+                    }`}>
+                      {content}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

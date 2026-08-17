@@ -280,6 +280,8 @@ export interface PurchaseOrderListItem {
   code: string;
   status: string;
   createdAt: string;
+  issuedAt?: string;
+  expectedDeliveryDate?: string;
   supplierName: string;
   warehouseName: string;
   totalItems: number;
@@ -306,6 +308,7 @@ export interface GoodsReceiptItem {
 export interface GoodsReceipt {
   id: string;
   purchaseOrderId: string;
+  purchaseOrderCode: string;
   receivedByUserId: string;
   receivedByUserName: string;
   code: string;

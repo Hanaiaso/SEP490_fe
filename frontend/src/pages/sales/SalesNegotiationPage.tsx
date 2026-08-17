@@ -35,14 +35,21 @@ export default function SalesNegotiationPage() {
   const [isChatOpen, setIsChatOpen] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const { messages, setMessages, sendMessage, isConnecting } = useChat(active?.id || null);
+  // Chỉ join phòng chat khi báo giá đã được CHÍNH Sale này "Nhận xử lý" (salesStaffId === user.id) —
+  // khớp đúng điều kiện backend kiểm tra (QuotationService.GetMessagesAsync). Trước đây gọi
+  // useChat(active?.id) cho MỌI báo giá đang xem, kể cả báo giá pending chưa ai nhận, nên bị backend
+  // từ chối JoinQuotationChat (409/unhandled rejection) ngay khi vừa chọn xem.
+  const isMyQuotation = !!active && active.salesStaffId === user?.id;
+  const { messages, setMessages, sendMessage, isConnecting } = useChat(isMyQuotation ? active.id : null);
 
-  // Load lịch sử chat khi chọn quotation
+  // Load lịch sử chat khi chọn quotation đã nhận xử lý
   useEffect(() => {
-    if (active?.id) {
+    if (isMyQuotation && active) {
       getMessages(active.id).then(setMessages).catch(console.error);
+    } else {
+      setMessages([]);
     }
-  }, [active?.id, setMessages]);
+  }, [isMyQuotation, active?.id, setMessages]);
 
   const loadData = () => {
     getQuotations().then(data => {
@@ -50,9 +57,13 @@ export default function SalesNegotiationPage() {
       const pendingQ = data.pendingQuotations || [];
       const all: Quotation[] = [...myQ, ...pendingQ];
       setQuotationsList(all);
-      // Tự động chọn item đầu tiên nếu chưa có active
-      if (!active && all.length > 0) {
-        handleSelectQuotation(all[0]);
+      // Tự động chọn item đầu tiên nếu chưa có active — CHỈ trong myQuotations (báo giá đã thuộc
+      // Sale này). Trước đây gộp cả pendingQuotations (chưa ai pick up, SalesStaffId = null) vào
+      // rồi chọn all[0] — nếu vô tình rơi vào 1 báo giá pending, useChat sẽ tự gọi JoinQuotationChat
+      // và bị backend từ chối (QuotationService.GetMessagesAsync: chỉ khách hàng/Sale phụ trách mới
+      // được join phòng chat), hiện lỗi "unexpected error... JoinQuotationChat" trên console.
+      if (!active && myQ.length > 0) {
+        handleSelectQuotation(myQ[0]);
       }
     }).catch(console.error);
   };
@@ -386,6 +397,11 @@ export default function SalesNegotiationPage() {
           {!active ? (
             <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
             Chọn một báo giá để trò chuyện
+          </div>
+        ) : !isMyQuotation ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center text-gray-400 text-sm">
+            <MessageSquare className="w-6 h-6 text-gray-300" />
+            <p>Bấm <strong>"Nhận xử lý"</strong> để bắt đầu trò chuyện với khách hàng</p>
           </div>
         ) : (
           <>

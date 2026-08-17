@@ -5,10 +5,6 @@ import {
   ArrowDownToLine, ArrowRightLeft, ClipboardCheck, Truck,
   PackageCheck, ShieldCheck, Loader2, X, ExternalLink, RefreshCw
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from 'recharts';
 import { getWarehouseStaffDashboard } from '../../services/dashboardService.js';
 import {
   getWarehouseOrders, getPickTasks, getStockTransfers,
@@ -24,8 +20,6 @@ const ERROR   = '#DC2626';
 const INFO    = '#2563EB';
 const NEUTRAL = '#64748B';
 const PURPLE  = '#7C3AED';
-
-const tooltipStyle = { fontSize: 12, borderRadius: 6, border: '1px solid #E5E7EB', boxShadow: 'none' };
 
 const formatPrice = (n: number) => new Intl.NumberFormat('vi-VN').format(n || 0);
 
@@ -45,7 +39,6 @@ interface WarehouseSummary { id: string; name: string; code: string }
 interface OutboundKpi { pendingOrders: number; pickingInProgress: number; consolidationArea: number; completedToday: number }
 interface InboundKpi { pendingPurchaseOrders: number; receiptsInProgress: number; qualityCheckPending: number; returnQuarantinePending: number }
 interface InventoryKpi { lowStockCount: number; slowMovingCount: number; transfersInTransit: number; activeWarehouses: number }
-interface DailyVolume { date: string; outbound: number; inbound: number }
 interface RecentPickTask { id: string; orderCode: string; customerName: string; status: string }
 interface PendingPo { id: string; code: string; supplierName: string; status: string; progressPercent: number }
 interface LowStockItem { name: string; onHand: number; threshold: number; unit: string }
@@ -58,7 +51,6 @@ interface WarehouseDashboard {
   outbound: OutboundKpi;
   inbound: InboundKpi;
   inventoryOps: InventoryKpi;
-  weeklyVolume: DailyVolume[];
   recentPickTasks: RecentPickTask[];
   pendingPurchaseOrders: PendingPo[];
   lowStockAlerts: LowStockItem[];
@@ -71,12 +63,6 @@ function statusColor(label: string): string {
   if (/đang|picking|draft|waiting/i.test(label)) return INFO;
   if (/ngoại lệ|lỗi|rejected|shortage/i.test(label)) return ERROR;
   return WARNING;
-}
-
-function formatDayLabel(iso: string): string {
-  const d = new Date(iso);
-  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  return days[d.getDay()];
 }
 
 interface KpiCardProps {
@@ -369,7 +355,7 @@ function WarehouseDrillDownModal({
                 {metric === 'returnQuarantine' && items.map((q: any, i: number) => (
                   <tr key={q.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
                     <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{q.quarantineCode || q.code || q.id?.slice(0, 8)}</td>
-                    <td className="px-3 py-2 text-gray-800 font-medium">{q.productName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
+                    <td className="px-3 py-2 text-gray-800 font-medium">{q.itemName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
                     <td className="px-3 py-2 font-mono text-[11px]">{q.quantity ?? 1}</td>
                     <td className="px-3 py-2 text-gray-600 max-w-[200px] truncate">{q.reason || q.notes || 'Chờ kiểm tra'}</td>
                     <td className="px-3 py-2 text-center">
@@ -725,27 +711,6 @@ export default function WarehouseDashboard() {
               color={PURPLE}
               onClick={() => openDrillDown('activeWarehouses', 'Danh sách kho hàng đang hoạt động', '/warehouse/inv-management/inventory-count', 'Kiểm kê kho')}
             />
-          </div>
-        </div>
-
-        {/* Inbound/Outbound chart */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <PanelHeader title="Xuất / Nhập kho 7 ngày" />
-          <div className="p-3">
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={data.weeklyVolume.map((d) => ({ ...d, day: formatDayLabel(d.date) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={10}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}`]} />
-                <Bar dataKey="outbound" name="Xuất kho" fill={PRIMARY} radius={[2, 2, 0, 0]} />
-                <Bar dataKey="inbound" name="Nhập kho" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="flex items-center gap-4 mt-1 px-1">
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: PRIMARY }} /> Xuất kho</div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-2 rounded-sm inline-block bg-gray-300" /> Nhập kho</div>
-            </div>
           </div>
         </div>
 
