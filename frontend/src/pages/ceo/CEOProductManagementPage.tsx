@@ -34,12 +34,13 @@ interface ProductFormData {
   specifications: string;
   reorderThreshold: string;
   excessThreshold: string;
+  weightKg: string;
   isDiscontinued: boolean;
 }
 
 const emptyForm: ProductFormData = {
   name: '', sku: '', standardListedPrice: '', categoryId: '', unit: 'Cái',
-  description: '', specifications: '', reorderThreshold: '', excessThreshold: '', isDiscontinued: false,
+  description: '', specifications: '', reorderThreshold: '', excessThreshold: '', weightKg: '', isDiscontinued: false,
 };
 
 export default function CEOProductManagementPage() {
@@ -138,6 +139,7 @@ export default function CEOProductManagementPage() {
         specifications: '',
         reorderThreshold: product.reorderThreshold != null ? String(product.reorderThreshold) : '',
         excessThreshold: product.excessThreshold != null ? String(product.excessThreshold) : '',
+        weightKg: product.weightKg != null ? String(product.weightKg) : '',
         isDiscontinued: product.isDiscontinued,
       });
       setExistingImages(product.imageUrl ? [{ id: '', imageUrl: product.imageUrl, sortOrder: 0 }] : []);
@@ -202,6 +204,7 @@ export default function CEOProductManagementPage() {
       fd.append('Specifications', formData.specifications);
       if (formData.reorderThreshold !== '') fd.append('ReorderThreshold', formData.reorderThreshold);
       if (formData.excessThreshold !== '') fd.append('ExcessThreshold', formData.excessThreshold);
+      if (formData.weightKg !== '') fd.append('WeightKg', formData.weightKg);
       newImageFiles.forEach((file) => fd.append('ImageFiles', file));
 
       if (editingProduct) {
@@ -514,6 +517,15 @@ export default function CEOProductManagementPage() {
                     value={formData.excessThreshold} onChange={e => setFormData({ ...formData, excessThreshold: e.target.value })} />
                   <p className="text-xs text-gray-400">Tổng tồn khả dụng mọi kho vượt ngưỡng này sẽ cảnh báo tồn đọng.</p>
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Trọng lượng (kg / đơn vị sản phẩm)</label>
+                <input type="number" min="0.001" step="0.001"
+                  className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="Bỏ trống = chưa cấu hình"
+                  value={formData.weightKg} onChange={e => setFormData({ ...formData, weightKg: e.target.value })} />
+                <p className="text-xs text-gray-400">Dùng tính tổng cân nặng đơn hàng khi đóng gói và xếp xe giao hàng.</p>
               </div>
 
               <div className="flex flex-col gap-1">

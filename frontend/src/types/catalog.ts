@@ -47,6 +47,7 @@ export interface ProductManagementItem {
   availableStock?: number;
   reorderThreshold?: number | null;
   excessThreshold?: number | null;
+  weightKg?: number | null;
   isDiscontinued: boolean;
   averageRating: number;
   reviewCount: number;
