@@ -559,7 +559,6 @@ export default function DirectPurchasePage() {
       setPhoneNumber('');
       setAddress('Thái Bình');
       setDiscountPercent(0);
-      setHasVat(false);
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err, 'Lỗi hệ thống khi lưu đơn hàng.'));
     } finally {

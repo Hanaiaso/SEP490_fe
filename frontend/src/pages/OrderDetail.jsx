@@ -22,7 +22,6 @@ import { Button } from '../components/ui/Button.jsx'
 import { authFetch } from '../services/httpClient.js'
 import { resolveApiFileUrl } from '../services/apiBase.js'
 import {
-  downloadInvoicePdf,
   downloadOfficialInvoicePdf,
   getOrderDetail,
   getOrderTimeline,

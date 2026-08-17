@@ -286,9 +286,6 @@ export default function SalesDashboard() {
   };
 
   // Xem hóa đơn PDF của 1 đơn trong bảng "Đơn hàng gần đây".
-  // Đơn mới: backend đã lưu URL Cloudinary tuyệt đối -> mở thẳng.
-  // Đơn cũ (URL "/invoices/xxx.pdf" trỏ vào wwwroot đã mất sau redeploy) hoặc đơn chưa có PDF:
-  // dựng lại hóa đơn phía client, đúng cách SalesOrdersPage.handleExportPdf đang làm.
   const [openingInvoiceId, setOpeningInvoiceId] = useState<string | null>(null);
 
   // Hóa đơn PDF chính thức sinh phía server theo yêu cầu (luôn có VAT + số hóa đơn đỏ nếu đã nhập) —
