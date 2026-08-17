@@ -167,6 +167,10 @@ export async function getLowStockAlerts() {
   return request('GET', `/inventory/low-stock-alerts`);
 }
 
+export async function getExcessStockAlerts() {
+  return request('GET', `/inventory/excess-stock-alerts`);
+}
+
 export async function getInventoryReport(params) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/inventory/report${qs ? `?${qs}` : ''}`);

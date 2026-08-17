@@ -68,7 +68,7 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
     deliverySuccessRate: 0, deliveryAttemptedOrderCount: 0,
     returningCustomerRate: 0, customersInScopeCount: 0,
   };
-  const inventory = data?.inventory || { totalSkus: 0, lowStockCount: 0, estimatedInventoryValue: 0 };
+  const inventory = data?.inventory || { totalSkus: 0, lowStockCount: 0, excessStockCount: 0, estimatedInventoryValue: 0 };
   const purchaseOrders = data?.purchaseOrders || { countsByStatus: {}, recentOpenPurchaseOrders: [] };
   const discrepancy = data?.discrepancy || {
     periodFrom: '', periodTo: '', goodsReceiptCount: 0, totalShortQuantity: 0,
@@ -119,9 +119,10 @@ export default function CEODashboard({ setActiveTab }: { setActiveTab: (tab: str
             <Boxes className="w-4 h-4 text-[#1f3b64]" />
             <h3 className="font-semibold text-[13px] text-[#1f3b64]">Tổng quan tồn kho</h3>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <MiniStat label="Tổng SKU" value={String(inventory.totalSkus ?? 0)} />
             <MiniStat label="Cảnh báo tồn thấp" value={String(inventory.lowStockCount ?? 0)} />
+            <MiniStat label="Đang tồn đọng" value={String(inventory.excessStockCount ?? 0)} />
             <MiniStat label="Giá trị tồn kho ước tính" value={formatPrice(inventory.estimatedInventoryValue) + '₫'} />
           </div>
         </div>

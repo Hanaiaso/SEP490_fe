@@ -15,7 +15,8 @@ export default function CEOMaterialManagementPage() {
   const [formData, setFormData] = useState({
     name: '',
     unit: 'Kg',
-    safetyThreshold: 0
+    safetyThreshold: 0,
+    maxStockThreshold: '' as number | ''
   });
 
   const loadMaterials = useCallback(async () => {
@@ -43,11 +44,12 @@ export default function CEOMaterialManagementPage() {
       setFormData({
         name: material.name,
         unit: material.unit,
-        safetyThreshold: material.safetyThreshold
+        safetyThreshold: material.safetyThreshold,
+        maxStockThreshold: material.maxStockThreshold ?? ''
       });
     } else {
       setEditingMaterial(null);
-      setFormData({ name: '', unit: 'Kg', safetyThreshold: 0 });
+      setFormData({ name: '', unit: 'Kg', safetyThreshold: 0, maxStockThreshold: '' });
     }
     setIsModalOpen(true);
   };
@@ -55,11 +57,17 @@ export default function CEOMaterialManagementPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: formData.name,
+        unit: formData.unit,
+        safetyThreshold: formData.safetyThreshold,
+        maxStockThreshold: formData.maxStockThreshold === '' ? null : formData.maxStockThreshold,
+      };
       if (editingMaterial) {
-        await updateMaterial(editingMaterial.id, formData);
+        await updateMaterial(editingMaterial.id, payload);
         alert("Cập nhật thành công!");
       } else {
-        await createMaterial(formData);
+        await createMaterial(payload);
         alert("Thêm nguyên liệu thành công!");
       }
       setIsModalOpen(false);
@@ -206,6 +214,19 @@ export default function CEOMaterialManagementPage() {
                 />
                 <p className="text-[11px] text-gray-400 mt-0.5">
                   Khi tồn kho giảm xuống dưới mức này, hệ thống sẽ cảnh báo (hiện icon màu đỏ) để kịp thời mua bổ sung.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700">Ngưỡng tồn đọng (tùy chọn)</label>
+                <input
+                  type="number" min="0" step="0.1"
+                  className="border border-gray-300 rounded-lg px-3 h-9 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold text-orange-700"
+                  value={formData.maxStockThreshold}
+                  onChange={e => setFormData({ ...formData, maxStockThreshold: e.target.value === '' ? '' : Number(e.target.value) })}
+                  placeholder="Bỏ trống = không cảnh báo"
+                />
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Khi tồn kho vượt quá mức này, hệ thống sẽ cảnh báo tồn đọng để cân nhắc tạm dừng nhập thêm.
                 </p>
               </div>
 

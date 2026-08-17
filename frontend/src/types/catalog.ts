@@ -45,6 +45,8 @@ export interface ProductManagementItem {
   categoryName: string;
   unit: string;
   availableStock?: number;
+  reorderThreshold?: number | null;
+  excessThreshold?: number | null;
   isDiscontinued: boolean;
   averageRating: number;
   reviewCount: number;
@@ -96,6 +98,7 @@ export interface Material {
   unit: string;
   currentStock: number;
   safetyThreshold: number;
+  maxStockThreshold?: number | null;
   lastAlertSentDate?: string;
   isBelowSafetyThreshold: boolean;
 }

@@ -69,6 +69,7 @@ export interface SalesManagerDashboard {
 export interface InventorySummary {
   totalSkus: number;
   lowStockCount: number;
+  excessStockCount: number;
   estimatedInventoryValue: number;
 }
 

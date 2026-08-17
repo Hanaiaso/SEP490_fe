@@ -1,10 +1,11 @@
 import { getErrorMessage } from '../../lib/errors';
 import { useState, useEffect, useCallback } from 'react';
 import { getPurchaseOrders } from '../../services/purchaseOrderService.js';
-import { Plus, Search, Eye } from 'lucide-react';
+import { getExcessStockAlerts } from '../../services/warehouseService.js';
+import { Plus, Search, Eye, Archive } from 'lucide-react';
 import CEOPurchaseOrderCreateModal from './CEOPurchaseOrderCreateModal';
 import { useToast } from '../../context/ToastContext';
-import type { PurchaseOrderListItem } from '../../types/warehouse';
+import type { PurchaseOrderListItem, ExcessStockAlert } from '../../types/warehouse';
 
 interface CEOPurchaseOrderPageProps {
   setActiveTab: (tab: string) => void;
@@ -17,6 +18,7 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [excessAlerts, setExcessAlerts] = useState<ExcessStockAlert[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -33,6 +35,10 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    getExcessStockAlerts().then((data: ExcessStockAlert[]) => setExcessAlerts(data || [])).catch(() => {});
+  }, []);
 
   const PO_STATUS_MAP: Record<string, { label: string; style: string }> = {
     // "Chờ CEO phát hành" thay vì "Bản nháp" chung chung — vì chỉ CEO tạo PO và cũng chỉ CEO
@@ -52,12 +58,23 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
     <div className="flex flex-col gap-[20px] p-[24px]">
       <div className="flex justify-between items-center">
         <h1 className="font-semibold text-[20px] text-[#1f3b64]">Purchase Orders - Đặt hàng Nhà cung cấp (CEO)</h1>
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 bg-[#1f3b64] text-white px-[16px] py-[8px] rounded-[4px] text-[12px] font-medium hover:bg-[#162a4a]"
-        >
-          <Plus className="w-4 h-4" /> Tạo PO Mới
-        </button>
+        <div className="flex items-center gap-3">
+          {excessAlerts.length > 0 && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border"
+              style={{ backgroundColor: '#F5F3FF', borderColor: '#DDD6FE', color: '#5B21B6' }}
+              title="Các mặt hàng đang vượt ngưỡng tồn đọng — cân nhắc KHÔNG đặt thêm khi tạo PO"
+            >
+              <Archive className="w-3.5 h-3.5" /> Đang tồn đọng: {excessAlerts.length} mặt hàng
+            </div>
+          )}
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-2 bg-[#1f3b64] text-white px-[16px] py-[8px] rounded-[4px] text-[12px] font-medium hover:bg-[#162a4a]"
+          >
+            <Plus className="w-4 h-4" /> Tạo PO Mới
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200">

@@ -32,12 +32,14 @@ interface ProductFormData {
   unit: string;
   description: string;
   specifications: string;
+  reorderThreshold: string;
+  excessThreshold: string;
   isDiscontinued: boolean;
 }
 
 const emptyForm: ProductFormData = {
   name: '', sku: '', standardListedPrice: '', categoryId: '', unit: 'Cái',
-  description: '', specifications: '', isDiscontinued: false,
+  description: '', specifications: '', reorderThreshold: '', excessThreshold: '', isDiscontinued: false,
 };
 
 export default function CEOProductManagementPage() {
@@ -134,6 +136,8 @@ export default function CEOProductManagementPage() {
         unit: product.unit,
         description: '',
         specifications: '',
+        reorderThreshold: product.reorderThreshold != null ? String(product.reorderThreshold) : '',
+        excessThreshold: product.excessThreshold != null ? String(product.excessThreshold) : '',
         isDiscontinued: product.isDiscontinued,
       });
       setExistingImages(product.imageUrl ? [{ id: '', imageUrl: product.imageUrl, sortOrder: 0 }] : []);
@@ -196,6 +200,8 @@ export default function CEOProductManagementPage() {
       // Luon gui (ke ca rong) - backend coi thieu truong = "khong doi", chuoi rong = "xoa".
       fd.append('Description', formData.description);
       fd.append('Specifications', formData.specifications);
+      if (formData.reorderThreshold !== '') fd.append('ReorderThreshold', formData.reorderThreshold);
+      if (formData.excessThreshold !== '') fd.append('ExcessThreshold', formData.excessThreshold);
       newImageFiles.forEach((file) => fd.append('ImageFiles', file));
 
       if (editingProduct) {
@@ -489,6 +495,25 @@ export default function CEOProductManagementPage() {
                     className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                     value={formData.standardListedPrice} onChange={e => setFormData({ ...formData, standardListedPrice: e.target.value })} />
                 )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Ngưỡng cảnh báo tồn thấp</label>
+                  <input type="number" min="0" step="1"
+                    className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Bỏ trống = không cảnh báo"
+                    value={formData.reorderThreshold} onChange={e => setFormData({ ...formData, reorderThreshold: e.target.value })} />
+                  <p className="text-xs text-gray-400">Tổng tồn khả dụng mọi kho xuống dưới ngưỡng này sẽ cảnh báo.</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Ngưỡng cảnh báo tồn đọng</label>
+                  <input type="number" min="0" step="1"
+                    className="border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Bỏ trống = không cảnh báo"
+                    value={formData.excessThreshold} onChange={e => setFormData({ ...formData, excessThreshold: e.target.value })} />
+                  <p className="text-xs text-gray-400">Tổng tồn khả dụng mọi kho vượt ngưỡng này sẽ cảnh báo tồn đọng.</p>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1">

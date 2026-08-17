@@ -4,9 +4,10 @@ import { getSuppliers } from '../../services/supplierService.js';
 import { getProductsForManagement } from '../../services/productService.js';
 import { getMaterials } from '../../services/materialService.js';
 import { createPurchaseOrder, updateDraftPurchaseOrder, getWarehouses, importPOFromExcel, importPOFromImage } from '../../services/purchaseOrderService.js';
-import { X, Plus, Trash2, FileSpreadsheet, Image as ImageIcon } from 'lucide-react';
+import { getLowStockAlerts } from '../../services/warehouseService.js';
+import { X, Plus, Trash2, FileSpreadsheet, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import type { Supplier } from '../../types/supplier';
-import type { WarehouseOption, CreatePurchaseOrderRequest, PurchaseOrder } from '../../types/warehouse';
+import type { WarehouseOption, CreatePurchaseOrderRequest, PurchaseOrder, LowStockAlert } from '../../types/warehouse';
 import type { ProductManagementItem, Material } from '../../types/catalog';
 
 interface POItemDraft {
@@ -30,6 +31,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [products, setProducts] = useState<ProductManagementItem[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,11 +79,12 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
         // công khai (/products) — PO có thể tham chiếu sản phẩm đã ngừng kinh doanh (import Excel
         // match SKU không lọc discontinued), nếu lấy danh sách từ catalog công khai thì sản phẩm đó
         // không có trong danh sách <option> nên dropdown luôn hiện trống dù productId đã đúng.
-        const [supData, whData, prodData, matData] = await Promise.all([
+        const [supData, whData, prodData, matData, lowStockData] = await Promise.all([
           getSuppliers().catch(() => []),
           getWarehouses().catch(() => []),
           getProductsForManagement({ pageSize: 500 }).catch(() => ({ items: [] })),
-          getMaterials().catch(() => [])
+          getMaterials().catch(() => []),
+          getLowStockAlerts().catch(() => [])
         ]);
 
         const loadedSuppliers: Supplier[] = supData || [];
@@ -94,6 +97,7 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
         setWarehouses(loadedWarehouses);
         setProducts(loadedProducts);
         setMaterials(loadedMaterials);
+        setLowStockAlerts(lowStockData || []);
 
         if (!isEdit) {
           setFormData(prev => ({
@@ -127,6 +131,34 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
       }
     }
     setItems(newItems);
+  };
+
+  // Đổ nhanh 1 gợi ý tồn thấp vào danh sách item đang chọn — điền vào dòng trống đầu tiên nếu có,
+  // nếu không thì thêm dòng mới. Bỏ qua nếu mặt hàng đã có trong danh sách.
+  const handleAddSuggestion = (alertItem: LowStockAlert) => {
+    if (items.some(i => i.itemId === alertItem.itemId)) return;
+    const selectedItem: ProductManagementItem | Material | undefined = poType === 'Product'
+      ? products.find((p) => p.id === alertItem.itemId)
+      : materials.find((m) => m.id === alertItem.itemId);
+
+    const newRow: POItemDraft = {
+      itemId: alertItem.itemId,
+      itemName: alertItem.itemName,
+      expectedQuantity: 1,
+      unitPrice: selectedItem && 'standardListedPrice' in selectedItem ? selectedItem.standardListedPrice : 0,
+      unit: alertItem.unit || (poType === 'Product' ? 'Cái' : 'Kg'),
+      note: '',
+    };
+
+    setItems((prev) => {
+      const emptyIdx = prev.findIndex((i) => !i.itemId);
+      if (emptyIdx !== -1) {
+        const copy = [...prev];
+        copy[emptyIdx] = newRow;
+        return copy;
+      }
+      return [...prev, newRow];
+    });
   };
 
   const handleSave = async () => {
@@ -282,6 +314,37 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
                   </label>
                 </div>
               </div>
+
+              {(() => {
+                const matchingSuggestions = lowStockAlerts.filter((a) => a.itemType === poType);
+                if (matchingSuggestions.length === 0) return null;
+                return (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5 text-amber-800 font-semibold text-xs">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Gợi ý bổ sung ({matchingSuggestions.length} {poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'} đang cảnh báo tồn thấp)
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {matchingSuggestions.map((a) => {
+                        const alreadyAdded = items.some((i) => i.itemId === a.itemId);
+                        return (
+                          <button
+                            key={a.itemId}
+                            type="button"
+                            disabled={alreadyAdded}
+                            onClick={() => handleAddSuggestion(a)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border bg-white hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed border-amber-300 text-amber-800"
+                            title={`Còn ${a.availableQuantity}, dưới ngưỡng ${a.threshold}`}
+                          >
+                            {alreadyAdded ? <span>✓</span> : <Plus className="w-3 h-3" />}
+                            {a.itemName} <span className="text-amber-500">({a.availableQuantity}/{a.threshold})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">

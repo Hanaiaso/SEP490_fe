@@ -57,6 +57,18 @@ export interface LowStockAlert {
   warehouseName?: string;
   availableQuantity: number;
   threshold: number;
+  unit?: string;
+  suggestedAction: string;
+}
+
+export interface ExcessStockAlert {
+  itemType: 'Product' | 'Material';
+  itemId: string;
+  itemName: string;
+  itemSku?: string;
+  availableQuantity: number;
+  threshold: number;
+  unit?: string;
   suggestedAction: string;
 }
 
