@@ -12,25 +12,25 @@ import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { authFetch } from '../services/httpClient.js'
 
-// Lấy báo giá đã được chấp thuận từ quotation CustomerAccepted
-async function fetchNegotiatedQuotation() {
+// Lấy TẤT CẢ báo giá đã được CustomerAccepted và còn hạn (không chỉ cái mới nhất — khách có thể có
+// nhiều báo giá còn hiệu lực cho các SKU khác nhau, phải xét đủ để tìm đúng cái khớp giỏ hàng hiện
+// tại, giống hệt cách OrderService.CalculateDiscountAsync đã sửa ở backend).
+async function fetchNegotiatedQuotations() {
   try {
     const { getQuotations, getQuotationById } = await import('../services/quotationService.js');
     const data = await getQuotations();
     const list = Array.isArray(data) ? data : [];
-    // Tìm quotation được CustomerAccepted và còn hạn
-    const acceptedList = list.filter(q => q.status === 'CustomerAccepted' && (!q.validUntil || new Date(q.validUntil) >= new Date()));
-    if (acceptedList.length === 0) return null;
-    const latest = acceptedList[0];
-    const full = await getQuotationById(latest.id);
-    const version = full.versions?.find(v => v.id === full.acceptedVersionId) || full.versions?.[0];
-    return {
-      quotation: full,
-      version: version,
-      items: version?.items || []
-    };
+    const acceptedList = list
+      .filter(q => q.status === 'CustomerAccepted' && (!q.validUntil || new Date(q.validUntil) >= new Date()))
+      .sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
+    if (acceptedList.length === 0) return [];
+    const fulls = await Promise.all(acceptedList.map((q) => getQuotationById(q.id).catch(() => null)));
+    return fulls.filter(Boolean).map((full) => {
+      const version = full.versions?.find(v => v.id === full.acceptedVersionId) || full.versions?.[0];
+      return { quotation: full, version, items: version?.items || [] };
+    });
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -47,7 +47,7 @@ export default function Cart() {
   const { items: cartItems, updateQuantity, removeFromCart, totalItems, isPriceExpired, refreshPrices } = useCart()
   const [showQuotationModal, setShowQuotationModal] = useState(false)
   const [quotationSent, setQuotationSent] = useState(false)
-  const [negotiatedQuotation, setNegotiatedQuotation] = useState(null)
+  const [negotiatedQuotations, setNegotiatedQuotations] = useState([])
   const [checkoutSummary, setCheckoutSummary] = useState(null) // chiet khau that tu backend (DiscountTiers)
   const [isRefreshingPrice, setIsRefreshingPrice] = useState(false)
 
@@ -82,8 +82,8 @@ export default function Cart() {
   // coi mọi 401 là phiên hết hạn nên tự ép chuyển hướng sang /login (window.location.href) —
   // đây chính là nguyên nhân khách vãng lai bấm vào Giỏ hàng bị văng sang trang đăng nhập.
   useEffect(() => {
-    if (!isAuthenticated) { setNegotiatedQuotation(null); return }
-    fetchNegotiatedQuotation().then(setNegotiatedQuotation);
+    if (!isAuthenticated) { setNegotiatedQuotations([]); return }
+    fetchNegotiatedQuotations().then(setNegotiatedQuotations);
   }, [isAuthenticated]);
 
   // Chiet khau tu dong hien thi tu backend — chỉ tính trên các dòng đang được chọn thanh toán.
@@ -172,6 +172,21 @@ export default function Cart() {
       setIsSubmittingQuotation(false)
     }
   }
+
+  // Trong các báo giá còn hiệu lực, chọn cái ĐẦU TIÊN (mới nhất trước) mà mọi SKU đang chọn đều có
+  // trong đó — không dừng lại ở báo giá mới nhất nếu nó không khớp giỏ, phải thử tiếp các báo giá
+  // cũ hơn còn hạn, giống hệt vòng lặp allLinesNegotiated bên OrderService.CalculateDiscountAsync.
+  const negotiatedQuotation = useMemo(() => {
+    for (const candidate of negotiatedQuotations) {
+      const byProduct = {};
+      for (const item of candidate.items) {
+        if (item.proposedUnitPrice) byProduct[item.productId] = item;
+      }
+      const coversAll = selectedItems.length > 0 && selectedItems.every((ci) => byProduct[ci.productId]);
+      if (coversAll) return candidate;
+    }
+    return null;
+  }, [negotiatedQuotations, selectedItems]);
 
   // SKU nào trong giỏ thuộc bộ báo giá đã duyệt (đơn giá theo SKU, không cần khớp đúng số lượng —
   // khớp đúng OrderService.CalculateDiscountAsync đã sửa: đơn giá đàm phán áp cho SỐ LƯỢNG HIỆN TẠI).

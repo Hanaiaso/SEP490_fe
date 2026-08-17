@@ -151,4 +151,51 @@ describe('Cart', () => {
     await user.click(screen.getByRole('button', { name: /^Gửi yêu cầu$/i }))
     await waitFor(() => expect(newQuotationRequested).toBe(true))
   })
+
+  // Khách có NHIỀU báo giá CustomerAccepted còn hạn cùng lúc (ví dụ đã đàm phán cho nhiều SKU khác
+  // nhau ở các thời điểm khác nhau). Trước đây Cart chỉ xét cái MỚI NHẤT (acceptedList[0]) — nếu SKU
+  // mới nhất đó không khớp giỏ hàng hiện tại thì giá đàm phán của báo giá CŨ hơn (nhưng vẫn còn hạn
+  // và khớp đúng SKU trong giỏ) bị bỏ qua hoàn toàn, y hệt lỗi đã sửa ở OrderService.CalculateDiscountAsync.
+  it('bỏ qua báo giá mới nhất không khớp giỏ, vẫn tìm báo giá cũ hơn còn hạn khớp đúng SKU', async () => {
+    localStorage.setItem('accessToken', 'jwt-1')
+    localStorage.setItem('authUser', JSON.stringify({ id: 'U1', role: 'Customer' }))
+
+    server.use(
+      http.get('/api/cart', () => HttpResponse.json({
+        id: 'C1',
+        items: [{ id: 'CI1', productId: 'P1', productName: 'Ống PVC D21', quantity: 3, unitPrice: 40_000_000 }],
+        totalItems: 3,
+        totalPrice: 120_000_000,
+      })),
+      http.get('/api/Quotation', () => HttpResponse.json([
+        // Mới nhất nhưng KHÔNG khớp giỏ hàng (SKU khác — P2).
+        { id: 'Q2', status: 'CustomerAccepted', requestDate: '2026-08-17T10:00:00Z', validUntil: new Date(Date.now() + 7 * 86400_000).toISOString(), acceptedVersionId: 'V2' },
+        // Cũ hơn nhưng vẫn còn hạn và khớp đúng SKU trong giỏ (P1).
+        { id: 'Q1', status: 'CustomerAccepted', requestDate: '2026-08-10T10:00:00Z', validUntil: new Date(Date.now() + 7 * 86400_000).toISOString(), acceptedVersionId: 'V1' },
+      ])),
+      http.get('/api/Quotation/Q2', () => HttpResponse.json({
+        id: 'Q2',
+        acceptedVersionId: 'V2',
+        versions: [{ id: 'V2', items: [{ productId: 'P2', quantity: 10, proposedUnitPrice: 5_000_000 }] }],
+      })),
+      http.get('/api/Quotation/Q1', () => HttpResponse.json({
+        id: 'Q1',
+        acceptedVersionId: 'V1',
+        versions: [{ id: 'V1', items: [{ productId: 'P1', quantity: 3, proposedUnitPrice: 35_000_000 }] }],
+      })),
+    )
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter>
+            <Cart />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('Đã áp dụng giá đàm phán')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Gửi yêu cầu báo giá với Sales/i })).not.toBeInTheDocument()
+  })
 })
