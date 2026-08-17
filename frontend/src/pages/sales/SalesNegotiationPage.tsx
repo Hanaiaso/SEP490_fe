@@ -401,7 +401,7 @@ export default function SalesNegotiationPage() {
         ) : !isMyQuotation ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center text-gray-400 text-sm">
             <MessageSquare className="w-6 h-6 text-gray-300" />
-            <p>Bấm <strong>"Nhận xử lý"</strong> để bắt đầu trò chuyện với khách hàng</p>
+            <p>Chỉ Sale được Sales Manager phân công mới có thể trò chuyện với khách hàng ở báo giá này</p>
           </div>
         ) : (
           <>
