@@ -94,7 +94,14 @@ const buildNavItems = (role: string | undefined, counts: WarehouseSidebarCounts)
   {
     id: 'inv-management', label: 'Quản lý tồn kho', icon: <SlidersHorizontal className="w-4 h-4" />, path: '/warehouse/inv-management',
     children: [
-      { id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine', badge: (counts.qualityCheckPending ?? 0) + (counts.returnQuarantinePending ?? 0) },
+      {
+        // BUGFIX: trang này (GET /api/warehouse-management/quarantine) chỉ hiện quarantine của LUỒNG
+        // ĐỔI TRẢ HÀNG LỖI (QuarantineLog.OrderId != null) — khớp đúng returnQuarantinePending.
+        // qualityCheckPending (GoodsReceiptItemId != null, hàng chờ kiểm định từ nhập kho) là 1 KPI
+        // đã tồn tại ở backend nhưng CHƯA từng có UI nào hiển thị nó (kể cả WarehouseDashboard.tsx) —
+        // gộp vào đây cho ra badge sai số hẳn (vd 11 thay vì 0). Chỉ dùng phần thật sự thuộc trang này.
+        id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine', badge: counts.returnQuarantinePending,
+      },
       { id: 'inventory-count', label: 'Kiểm kê tồn kho', icon: <ClipboardCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/inventory-count' },
       { id: 'count-sessions', label: 'Phiên kiểm kê', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/count-sessions' },
       { id: 'stock-adjustment', label: 'Lịch sử điều chỉnh TK', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/stock-adjustment' },
