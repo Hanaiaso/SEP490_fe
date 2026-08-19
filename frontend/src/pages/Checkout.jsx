@@ -268,8 +268,9 @@ function InvoicePreview({ cartProducts, selectedAddress, discountRate, discountA
                 </td>
               </tr>
             )}
-            {/* VAT */}
-            {vatRequested && vat > 0 && (
+            {/* VAT — luôn hiển thị vì VAT 10% được cộng vào mọi đơn hàng bất kể có tích yêu cầu
+                hóa đơn đỏ hay không (xem comment ở chỗ tính `vat` phía dưới). */}
+            {vat > 0 && (
               <tr>
                 <td colSpan={4} style={{ border: '1px solid black', padding: '3px 6px', textAlign: 'right', fontSize: '10px', color: '#64748b' }}>
                   Thuế VAT (10%)
@@ -1506,13 +1507,13 @@ export default function Checkout() {
                           <span>-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && vat > 0 && (
+                      {vat > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">VAT (10%)</span>
                           <span>+{formatPrice(vat)}</span>
                         </div>
                       )}
-                      
+
                       {creditApplied > 0 && (
                         <div className="flex justify-between text-sm text-blue-600">
                           <span>Sử dụng Credit</span>
@@ -1617,7 +1618,7 @@ export default function Checkout() {
                           <span>-{formatPrice(discountAmount)}</span>
                         </div>
                       )}
-                      {vatRequested && vat > 0 && (
+                      {vat > 0 && (
                         <div className="flex justify-between text-gray-600">
                           <span>VAT (10%)</span>
                           <span>+{formatPrice(vat)}</span>
