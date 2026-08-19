@@ -8,6 +8,7 @@ import CEOPurchaseOrderDetailPage from './CEOPurchaseOrderDetailPage';
 import CEOMaterialManagementPage from './CEOMaterialManagementPage';
 import CEOProductManagementPage from './CEOProductManagementPage';
 import CEOStockAdjustmentPage from './CEOStockAdjustmentPage';
+import CEOSystemConfigPage from './CEOSystemConfigPage';
 import CEOPriceUpdateOrdersPage from './CEOPriceUpdateOrdersPage';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -115,6 +116,8 @@ function CEOSidebar({ activeTab, setActiveTab, pendingQuotationCount }: { active
             active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} />
           <NavItem icon={<SlidersHorizontal className="w-4 h-4" />} label="Duyệt điều chỉnh tồn kho"
             active={activeTab === 'stock-adjustments'} onClick={() => setActiveTab('stock-adjustments')} />
+          <NavItem icon={<SlidersHorizontal className="w-4 h-4" />} label="Ngưỡng cảnh báo & tồn kho"
+            active={activeTab === 'system-config'} onClick={() => setActiveTab('system-config')} />
         </NavGroup>
       </div>
     </div>
@@ -172,6 +175,8 @@ export default function CEOPortal() {
         return <CEOPriceUpdateOrdersPage />;
       case 'stock-adjustments':
         return <CEOStockAdjustmentPage />;
+      case 'system-config':
+        return <CEOSystemConfigPage />;
       case 'warehouses':
         return <WarehouseManagement />;
       case 'notifications':

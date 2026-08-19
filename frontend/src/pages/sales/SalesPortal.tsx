@@ -49,6 +49,7 @@ import SalesPriceUpdateExecutionPage from './SalesPriceUpdateExecutionPage';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../../components/NotificationBell';
 import NotificationsPage from '../NotificationsPage';
+import { getSalesDeliverySidebarCounts } from '../../services/deliveryTripService.js';
 
 interface NavItem {
   id: string;
@@ -268,8 +269,34 @@ export default function SalesPortal() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const role: string = user?.role || '';
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
   const [toasts, setToasts] = useState<AssignmentToast[]>([]);
+
+  // Số việc chờ xử lý cho từng mục con "Giao hàng" (badge sidebar) — cho Sale thấy trực quan chỗ
+  // nào có việc cần làm mà không phải mở từng trang. Chỉ Sales/Manager/Admin gọi được endpoint này.
+  const [deliveryCounts, setDeliveryCounts] = useState<Partial<Record<string, number>>>({});
+  useEffect(() => {
+    if (!['SalesStaff', 'SalesManager', 'Admin'].includes(role)) return;
+    let cancelled = false;
+    getSalesDeliverySidebarCounts()
+      .then((d: { pendingHandover: number; warehouseCoordPending: number; tripsPending: number; arrangementPending: number; collectionPending: number }) => {
+        if (cancelled) return;
+        setDeliveryCounts({
+          'delivery-handover': d.pendingHandover,
+          'delivery-warehouse': d.warehouseCoordPending,
+          'delivery-trips': d.tripsPending,
+          'delivery-arrangement': d.arrangementPending,
+          'delivery-collection': d.collectionPending,
+        });
+      })
+      .catch(() => { /* badge là tiện ích trực quan, lỗi tải không được chặn thao tác chính của trang */ });
+    return () => { cancelled = true; };
+  }, [role]);
+
+  const visibleNavItems = NAV_ITEMS
+    .filter((item) => !item.roles || item.roles.includes(role))
+    .map((item) => item.children
+      ? { ...item, children: item.children.map((child) => ({ ...child, badge: deliveryCounts[child.id] ?? child.badge })) }
+      : item);
 
   useEffect(() => {
     document.body.classList.add('sales-hallmark-type-active');

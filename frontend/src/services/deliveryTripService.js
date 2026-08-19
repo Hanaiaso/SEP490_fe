@@ -45,3 +45,12 @@ export async function removeOrderFromTrip(id, orderId) {
 export async function startTrip(id) {
   return fetchWithToken('POST', `/delivery/trips/${id}/start`);
 }
+
+/**
+ * Số việc chờ xử lý cho từng mục con "Giao hàng" ở sidebar Sales (badge) — cho Sale thấy trực
+ * quan chỗ nào có việc cần làm mà không phải mở từng trang.
+ * @returns {Promise<{pendingHandover:number, warehouseCoordPending:number, tripsPending:number, arrangementPending:number, collectionPending:number}>}
+ */
+export async function getSalesDeliverySidebarCounts() {
+  return fetchWithToken('GET', '/delivery/sales-sidebar-counts');
+}

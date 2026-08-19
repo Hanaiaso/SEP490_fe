@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useState, useEffect, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '../../components/sales-ui/avatar';
 import { useAuth } from '../../context/AuthContext';
@@ -46,37 +46,55 @@ import WarehouseStockAdjustment from './WarehouseStockAdjustment';
 import WarehouseProductionIssue from './WarehouseProductionIssue';
 import WarehouseGoodsIssue from './WarehouseGoodsIssue';
 import WarehousePickupReceiving from './WarehousePickupReceiving';
+import { getWarehouseStaffDashboard } from '../../services/dashboardService.js';
 
 interface NavItem {
   id: string; label: string; icon: ReactNode; path: string;
   badge?: number; children?: NavItem[];
 }
 
-const buildNavItems = (role?: string): NavItem[] => [
+// Số việc chờ xử lý cho từng mục sidebar — lấy 1 lần từ GET /api/dashboards/warehouse-staff
+// (WarehouseDashboardDto) để nhân viên thấy trực quan chỗ nào có việc cần làm mà không phải mở
+// từng trang. Chỉ mục nào có định nghĩa "hàng đợi cần xử lý" rõ ràng mới gắn badge — "Lịch sử
+// phiếu nhập"/"Phiếu xuất kho" là trang tra cứu lịch sử, không phải hàng đợi, nên không gắn.
+interface WarehouseSidebarCounts {
+  pendingOrders?: number;
+  pickingInProgress?: number;
+  consolidationArea?: number;
+  pendingHandover?: number;
+  pendingPurchaseOrders?: number;
+  qualityCheckPending?: number;
+  returnQuarantinePending?: number;
+  lowStockCount?: number;
+  slowMovingCount?: number;
+  transfersInTransit?: number;
+}
+
+const buildNavItems = (role: string | undefined, counts: WarehouseSidebarCounts): NavItem[] => [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/warehouse/dashboard' },
   {
     id: 'fulfillment', label: 'Xuất kho (Fulfillment)', icon: <Package className="w-4 h-4" />, path: '/warehouse/fulfillment',
     children: [
-      { id: 'fulfillment-orders', label: 'Lệnh xuất kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/orders' },
-      { id: 'pick-packing', label: 'Pick & Packing', icon: <Package className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/pick-packing' },
-      { id: 'consolidation', label: 'Khu tập kết hàng', icon: <PackageCheck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/consolidation' },
-      { id: 'handover', label: 'Bàn giao Sales', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/handover' },
+      { id: 'fulfillment-orders', label: 'Lệnh xuất kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/orders', badge: counts.pendingOrders },
+      { id: 'pick-packing', label: 'Pick & Packing', icon: <Package className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/pick-packing', badge: counts.pickingInProgress },
+      { id: 'consolidation', label: 'Khu tập kết hàng', icon: <PackageCheck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/consolidation', badge: counts.consolidationArea },
+      { id: 'handover', label: 'Bàn giao Sales', icon: <Truck className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/handover', badge: counts.pendingHandover },
       { id: 'goods-issue', label: 'Phiếu xuất kho', icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, path: '/warehouse/fulfillment/goods-issue' },
     ],
   },
   {
     id: 'purchase', label: 'Nhập hàng (PO & GR)', icon: <ArrowDownToLine className="w-4 h-4" />, path: '/warehouse/purchase',
     children: [
-      { id: 'purchase-orders', label: 'PO chờ nhập kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/purchase/orders' },
+      { id: 'purchase-orders', label: 'PO chờ nhập kho', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/purchase/orders', badge: counts.pendingPurchaseOrders },
       { id: 'goods-receipt', label: 'Lịch sử phiếu nhập (GRN)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, path: '/warehouse/purchase/goods-receipt' },
       { id: 'receiving-comparison', label: 'Xem chênh lệch PO', icon: <GitMerge className="w-3.5 h-3.5" />, path: '/warehouse/purchase/receiving-comparison' },
     ],
   },
-  { id: 'stock-transfer', label: 'Chuyển kho nội bộ', icon: <ArrowRightLeft className="w-3.5 h-3.5" />, path: '/warehouse/transfer/stock-transfer' },
+  { id: 'stock-transfer', label: 'Chuyển kho nội bộ', icon: <ArrowRightLeft className="w-3.5 h-3.5" />, path: '/warehouse/transfer/stock-transfer', badge: counts.transfersInTransit },
   {
     id: 'inv-management', label: 'Quản lý tồn kho', icon: <SlidersHorizontal className="w-4 h-4" />, path: '/warehouse/inv-management',
     children: [
-      { id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine' },
+      { id: 'quarantine', label: 'Cách ly & Kiểm định', icon: <ShieldCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/quarantine', badge: (counts.qualityCheckPending ?? 0) + (counts.returnQuarantinePending ?? 0) },
       { id: 'inventory-count', label: 'Kiểm kê tồn kho', icon: <ClipboardCheck className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/inventory-count' },
       { id: 'count-sessions', label: 'Phiên kiểm kê', icon: <ClipboardList className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/count-sessions' },
       { id: 'stock-adjustment', label: 'Lịch sử điều chỉnh TK', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, path: '/warehouse/inv-management/stock-adjustment' },
@@ -94,8 +112,8 @@ const buildNavItems = (role?: string): NavItem[] => [
   {
     id: 'inventory', label: 'Theo dõi tồn kho', icon: <BarChart3 className="w-4 h-4" />, path: '/warehouse/inventory',
     children: [
-      { id: 'low-stock', label: 'Cảnh báo gần hết hàng', icon: <AlertCircle className="w-3.5 h-3.5" />, path: '/warehouse/inventory/low-stock' },
-      { id: 'slow-moving', label: 'Hàng chậm luân chuyển', icon: <TrendingDown className="w-3.5 h-3.5" />, path: '/warehouse/inventory/slow-moving' },
+      { id: 'low-stock', label: 'Cảnh báo gần hết hàng', icon: <AlertCircle className="w-3.5 h-3.5" />, path: '/warehouse/inventory/low-stock', badge: counts.lowStockCount },
+      { id: 'slow-moving', label: 'Hàng chậm luân chuyển', icon: <TrendingDown className="w-3.5 h-3.5" />, path: '/warehouse/inventory/slow-moving', badge: counts.slowMovingCount },
       { id: 'inv-report', label: 'Báo cáo tồn kho', icon: <FileBarChart className="w-3.5 h-3.5" />, path: '/warehouse/inventory/report' },
     ],
   },
@@ -155,7 +173,31 @@ function NavItemRow({ item, level = 0, onNavigate }: { item: NavItem; level?: nu
 export default function WarehousePortal() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const navItems = buildNavItems(user?.role);
+  const [sidebarCounts, setSidebarCounts] = useState<WarehouseSidebarCounts>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    getWarehouseStaffDashboard()
+      .then((d: { outbound?: Record<string, number>; inbound?: Record<string, number>; inventoryOps?: Record<string, number> }) => {
+        if (cancelled) return;
+        setSidebarCounts({
+          pendingOrders: d.outbound?.pendingOrders,
+          pickingInProgress: d.outbound?.pickingInProgress,
+          consolidationArea: d.outbound?.consolidationArea,
+          pendingHandover: d.outbound?.pendingHandover,
+          pendingPurchaseOrders: d.inbound?.pendingPurchaseOrders,
+          qualityCheckPending: d.inbound?.qualityCheckPending,
+          returnQuarantinePending: d.inbound?.returnQuarantinePending,
+          lowStockCount: d.inventoryOps?.lowStockCount,
+          slowMovingCount: d.inventoryOps?.slowMovingCount,
+          transfersInTransit: d.inventoryOps?.transfersInTransit,
+        });
+      })
+      .catch(() => { /* badge là tiện ích trực quan, lỗi tải không được chặn thao tác chính của trang */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const navItems = buildNavItems(user?.role, sidebarCounts);
   const userName = user?.fullName || user?.email || 'Nhan vien kho';
   const initials =
     userName
