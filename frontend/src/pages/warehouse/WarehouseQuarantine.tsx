@@ -22,6 +22,26 @@ const STATUS_CFG: Record<string, { label: string; bg: string }> = {
   ApprovedDamaged:   { label: 'Đã duyệt – Hư hỏng', bg: ERROR },
 };
 
+// 2 nguồn cách ly gộp chung trên 1 danh sách: hàng khách trả (gắn OrderId) và hàng lỗi/thừa/sai
+// phát hiện lúc QA kiểm định phiếu nhập kho (gắn GoodsReceiptItemId) — trước đây không có nhãn nên
+// nhân viên kho không phân biệt được, tưởng nhầm 11 dòng QC nhập kho là dữ liệu rác/trùng.
+const SOURCE_CFG: Record<string, { label: string; bg: string }> = {
+  CustomerReturn: { label: 'Khách trả hàng', bg: '#2563EB' },
+  GoodsReceiptQc: { label: 'QC nhập kho',    bg: '#7C3AED' },
+};
+
+function SourceBadge({ source }: { source: string }) {
+  const c = SOURCE_CFG[source] || { label: source || '—', bg: NEUTRAL };
+  return (
+    <span
+      className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap"
+      style={{ backgroundColor: c.bg, borderRadius: 4 }}
+    >
+      {c.label}
+    </span>
+  );
+}
+
 function api(path: string, opts?: RequestInit) {
   return authFetch(path.startsWith('/api') ? path.slice(4) : path, {
     ...opts,
@@ -44,6 +64,7 @@ function Badge({ status }: { status: string }) {
 export default function WarehouseQuarantine() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [detail, setDetail] = useState<QuarantineListItem | null>(null);
   const [items, setItems] = useState<QuarantineListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +121,8 @@ export default function WarehouseQuarantine() {
       || (d.itemName ?? '').toLowerCase().includes(q)
       || (d.reason ?? '').toLowerCase().includes(q)
       || (d.orderCode ?? '').toLowerCase().includes(q);
-    return ms && (statusFilter === 'all' || d.status === statusFilter);
+    return ms && (statusFilter === 'all' || d.status === statusFilter)
+      && (sourceFilter === 'all' || d.source === sourceFilter);
   });
 
   const toggleSelect = (id: string) => setSelected((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
@@ -149,6 +171,10 @@ export default function WarehouseQuarantine() {
             <option value="all">Tất cả trạng thái</option>
             {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
+          <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+            <option value="all">Tất cả nguồn</option>
+            {Object.entries(SOURCE_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
         </div>
       </div>
 
@@ -167,6 +193,7 @@ export default function WarehouseQuarantine() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-3 py-2.5"><input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Mã cách ly</th>
+                <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Nguồn</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Đơn hàng</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">SKU</th>
                 <th className="text-left px-3 py-2.5 text-gray-700 font-semibold">Sản phẩm</th>
@@ -180,11 +207,11 @@ export default function WarehouseQuarantine() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading && (
-                <tr><td colSpan={11} className="py-8 text-center text-xs text-gray-400">Đang tải dữ liệu...</td></tr>
+                <tr><td colSpan={12} className="py-8 text-center text-xs text-gray-400">Đang tải dữ liệu...</td></tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center">
+                  <td colSpan={12} className="py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                         <span className="text-gray-400 text-xl">📋</span>
@@ -199,7 +226,8 @@ export default function WarehouseQuarantine() {
                 <tr key={d.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                   <td className="px-3 py-2.5"><input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleSelect(d.id)} /></td>
                   <td className="px-3 py-2.5 font-semibold" style={{ color: PRIMARY }}>{d.quarantineCode}</td>
-                  <td className="px-3 py-2.5 text-gray-600 font-mono">{d.orderCode}</td>
+                  <td className="px-3 py-2.5"><SourceBadge source={d.source} /></td>
+                  <td className="px-3 py-2.5 text-gray-600 font-mono">{d.orderCode || '—'}</td>
                   <td className="px-3 py-2.5 font-mono text-gray-500">{d.itemSku || '—'}</td>
                   <td className="px-3 py-2.5 font-medium text-gray-800">{d.itemName || '—'}</td>
                   <td className="px-3 py-2.5 text-center font-semibold text-gray-800">{d.quantity}</td>
@@ -257,7 +285,8 @@ export default function WarehouseQuarantine() {
                 <div className="bg-gray-50 rounded p-3 space-y-1.5">
                   <p className="font-semibold text-gray-500 text-[10px] uppercase tracking-wide mb-2">Thông tin hàng cách ly</p>
                   <div className="flex justify-between"><span className="text-gray-500">Mã cách ly:</span><span className="font-semibold" style={{ color: PRIMARY }}>{detail.quarantineCode}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Đơn hàng:</span><span className="font-mono">{detail.orderCode}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-500">Nguồn:</span><SourceBadge source={detail.source} /></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Đơn hàng:</span><span className="font-mono">{detail.orderCode || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">SKU:</span><span className="font-mono">{detail.itemSku || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">{detail.itemType === 'Material' ? 'Nguyên vật liệu:' : 'Sản phẩm:'}</span><span className="font-medium text-gray-800">{detail.itemName || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Số lượng:</span><span className="font-semibold text-base" style={{ color: WARNING }}>{detail.quantity}</span></div>

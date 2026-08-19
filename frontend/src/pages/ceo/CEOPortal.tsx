@@ -59,7 +59,7 @@ function NavItem({ icon, label, active, badge, onClick }: NavItemProps) {
           style={!active ? { color: 'rgba(255,255,255,0.55)' } : {}}>
           {label}
         </span>
-        {badge && (
+        {!!badge && (
           <span className="bg-[#fb2c36] min-w-[17px] h-[16px] rounded-[4px] text-[9px] font-semibold text-white text-center leading-[16px] px-1">
             {badge}
           </span>

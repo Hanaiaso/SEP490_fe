@@ -416,6 +416,8 @@ export interface QuarantineListItem {
   quarantineCode: string;
   orderId?: string;
   orderCode?: string;
+  goodsReceiptItemId?: string;
+  source: 'CustomerReturn' | 'GoodsReceiptQc' | string;
   productId?: string;
   materialId?: string;
   itemName: string;

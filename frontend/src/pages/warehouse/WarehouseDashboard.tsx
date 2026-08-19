@@ -113,6 +113,7 @@ type DrillDownMetricType =
   | 'pendingPO'
   | 'receiptsInProgress'
   | 'returnQuarantine'
+  | 'qualityCheckPending'
   | 'lowStock'
   | 'slowMoving'
   | 'transfersInTransit'
@@ -225,7 +226,7 @@ function WarehouseDrillDownModal({
                     </>
                   )}
 
-                  {metric === 'returnQuarantine' && (
+                  {(metric === 'returnQuarantine' || metric === 'qualityCheckPending') && (
                     <>
                       <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Mã cách ly</th>
                       <th className="px-3 py-2 text-[11px] font-bold text-gray-600 uppercase">Sản phẩm / Nguồn</th>
@@ -352,7 +353,7 @@ function WarehouseDrillDownModal({
                   </tr>
                 ))}
 
-                {metric === 'returnQuarantine' && items.map((q: any, i: number) => (
+                {(metric === 'returnQuarantine' || metric === 'qualityCheckPending') && items.map((q: any, i: number) => (
                   <tr key={q.id || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
                     <td className="px-3 py-2 font-bold whitespace-nowrap" style={{ color: PRIMARY }}>{q.quarantineCode || q.code || q.id?.slice(0, 8)}</td>
                     <td className="px-3 py-2 text-gray-800 font-medium">{q.itemName || q.orderCode || q.goodsReceiptCode || 'Lô hàng'}</td>
@@ -513,6 +514,9 @@ export default function WarehouseDashboard() {
       } else if (metric === 'returnQuarantine') {
         const res = await getQuarantineList();
         setDrillDownItems(Array.isArray(res) ? res.filter((q: any) => q.orderId != null) : []);
+      } else if (metric === 'qualityCheckPending') {
+        const res = await getQuarantineList();
+        setDrillDownItems(Array.isArray(res) ? res.filter((q: any) => q.goodsReceiptItemId != null) : []);
       } else if (metric === 'lowStock') {
         const res = await getLowStockAlerts();
         const list = Array.isArray(res) ? res : res?.items || data?.lowStockAlerts || [];
@@ -671,6 +675,14 @@ export default function WarehouseDashboard() {
               icon={<ShieldCheck className="w-4 h-4" />}
               color={WARNING}
               onClick={() => openDrillDown('returnQuarantine', 'Hàng cách ly & khách trả về', '/warehouse/inv-management/quarantine', 'Quản lý cách ly')}
+            />
+            <KpiCard
+              label="QC nhập kho chờ duyệt"
+              value={data.inbound.qualityCheckPending}
+              sub="hàng lỗi/thừa/sai từ PO · Bấm xem"
+              icon={<ShieldCheck className="w-4 h-4" />}
+              color={WARNING}
+              onClick={() => openDrillDown('qualityCheckPending', 'Hàng chờ QC kiểm định (từ phiếu nhập kho)', '/warehouse/inv-management/quarantine', 'Quản lý cách ly')}
             />
           </div>
         </div>
