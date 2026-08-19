@@ -143,16 +143,16 @@ const NAV_ITEMS: NavItem[] = [
         path: '/sales/delivery/warehouse',
       },
       {
-        id: 'delivery-arrangement',
-        label: 'Sắp xếp vận chuyển',
-        icon: <Truck className="w-3.5 h-3.5" />,
-        path: '/sales/delivery/arrangement',
-      },
-      {
         id: 'delivery-trips',
         label: 'Chuyến giao hàng',
         icon: <Truck className="w-3.5 h-3.5" />,
         path: '/sales/delivery/trips',
+      },
+      {
+        id: 'delivery-arrangement',
+        label: 'Điều chuyển nội bộ & Thu hồi',
+        icon: <Truck className="w-3.5 h-3.5" />,
+        path: '/sales/delivery/arrangement',
       },
       {
         id: 'delivery-collection',

@@ -255,11 +255,11 @@ export default function SalesWarehouseCoordPage() {
                       </button>
                       {order.status === 'done' && (
                         <button
-                          onClick={() => navigate('/sales/delivery/arrangement')}
+                          onClick={() => navigate('/sales/delivery/trips')}
                           className="flex h-6 items-center gap-1 rounded bg-[#1F3B64] px-2 text-[10px] text-white transition-colors hover:bg-[#162D4E]"
                         >
                           <Truck className="h-3 w-3" />
-                          Sắp xếp vận chuyển
+                          Xếp chuyến giao hàng
                         </button>
                       )}
                     </div>

@@ -99,7 +99,7 @@ export default function SalesDeliveryArrangementPage() {
   });
   const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
   const [available, setAvailable] = useState<DeliveryOrder[]>([]);
-  const [filterType, setFilterType] = useState<'all' | 'order' | 'transfer' | 'pickup'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'transfer' | 'pickup'>('all');
   const [dragging, setDragging] = useState<DeliveryOrder | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,6 +139,10 @@ export default function SalesDeliveryArrangementPage() {
         const data: DeliveryOrderListItem[] = await resOrders.json();
         data.forEach((o) => {
           const isTransfer = o.paymentMethod === 'Transfer';
+          // Đơn giao hàng thường (COD/SePay/Cash) nay xếp xe qua "Chuyến giao hàng" (trip-based,
+          // có kiểm soát tải trọng + trạng thái Bốc hàng) — trang này chỉ còn xử lý điều chuyển nội
+          // bộ (Transfer) và thu hồi (Pickup, ở khối resPickups bên dưới), tránh 2 nơi cùng làm 1 việc.
+          if (!isTransfer) return;
           const mapped: DeliveryOrder = {
             id: o.id,
             orderCode: o.orderCode,
@@ -347,8 +351,11 @@ export default function SalesDeliveryArrangementPage() {
       <div className="border-b border-gray-200 bg-white px-5 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Sắp xếp vận chuyển</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Kéo thả đơn hàng vào xe để phân công giao theo ca.</p>
+            <h2 className="text-base font-bold text-gray-900">Điều chuyển nội bộ &amp; Thu hồi</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Kéo thả đơn điều chuyển kho / yêu cầu thu hồi vào xe để phân công theo ca. Đơn giao hàng
+              thường xếp xe ở mục &quot;Chuyến giao hàng&quot;.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
@@ -425,12 +432,6 @@ export default function SalesDeliveryArrangementPage() {
                 Tất cả ({available.length})
               </button>
               <button
-                onClick={() => setFilterType('order')}
-                className={`px-2 py-1 rounded transition-colors ${filterType === 'order' ? 'bg-blue-600 text-white font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                Giao hàng
-              </button>
-              <button
                 onClick={() => setFilterType('transfer')}
                 className={`px-2 py-1 rounded transition-colors ${filterType === 'transfer' ? 'bg-amber-600 text-white font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
@@ -457,7 +458,6 @@ export default function SalesDeliveryArrangementPage() {
             )}
             {available
               .filter((o) => {
-                if (filterType === 'order') return o.payment !== 'Transfer' && o.payment !== 'Pickup';
                 if (filterType === 'transfer') return o.payment === 'Transfer';
                 if (filterType === 'pickup') return o.payment === 'Pickup';
                 return true;

@@ -18,6 +18,7 @@ const PENDING_COLLECTION_STATUSES = ['Scheduled', 'InDelivery', 'Rescheduled', '
 
 interface DeliveryMetrics {
   warehousePending: number;
+  tripsPending: number;
   arrangementPending: number;
   collectionPending: number;
 }
@@ -33,12 +34,21 @@ const SECTION_META = [
     metricLabel: (n: number) => `${n} đơn đang xử lý`,
   },
   {
-    id: 'arrangement',
-    title: 'Sắp xếp vận chuyển',
-    description: 'Phân xe, gom đơn theo ca giao và cân bằng tải trọng cho từng chuyến.',
-    path: '/sales/delivery/arrangement',
+    id: 'trips',
+    title: 'Chuyến giao hàng',
+    description: 'Xếp đơn lên xe theo chuyến, kiểm soát tải trọng và thời gian xuất phát/đến nơi.',
+    path: '/sales/delivery/trips',
     icon: Truck,
     accent: '#F97316',
+    metricLabel: (n: number) => `${n} đơn chờ xếp xe`,
+  },
+  {
+    id: 'arrangement',
+    title: 'Điều chuyển nội bộ & Thu hồi',
+    description: 'Phân xe cho đơn điều chuyển kho và yêu cầu thu hồi hàng theo ca.',
+    path: '/sales/delivery/arrangement',
+    icon: Truck,
+    accent: '#7C3AED',
     metricLabel: (n: number) => `${n} đơn chờ xếp xe`,
   },
   {
@@ -75,11 +85,19 @@ export default function SalesDeliveryPage() {
           ).length;
         }
 
+        // "Chuyến giao hàng" xếp đơn giao thường (không phải điều chuyển nội bộ); "Điều chuyển nội
+        // bộ & Thu hồi" chỉ còn lo đơn Transfer + yêu cầu thu hồi — xem SalesDeliveryArrangementPage.
+        let tripsPending = 0;
         let arrangementPending = 0;
         let collectionPending = 0;
         if (resDeliveryOrders.ok) {
           const orders: DeliveryOrderListItem[] = await resDeliveryOrders.json();
-          arrangementPending += orders.filter((o) => UNSCHEDULED_STATUSES.includes(o.deliveryStatus)).length;
+          tripsPending = orders.filter(
+            (o) => o.paymentMethod !== 'Transfer' && UNSCHEDULED_STATUSES.includes(o.deliveryStatus)
+          ).length;
+          arrangementPending = orders.filter(
+            (o) => o.paymentMethod === 'Transfer' && UNSCHEDULED_STATUSES.includes(o.deliveryStatus)
+          ).length;
           collectionPending = orders.filter(
             (o) => o.paymentMethod !== 'Transfer' && PENDING_COLLECTION_STATUSES.includes(o.deliveryStatus)
           ).length;
@@ -89,9 +107,9 @@ export default function SalesDeliveryPage() {
           arrangementPending += pickups.filter((p) => p.pickupStatus === 'NotScheduled').length;
         }
 
-        if (!cancelled) setMetrics({ warehousePending, arrangementPending, collectionPending });
+        if (!cancelled) setMetrics({ warehousePending, tripsPending, arrangementPending, collectionPending });
       } catch {
-        if (!cancelled) setMetrics({ warehousePending: 0, arrangementPending: 0, collectionPending: 0 });
+        if (!cancelled) setMetrics({ warehousePending: 0, tripsPending: 0, arrangementPending: 0, collectionPending: 0 });
       }
     })();
     return () => { cancelled = true; };
@@ -99,6 +117,7 @@ export default function SalesDeliveryPage() {
 
   const metricValue: Record<string, number> = {
     warehouse: metrics?.warehousePending ?? 0,
+    trips: metrics?.tripsPending ?? 0,
     arrangement: metrics?.arrangementPending ?? 0,
     collection: metrics?.collectionPending ?? 0,
   };
@@ -113,7 +132,7 @@ export default function SalesDeliveryPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-4">
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SECTION_META.map((section) => {
             const Icon = section.icon;
             return (
