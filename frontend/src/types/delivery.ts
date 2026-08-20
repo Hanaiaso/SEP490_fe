@@ -98,6 +98,7 @@ export interface PendingPickupItem {
   productName: string;
   quantity: number;
   reason: string;
+  weightKg?: number;
 }
 
 export interface PendingPickup {
@@ -113,5 +114,6 @@ export interface PendingPickup {
   pickupShift?: string;
   scheduledPickupDate?: string;
   returnProductNames: string[];
+  totalWeightKg: number;
   items: PendingPickupItem[];
 }

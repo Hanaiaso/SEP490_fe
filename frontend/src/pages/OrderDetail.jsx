@@ -467,6 +467,9 @@ export default function OrderDetail() {
                     {order.plannedArrivalAt && (
                       <InfoRow icon={Clock} label="Giờ đến dự kiến" value={new Date(order.plannedArrivalAt).toLocaleString('vi-VN')} />
                     )}
+                    {order.deliveredAt && (
+                      <InfoRow icon={Clock} label="Thời gian giao hàng thực tế" value={new Date(order.deliveredAt).toLocaleString('vi-VN')} />
+                    )}
                     <InfoRow icon={CreditCard} label="Số tiền đã thu (COD)" value={formatPrice(order.amountPaid)} />
                     {order.failedDeliveryCount > 0 && (
                       <InfoRow icon={AlertCircle} label="Số lần giao thất bại" value={`${order.failedDeliveryCount} lần`} />

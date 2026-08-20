@@ -3,7 +3,10 @@ import { authFetch } from '../../services/httpClient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Lock, MapPin, Package, RefreshCw, Truck, User, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { getVehicles } from '../../services/vehicleService.js';
+import WeightBar from '../../components/delivery/WeightBar';
 import type { DeliveryOrderListItem, PendingPickup } from '../../types/delivery';
+import type { Vehicle as FleetVehicle } from '../../types/admin';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -20,11 +23,13 @@ type DeliveryOrder = {
   scheduledDeliveryDate?: string;
   deliveryShift?: string;
   vehicleId?: number;
+  totalPackedWeightKg?: number;
 };
 
-type Vehicle = {
-  id: number;           // 1-5
+type VehicleSlot = {
+  id: number;           // VehicleNumber (khớp ScheduleDeliveryRequestDto/SchedulePickupRequestDto.VehicleId), KHÔNG phải Vehicle.Id (Guid)
   label: string;
+  capacity?: number;
   orders: DeliveryOrder[];
 };
 
@@ -32,14 +37,6 @@ const SHIFTS = [
   { key: 'Sáng', label: 'Ca sáng (6:00 - 14:00)' },
   { key: 'Trưa', label: 'Ca trưa (14:00 - 22:00)' },
   { key: 'Chiều', label: 'Ca chiều (22:00 - 6:00)' },
-];
-
-const INITIAL_VEHICLES: Vehicle[] = [
-  { id: 1, label: 'Xe 1', orders: [] },
-  { id: 2, label: 'Xe 2', orders: [] },
-  { id: 3, label: 'Xe 3', orders: [] },
-  { id: 4, label: 'Xe 4', orders: [] },
-  { id: 5, label: 'Xe 5', orders: [] },
 ];
 
 // ─── Location grouping helpers ─────────────────────────────────────────────
@@ -97,7 +94,8 @@ export default function SalesDeliveryArrangementPage() {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
-  const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
+  const [fleetVehicles, setFleetVehicles] = useState<FleetVehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleSlot[]>([]);
   const [available, setAvailable] = useState<DeliveryOrder[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'transfer' | 'pickup'>('all');
   const [dragging, setDragging] = useState<DeliveryOrder | null>(null);
@@ -122,9 +120,20 @@ export default function SalesDeliveryArrangementPage() {
     return true;
   }, [selectedDate, activeShift]);
 
-  const VEHICLES_META = useCallback((): Vehicle[] => INITIAL_VEHICLES.map((v) => ({ ...v, orders: [] })), []);
+  // Xe thật từ Vehicles (id = VehicleNumber, khớp payload BE) — lọc xe đang hoạt động, sắp theo số xe.
+  const VEHICLES_META = useCallback((): VehicleSlot[] =>
+    fleetVehicles
+      .filter((v) => v.isActive)
+      .sort((a, b) => a.vehicleNumber - b.vehicleNumber)
+      .map((v) => ({ id: v.vehicleNumber, label: `Xe ${v.vehicleNumber}`, capacity: v.capacity, orders: [] })),
+    [fleetVehicles]);
+
+  useEffect(() => {
+    getVehicles().then(setFleetVehicles).catch(() => {});
+  }, []);
 
   const fetchOrders = useCallback(async () => {
+    if (fleetVehicles.length === 0) return;
     setLoading(true);
     try {
       const [resOrders, resPickups] = await Promise.all([
@@ -133,7 +142,7 @@ export default function SalesDeliveryArrangementPage() {
       ]);
 
       const unscheduled: DeliveryOrder[] = [];
-      const newVehicles: Vehicle[] = VEHICLES_META();
+      const newVehicles: VehicleSlot[] = VEHICLES_META();
 
       if (resOrders.ok) {
         const data: DeliveryOrderListItem[] = await resOrders.json();
@@ -156,6 +165,7 @@ export default function SalesDeliveryArrangementPage() {
             scheduledDeliveryDate: o.scheduledDeliveryDate,
             deliveryShift: o.shift,
             vehicleId: o.vehicleId,
+            totalPackedWeightKg: o.totalPackedWeightKg,
           };
 
           if (o.deliveryStatus === 'Scheduled' && o.vehicleId) {
@@ -190,6 +200,7 @@ export default function SalesDeliveryArrangementPage() {
             scheduledDeliveryDate: p.scheduledPickupDate,
             deliveryShift: p.pickupShift,
             vehicleId: p.pickupVehicleId,
+            totalPackedWeightKg: p.totalWeightKg,
           };
 
           if (p.pickupStatus === 'Scheduled' && p.pickupVehicleId) {
@@ -211,7 +222,7 @@ export default function SalesDeliveryArrangementPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, activeShift, toast, VEHICLES_META]);
+  }, [selectedDate, activeShift, toast, VEHICLES_META, fleetVehicles]);
 
   // Reload danh sách khi đổi Ngày giao hoặc Ca giao
   useEffect(() => {
@@ -316,7 +327,9 @@ export default function SalesDeliveryArrangementPage() {
           }).then(async (res) => {
             if (!res.ok) {
               const err = await res.json();
-              throw new Error(getErrorMessage(err));
+              const error = new Error(getErrorMessage(err)) as Error & { code?: string };
+              error.code = err.code;
+              throw error;
             }
           })
         );
@@ -334,6 +347,8 @@ export default function SalesDeliveryArrangementPage() {
         // UC-34: xe/ca đã có lịch trùng — backend đã tự tạo yêu cầu xử lý cho Sales Manager,
         // không phải lỗi cần Sales tự sửa ngay.
         toast.error('Xe/ca đã có lịch trùng. Yêu cầu xử lý xung đột đã được gửi tới Sales Manager.');
+      } else if (code === 'VEHICLE_OVERWEIGHT') {
+        toast.error(getErrorMessage(err, 'Xe vượt tải trọng cho phép.'), 'Vượt tải trọng xe');
       } else {
         toast.error(getErrorMessage(err, 'Có lỗi xảy ra khi lập lịch.'));
       }
@@ -596,6 +611,9 @@ export default function SalesDeliveryArrangementPage() {
                       }`}>
                         {SHIFTS[activeShift].key}
                       </span>
+                    </div>
+                    <div className="mt-2">
+                      <WeightBar used={vehicle.orders.reduce((s, o) => s + (o.totalPackedWeightKg ?? 0), 0)} capacity={vehicle.capacity} />
                     </div>
                   </div>
 

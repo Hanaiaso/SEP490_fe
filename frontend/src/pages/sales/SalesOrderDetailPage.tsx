@@ -599,6 +599,16 @@ export default function SalesOrderDetailPage() {
                   </div>
                 )}
 
+                {order.deliveredAt && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                    <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Thời gian giao hàng thực tế</p>
+                      <p className="text-sm font-medium text-slate-900">{new Date(order.deliveredAt).toLocaleString('vi-VN')}</p>
+                    </div>
+                  </div>
+                )}
+
                 {failedDeliveryCount > 0 && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-700">
                     <AlertTriangle className="w-4 h-4 shrink-0" />

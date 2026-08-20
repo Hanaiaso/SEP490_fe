@@ -7,6 +7,7 @@ import {
   getDeliveryTrips, createDeliveryTrip, startLoadingTrip, addOrdersToTrip, removeOrderFromTrip, startTrip,
 } from '../../services/deliveryTripService.js';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import WeightBar from '../../components/delivery/WeightBar';
 import type { DeliveryTrip, DeliveryOrderListItem } from '../../types/delivery';
 import type { Vehicle } from '../../types/admin';
 
@@ -36,24 +37,6 @@ function api(path: string, opts?: RequestInit) {
 function StatusBadge({ status }: { status: string }) {
   const c = STATUS_CFG[status] || { label: status, bg: NEUTRAL };
   return <span className="text-[10px] font-semibold text-white px-2 py-0.5 inline-block whitespace-nowrap" style={{ backgroundColor: c.bg, borderRadius: 4 }}>{c.label}</span>;
-}
-
-function WeightBar({ used, capacity }: { used: number; capacity?: number | null }) {
-  if (!capacity) {
-    return <span className="text-[11px] text-gray-400">{used.toLocaleString('vi-VN')} kg (xe chưa cấu hình tải trọng)</span>;
-  }
-  const pct = Math.min(100, (used / capacity) * 100);
-  const over = used > capacity;
-  return (
-    <div className="flex flex-col gap-1 w-full">
-      <div className="h-2 w-full bg-gray-100 rounded overflow-hidden">
-        <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: over ? '#DC2626' : SUCCESS }} />
-      </div>
-      <span className="text-[11px]" style={{ color: over ? '#DC2626' : '#6B7280' }}>
-        {used.toLocaleString('vi-VN')} / {capacity.toLocaleString('vi-VN')} kg
-      </span>
-    </div>
-  );
 }
 
 function formatDateTimeLocal(iso?: string) {
@@ -242,6 +225,13 @@ export default function SalesDeliveryTripsPage() {
                 <div className="flex items-center gap-3 text-[11px] text-gray-500">
                   {trip.plannedDepartureAt && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Xuất phát dự kiến: {new Date(trip.plannedDepartureAt).toLocaleString('vi-VN')}</span>}
                   {trip.plannedArrivalAt && <span className="flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Đến dự kiến: {new Date(trip.plannedArrivalAt).toLocaleString('vi-VN')}</span>}
+                </div>
+              )}
+
+              {(trip.startedAt || trip.completedAt) && (
+                <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                  {trip.startedAt && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Xuất phát thực tế: {new Date(trip.startedAt).toLocaleString('vi-VN')}</span>}
+                  {trip.completedAt && <span className="flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Hoàn tất thực tế: {new Date(trip.completedAt).toLocaleString('vi-VN')}</span>}
                 </div>
               )}
 
