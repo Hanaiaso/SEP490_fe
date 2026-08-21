@@ -99,12 +99,20 @@ function seedDonKhachKhac() {
     WHERE p.UserId <> '${ACCOUNTS.customer.userId}';`);
   if (daCo !== '0') return;
 
-  // Chon mot ho so khach KHAC customer.test (uu tien ho so do chinh dot L4 tao ra)
-  const hoSoKhac = doc1(`
-    SELECT TOP 1 CAST(p.Id AS varchar(36))
-    FROM CustomerProfiles p
-    JOIN Users u ON u.Id = p.UserId
-    WHERE p.UserId <> '${ACCOUNTS.customer.userId}' AND u.Email LIKE 'e2e.l4.%';`);
+  // Chon mot ho so khach KHAC customer.test. Uu tien ho so do chinh dot L4 tao ra ('e2e.l4.%'),
+  // nhung DB moi reset (Respawn cua bo L3 xUnit) chi con ho so tu seed HasData nen phai co duong
+  // lui: lay bat ky ho so nao khong thuoc customer.test. Neu khong, L4-PM-07 se bi test.skip va
+  // case IDOR trong workbook khong bao gio duoc chay.
+  const hoSoKhac =
+    doc1(`
+      SELECT TOP 1 CAST(p.Id AS varchar(36))
+      FROM CustomerProfiles p
+      JOIN Users u ON u.Id = p.UserId
+      WHERE p.UserId <> '${ACCOUNTS.customer.userId}' AND u.Email LIKE 'e2e.l4.%';`)
+    || doc1(`
+      SELECT TOP 1 CAST(p.Id AS varchar(36))
+      FROM CustomerProfiles p
+      WHERE p.UserId <> '${ACCOUNTS.customer.userId}';`);
   if (!hoSoKhac) {
     console.warn('[seed] Chua co ho so khach nao khac de dung cho L4-PM-07');
     return;

@@ -239,18 +239,18 @@ test.describe('L4-AdminMarketing', () => {
       }
       await sales.dispose();
 
-      // Man len lich thu hoi ma workbook ghi.
-      // SalesPortal.tsx:425 co <Route path="*" element={<SalesDashboardPage />} /> nen URL van
-      // giu nguyen du route khong ton tai -> KHONG duoc dua vao page.url() de ket luan.
-      // Phai doi chieu NOI DUNG: neu render ra Dashboard thi tuc la route khong co that.
-      await vaoVoiVaiTro(page, 'sales', '/sales/pickup-arrangement');
+      // Man len lich thu hoi. Workbook ghi /sales/pickup-arrangement; nhanh "Gop lai 2 trang sap xep
+      // van chuyen trung lap" da gop man nay vao /sales/delivery/arrangement (SalesDeliveryArrangementPage
+      // doc /api/delivery/pickups va cho xep chuyen thu hoi cung cho voi giao hang).
+      // SalesPortal.tsx co <Route path="*" element={<SalesDashboardPage />} /> nen URL van giu nguyen
+      // du route khong ton tai -> KHONG duoc dua vao page.url() de ket luan; phai doi chieu NOI DUNG.
+      await vaoVoiVaiTro(page, 'sales', '/sales/delivery/arrangement');
       await page.waitForLoadState('networkidle');
       const noiDung = await page.locator('main, body').first().innerText();
-      const roiVeDashboard = /dashboard|tổng quan|doanh số hôm nay/i.test(noiDung);
+      const roiVeDashboard = /doanh số hôm nay/i.test(noiDung);
       expect(
         roiVeDashboard,
-        'Route /sales/pickup-arrangement khong ton tai trong SalesPortal.tsx (roi vao catch-all '
-        + 've Dashboard) — workbook ghi sai route, khong co man len lich thu hoi',
+        'Route /sales/delivery/arrangement roi vao catch-all ve Dashboard — khong co man len lich thu hoi',
       ).toBe(false);
     });
 
