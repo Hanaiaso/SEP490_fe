@@ -340,16 +340,18 @@ test.describe('L4-UserJourneys', () => {
     await page.waitForLoadState('networkidle');
     await expect(page).toHaveURL(/inventory-count/);
 
-    // L3 DEF-L3-005: phien kiem ke (count-session) chua trien khai. Xac nhan lai.
+    // DEF-L4-003 da xu ly: he thong kiem ke hop nhat ve InventoryCountSessionController,
+    // route that la /api/inventory-count-sessions (khong con /api/inventory/count-sessions).
     const ctx = await ctxTheoVaiTro('warehouse');
-    const res = await ctx.get('/api/inventory/count-sessions');
+    const res = await ctx.get('/api/inventory-count-sessions');
+    const body = res.ok() ? await res.json() : null;
     await ctx.dispose();
 
     expect(
       res.status(),
-      `GET /api/inventory/count-sessions tra ${res.status()} — phien kiem ke chua trien khai `
-      + '(xac nhan lai DEF-L3-005), khong kiem duoc BR-044',
+      `GET /api/inventory-count-sessions tra ${res.status()} — phien kiem ke phai co API de kiem BR-044`,
     ).toBeLessThan(400);
+    expect(Array.isArray(body), 'danh sach phien kiem ke phai tra ve mang').toBe(true);
   });
 
   // FT-12 AC-05; BR-045 — Xuat NVL san xuat: chan khi thieu nguoi nhan / so phieu / anh ky.
