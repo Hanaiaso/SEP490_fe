@@ -58,6 +58,8 @@ export default function SalesDeliveryTripsPage() {
   const [newVehicleId, setNewVehicleId] = useState('');
   const [newShift, setNewShift] = useState(SHIFTS[0]);
   const [newOrderIds, setNewOrderIds] = useState<string[]>([]);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const [newTripDate, setNewTripDate] = useState(todayStr);
 
   const [loadingModalTripId, setLoadingModalTripId] = useState<string | null>(null);
   const [plannedDeparture, setPlannedDeparture] = useState('');
@@ -104,9 +106,10 @@ export default function SalesDeliveryTripsPage() {
   const handleCreateTrip = async () => {
     if (!newVehicleId) return alert('Vui lòng chọn xe.');
     if (newOrderIds.length === 0) return alert('Vui lòng chọn ít nhất 1 đơn hàng.');
+    if (newTripDate < todayStr) return alert('Không thể tạo chuyến giao cho ngày trong quá khứ.');
     setCreating(true);
     try {
-      await createDeliveryTrip({ vehicleId: newVehicleId, shift: newShift, tripDate: selectedDate, orderIds: newOrderIds });
+      await createDeliveryTrip({ vehicleId: newVehicleId, shift: newShift, tripDate: newTripDate, orderIds: newOrderIds });
       alert('Tạo chuyến giao hàng thành công!');
       setIsCreateOpen(false);
       setNewVehicleId(''); setNewOrderIds([]);
@@ -182,7 +185,7 @@ export default function SalesDeliveryTripsPage() {
           </div>
           <button
             className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded bg-blue-600 hover:bg-blue-700"
-            onClick={() => setIsCreateOpen(true)}
+            onClick={() => { setNewTripDate(todayStr); setIsCreateOpen(true); }}
           >
             <Plus className="w-3.5 h-3.5" /> Tạo chuyến mới
           </button>
@@ -303,6 +306,16 @@ export default function SalesDeliveryTripsPage() {
                   <select className="border rounded px-3 py-2 text-sm" value={newShift} onChange={(e) => setNewShift(e.target.value)}>
                     {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Ngày giao *</label>
+                  <input
+                    type="date"
+                    min={todayStr}
+                    className="border rounded px-3 py-2 text-sm"
+                    value={newTripDate}
+                    onChange={(e) => setNewTripDate(e.target.value)}
+                  />
                 </div>
               </div>
 

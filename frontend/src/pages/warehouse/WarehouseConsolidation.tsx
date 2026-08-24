@@ -26,7 +26,7 @@ interface ConsolidationItem {
   id: string; fulfillmentId: string; warehouse: string; warehouseCode: string;
   quantity: number;
   status: 'waiting' | 'ready' | 'delayed' | 'completed';
-  products?: { sku: string; name: string; quantity: number; transferStatus?: string; requiredTransferQuantity?: number }[];
+  products?: { sku: string; name: string; quantity: number; transferStatus?: string; requiredTransferQuantity?: number; stockByWarehouse?: { warehouseId: string; warehouseName: string; onHandQuantity: number }[] }[];
   pickTasks?: { id: string; warehouse: string; status: string; items: { name: string; requestedQty: number; packedQty: number }[] }[];
   requiresTransfer?: boolean;
 }
@@ -178,7 +178,7 @@ export default function WarehouseConsolidation() {
                           setDetail({
                             ...d,
                             products: data.items.map((i) => ({
-                              sku: i.sku, name: i.productName, quantity: i.requestedQuantity, requiredTransferQuantity: i.requiredTransferQuantity, transferStatus: '—'
+                              sku: i.sku, name: i.productName, quantity: i.requestedQuantity, requiredTransferQuantity: i.requiredTransferQuantity, transferStatus: '—', stockByWarehouse: i.stockByWarehouse
                             })),
                             pickTasks: data.pickTasks?.map((pt) => ({
                               id: pt.pickTaskId,
@@ -289,13 +289,25 @@ export default function WarehouseConsolidation() {
                     <tbody className="divide-y divide-gray-100">
                       {detail.products.map(p => {
                         const readyQty = p.quantity - (p.requiredTransferQuantity || 0);
+                        // Tồn tại các kho KHÁC kho mặc định (đích tập kết) — nơi số lượng còn thiếu có thể lấy về.
+                        // Khi số này nằm rải ở NHIỀU kho, staff cần tạo NHIỀU lệnh điều chuyển riêng (mỗi lệnh 1 kho nguồn),
+                        // không phải 1 lệnh gộp — hiện rõ ra đây để tránh tạo thiếu lệnh.
+                        const sources = (p.stockByWarehouse || []).filter((w) => w.warehouseName !== detail.warehouse && w.onHandQuantity > 0);
                         return (
                           <tr key={p.sku} className="hover:bg-gray-50">
                             <td className="px-3 py-2 font-mono text-gray-500">{p.sku}</td>
                             <td className="px-3 py-2 text-gray-800">{p.name}</td>
                             <td className="px-3 py-2 text-center font-semibold">{p.quantity}</td>
                             <td className={`px-3 py-2 text-center font-semibold ${readyQty > 0 ? 'text-green-600' : 'text-gray-400'}`}>{readyQty}</td>
-                            <td className={`px-3 py-2 text-center font-semibold ${(p.requiredTransferQuantity || 0) > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.requiredTransferQuantity || 0}</td>
+                            <td className={`px-3 py-2 text-center font-semibold ${(p.requiredTransferQuantity || 0) > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                              {p.requiredTransferQuantity || 0}
+                              {(p.requiredTransferQuantity || 0) > 0 && sources.length > 0 && (
+                                <div className="mt-0.5 text-[10px] font-normal text-gray-500">
+                                  {sources.length > 1 && <span className="text-amber-600 font-semibold">⚠ {sources.length} kho — cần tạo {sources.length} lệnh riêng: </span>}
+                                  {sources.map((s) => `${s.warehouseName} (${s.onHandQuantity})`).join(', ')}
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}

@@ -70,17 +70,28 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
   });
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
 
-  const isInitialMount = useRef(true);
+  // Lệnh chuyển kho mồi từ Khu tập kết luôn khởi tạo với sourceWarehouseId rỗng (staff phải tự
+  // chọn kho nguồn), nên lượt chạy effect ĐẦU TIÊN luôn rơi vào nhánh sourceWarehouseId trống —
+  // không hề áp dụng prefill. Phải tách riêng "đã áp dụng prefill hay chưa" khỏi "đây có phải
+  // lượt chạy đầu tiên không", nếu không thì lượt chọn kho nguồn ĐẦU TIÊN của staff (chính là lượt
+  // effect thứ 2) sẽ bị nhầm là "đổi kho nguồn sau khi đã có dữ liệu" và xoá sạch danh sách mặt
+  // hàng mồi (sản phẩm + số lượng cần điều chuyển) về rỗng — khiến staff phải tự nhớ và nhập lại
+  // số lượng, dễ nhập thiếu khi số lượng cần điều chuyển đến từ nhiều kho nguồn khác nhau.
+  const isFirstRun = useRef(true);
+  const prefillApplied = useRef(false);
 
   // Fetch inventory when source warehouse changes
   useEffect(() => {
+    const firstRun = isFirstRun.current;
+    isFirstRun.current = false;
+
     if (formData.sourceWarehouseId) {
       import('../../services/warehouseService.js').then(module => {
         module.getWarehouseInventory(formData.sourceWarehouseId, { pageNumber: 1, pageSize: 1000 }).then((data: { items?: InventoryItem[] }) => {
           const invs = data.items || [];
           setInventory(invs);
 
-          if (isInitialMount.current && initialData && initialData.items.length > 0) {
+          if (!prefillApplied.current && initialData && initialData.items.length > 0) {
             const mappedItems = initialData.items.map((i) => {
               const invItem = invs.find((inv) => inv.productSku === i.sku || inv.productId === i.productId);
               return {
@@ -90,20 +101,19 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
               };
             });
             setItems(mappedItems);
-            isInitialMount.current = false;
-          } else if (!isInitialMount.current) {
+            prefillApplied.current = true;
+          } else if (!firstRun) {
             setItems([{ productId: '', productName: '', quantity: 0 }]);
           }
         });
       });
     } else {
       setInventory([]);
-      if (!isInitialMount.current) {
+      if (!firstRun) {
         setItems([{ productId: '', productName: '', quantity: 0 }]);
       }
     }
-    isInitialMount.current = false;
-    // initialData chỉ dùng để mồi giá trị ban đầu (chặn bằng isInitialMount.current) — cố ý
+    // initialData chỉ dùng để mồi giá trị ban đầu (chặn bằng prefillApplied.current) — cố ý
     // KHÔNG thêm vào deps: initialData là prop object mới mỗi lần cha re-render, thêm vào sẽ
     // khiến effect chạy lại ngoài ý muốn và xoá mất các dòng item người dùng đang nhập dở.
     // eslint-disable-next-line react-hooks/exhaustive-deps

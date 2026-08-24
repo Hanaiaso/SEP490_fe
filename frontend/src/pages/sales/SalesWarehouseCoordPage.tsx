@@ -11,7 +11,6 @@ type WarehouseOrder = {
   orderCode: string;
   customer: string;
   items: number;
-  weight: string;
   packer: string;
   started: string;
   completed: string;
@@ -111,7 +110,6 @@ export default function SalesWarehouseCoordPage() {
           orderCode: o.orderCode,
           customer: o.customerName,
           items: o.totalQuantity || 1,
-          weight: `${((o.totalQuantity || 1) * 2.3).toFixed(1)}kg`,
           packer: o.fulfillmentStatus !== 'Unallocated' ? 'Nhân viên kho' : '',
           started: startedTime,
           completed: completedTime,
@@ -196,7 +194,6 @@ export default function SalesWarehouseCoordPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Khách hàng</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Sản phẩm</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Giá trị đơn</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-500">Trọng lượng</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Người đóng gói</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Bắt đầu</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-500">Hoàn thành</th>
@@ -207,12 +204,12 @@ export default function SalesWarehouseCoordPage() {
             <tbody className="divide-y divide-gray-50">
               {loading && (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-400">Đang tải dữ liệu tiến độ kho...</td>
+                  <td colSpan={9} className="py-8 text-center text-gray-400">Đang tải dữ liệu tiến độ kho...</td>
                 </tr>
               )}
               {!loading && orders.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-400">Không có đơn hàng nào cần phối hợp chuẩn bị.</td>
+                  <td colSpan={9} className="py-8 text-center text-gray-400">Không có đơn hàng nào cần phối hợp chuẩn bị.</td>
                 </tr>
               )}
               {orders.map((order) => (
@@ -224,7 +221,6 @@ export default function SalesWarehouseCoordPage() {
                   </td>
                   <td className="px-4 py-3 text-center font-medium text-gray-700">{order.items} sản phẩm</td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-700 whitespace-nowrap">{formatPrice(order.finalPayment)}</td>
-                  <td className="px-4 py-3 text-center text-gray-600">{order.weight}</td>
                   <td className="px-4 py-3">
                     {order.packer ? (
                       <div className="flex items-center gap-1.5">

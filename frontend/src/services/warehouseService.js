@@ -10,7 +10,12 @@ async function request(method, url, body) {
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    // ASP.NET Core's [ApiController] auto-validation (IValidatableObject, [EmailAddress], ...) trả về
+    // ValidationProblemDetails dạng { errors: { Field: ["msg"] } }, không có field message ở gốc —
+    // khác với exception thủ công trong service ({ message: "..." }). Gộp cả 2 dạng để không rơi về
+    // chuỗi chung chung "Lỗi 400" khi lỗi đến từ validate tự động.
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : '';
+    throw new Error(json.message || errors || `Lỗi ${res.status}`);
   }
 
   return json;
