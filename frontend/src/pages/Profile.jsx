@@ -171,7 +171,7 @@ function PersonalInfoTab({ user, onSuccess }) {
   const [updatingPassword, setUpdatingPassword] = useState(false)
 
 
-  const isPhoneMatchedAndVerified = !phoneNumber || (user?.isPhoneVerified && user?.phoneNumber === phoneNumber);
+  const isPhoneMatchedAndVerified = Boolean(phoneNumber) && user?.isPhoneVerified && user?.phoneNumber === phoneNumber;
 
   const fileInputRef = useRef(null)
 
@@ -466,6 +466,7 @@ function PersonalInfoTab({ user, onSuccess }) {
         isOpen={isVerifyPhoneOpen}
         onClose={() => setIsVerifyPhoneOpen(false)}
         currentPhone={phoneNumber}
+        onVerified={(verifiedPhone) => setPhoneNumber(verifiedPhone)}
       />
     </div>
   )
