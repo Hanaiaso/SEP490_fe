@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 const VN_PHONE_REGEX = /^0(3|5|7|8|9)[0-9]{8}$/
 
-export default function PhoneVerificationModal({ isOpen, onClose, currentPhone }) {
+export default function PhoneVerificationModal({ isOpen, onClose, currentPhone, onVerified }) {
   const { requestPhoneOtp, verifyPhoneOtp } = useAuth()
   
   const [step, setStep] = useState(1) // 1: Request OTP, 2: Verify OTP
@@ -71,6 +71,7 @@ export default function PhoneVerificationModal({ isOpen, onClose, currentPhone }
 
     if (result.success) {
       setSuccessMsg('Xác minh thành công!')
+      onVerified?.(phoneNumber)
       setTimeout(() => {
         onClose()
       }, 1500)
