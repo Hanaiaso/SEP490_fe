@@ -25,6 +25,8 @@ interface CEOPurchaseOrderCreateModalProps {
   editingPO?: PurchaseOrder | null;
 }
 
+const todayStr = new Date().toISOString().slice(0, 10);
+
 export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editingPO = null }: CEOPurchaseOrderCreateModalProps) {
   const isEdit = !!editingPO;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -175,7 +177,14 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
       if (!formData.warehouseId) {
         return alert("Vui lòng chọn Kho nhận hàng.");
       }
-      
+      if (formData.expectedDeliveryDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(formData.expectedDeliveryDate) < today) {
+          return alert('Ngày giao dự kiến không được ở trong quá khứ.');
+        }
+      }
+
       if (isEdit) {
         const hasUnmatched = items.some(i => !i.itemId);
         if (hasUnmatched) {
@@ -183,9 +192,42 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
         }
       }
 
-      const validItems = items.filter(i => i.itemId && Number(i.expectedQuantity) > 0);
-      if (validItems.length === 0) {
-        return alert(`Vui lòng chọn ít nhất 1 ${poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'} với số lượng > 0.`);
+      // Chỉ dòng đã chọn mặt hàng mới cần validate đầy đủ — dòng trống hoàn toàn (chưa chọn gì,
+      // vd. dòng mẫu mặc định khi mở modal) được bỏ qua âm thầm; dòng ĐÃ chọn nhưng sai số
+      // lượng/giá/đơn vị thì phải chặn + báo rõ, không được lặng lẽ rơi khỏi PO như trước.
+      const selectedItems = items.filter(i => i.itemId);
+      if (selectedItems.length === 0) {
+        return alert(`Vui lòng chọn ít nhất 1 ${poType === 'Product' ? 'sản phẩm' : 'nguyên liệu'}.`);
+      }
+
+      const itemLabel = (i: POItemDraft) => i.itemName || i.itemId;
+
+      const invalidQtyRows = selectedItems.filter(
+        i => !(Number.isInteger(Number(i.expectedQuantity)) && Number(i.expectedQuantity) > 0)
+      );
+      if (invalidQtyRows.length > 0) {
+        return alert(`Số lượng không hợp lệ (phải là số nguyên > 0) ở dòng: ${invalidQtyRows.map(itemLabel).join(', ')}.`);
+      }
+
+      const invalidPriceRows = selectedItems.filter(i => !(Number(i.unitPrice) > 0));
+      if (invalidPriceRows.length > 0) {
+        return alert(`Đơn giá phải lớn hơn 0 ở dòng: ${invalidPriceRows.map(itemLabel).join(', ')}.`);
+      }
+
+      const emptyUnitRows = selectedItems.filter(i => !i.unit || !i.unit.trim());
+      if (emptyUnitRows.length > 0) {
+        return alert(`Thiếu đơn vị tính ở dòng: ${emptyUnitRows.map(itemLabel).join(', ')}.`);
+      }
+
+      const seenIds = new Set<string>();
+      const dupeIds = new Set<string>();
+      for (const i of selectedItems) {
+        if (seenIds.has(i.itemId)) dupeIds.add(i.itemId);
+        seenIds.add(i.itemId);
+      }
+      if (dupeIds.size > 0) {
+        const dupeNames = [...new Set(selectedItems.filter(i => dupeIds.has(i.itemId)).map(itemLabel))];
+        return alert(`Mặt hàng bị chọn trùng ở nhiều dòng: ${dupeNames.join(', ')}. Vui lòng gộp lại thành 1 dòng hoặc xoá dòng thừa.`);
       }
 
       const payload: CreatePurchaseOrderRequest = {
@@ -194,12 +236,12 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
         expectedDeliveryDate: formData.expectedDeliveryDate || undefined,
         note: formData.note || undefined,
         deliveryTerms: formData.deliveryTerms || undefined,
-        items: validItems.map(i => ({
+        items: selectedItems.map(i => ({
           productId: poType === 'Product' ? i.itemId : undefined,
           materialId: poType === 'Material' ? i.itemId : undefined,
-          expectedQuantity: Number(i.expectedQuantity) || 1,
-          unitPrice: Number(i.unitPrice) || 0,
-          unit: i.unit || (poType === 'Product' ? 'Cái' : 'Kg'),
+          expectedQuantity: Number(i.expectedQuantity),
+          unitPrice: Number(i.unitPrice),
+          unit: i.unit.trim(),
           note: i.note || undefined
         }))
       };
@@ -377,11 +419,12 @@ export default function CEOPurchaseOrderCreateModal({ onClose, onSuccess, editin
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-gray-600">Ngày giao dự kiến</label>
-                  <input 
-                    type="date" 
-                    className="border rounded px-2.5 py-1.5 text-sm outline-none focus:border-blue-500" 
-                    value={formData.expectedDeliveryDate} 
-                    onChange={e => setFormData({...formData, expectedDeliveryDate: e.target.value})} 
+                  <input
+                    type="date"
+                    min={todayStr}
+                    className="border rounded px-2.5 py-1.5 text-sm outline-none focus:border-blue-500"
+                    value={formData.expectedDeliveryDate}
+                    onChange={e => setFormData({...formData, expectedDeliveryDate: e.target.value})}
                   />
                 </div>
 

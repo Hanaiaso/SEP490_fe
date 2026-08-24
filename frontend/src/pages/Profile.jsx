@@ -172,6 +172,10 @@ function PersonalInfoTab({ user, onSuccess }) {
 
 
   const isPhoneMatchedAndVerified = Boolean(phoneNumber) && user?.isPhoneVerified && user?.phoneNumber === phoneNumber;
+  // Chỉ bắt xác minh khi SĐT thực sự bị đổi so với số đang lưu — đổi tên/ảnh không đụng SĐT thì
+  // không cần xác minh lại (backend UpdateProfileAsync cũng không yêu cầu điều này).
+  const isPhoneChanged = phoneNumber !== (user?.phoneNumber || '');
+  const canSaveInfo = !isPhoneChanged || isPhoneMatchedAndVerified;
 
   const fileInputRef = useRef(null)
 
@@ -235,8 +239,8 @@ function PersonalInfoTab({ user, onSuccess }) {
       return
     }
     
-    if (!isPhoneMatchedAndVerified) {
-      alert('Vui lòng xác minh số điện thoại trước khi lưu thông tin.')
+    if (!canSaveInfo) {
+      alert('Số điện thoại đã thay đổi — vui lòng xác minh trước khi lưu thông tin.')
       return
     }
 
@@ -383,7 +387,7 @@ function PersonalInfoTab({ user, onSuccess }) {
         <Button
           className="rounded-full bg-gray-900 text-sm text-white hover:bg-gray-800 disabled:bg-gray-400"
           onClick={handleSaveInfo}
-          disabled={savingInfo || !isPhoneMatchedAndVerified}
+          disabled={savingInfo || !canSaveInfo}
         >
           {savingInfo ? 'Đang lưu...' : 'Lưu thông tin'}
         </Button>
