@@ -13,7 +13,8 @@ async function request(method, url, body) {
   const json = text ? JSON.parse(text) : {}
 
   if (!res.ok) {
-    throw new Error(json.message || `Lỗi ${res.status}`)
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : ''
+    throw new Error(json.message || errors || `Lỗi ${res.status}`)
   }
 
   return json;

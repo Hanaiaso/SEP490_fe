@@ -58,7 +58,8 @@ export async function exportGoodsIssueExcel(goodsIssueId, goodsIssueCode) {
   const res = await authFetch(`/goods-issues/${goodsIssueId}/export-excel`, { method: 'GET' });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : '';
+    throw new Error(json.message || errors || `Lỗi ${res.status}`);
   }
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
@@ -94,7 +95,8 @@ export async function completePacking(orderId, boxCount, totalWeightKg, evidence
   });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : '';
+    throw new Error(json.message || errors || `Lỗi ${res.status}`);
   }
   return res.json();
 }
@@ -128,7 +130,8 @@ export async function updateItemPickProgress(pickTaskId, productId, packedQty, i
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Lỗi ${res.status}`);
+    const errors = errorData.errors && typeof errorData.errors === 'object' ? Object.values(errorData.errors).flat().join(' ') : '';
+    throw new Error(errorData.message || errors || `Lỗi ${res.status}`);
   }
   return res.json();
 }
@@ -177,7 +180,8 @@ export async function uploadGoodsIssueProof(id, imageFile) {
   });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || `Lỗi ${res.status}`);
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : '';
+    throw new Error(json.message || errors || `Lỗi ${res.status}`);
   }
   return res.json();
 }
@@ -201,7 +205,8 @@ export async function receiveStockTransfer(id, formData) {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Lỗi ${res.status}`);
+    const errors = errorData.errors && typeof errorData.errors === 'object' ? Object.values(errorData.errors).flat().join(' ') : '';
+    throw new Error(errorData.message || errors || `Lỗi ${res.status}`);
   }
   return res.json();
 }

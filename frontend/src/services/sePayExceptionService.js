@@ -18,8 +18,9 @@ async function request(method, url, body) {
   const json = await res.json().catch(() => ({}))
 
   if (!res.ok) {
-    // Lấy code lỗi từ backend (format { code, message })
-    const err = new Error(json.message || `Lỗi ${res.status}`)
+    // Lấy code lỗi từ backend (format { code, message } hoặc ModelState { errors })
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : ''
+    const err = new Error(json.message || errors || `Lỗi ${res.status}`)
     err.code = json.code || 'UNKNOWN_ERROR'
     err.details = json.details
     throw err

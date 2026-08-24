@@ -12,7 +12,8 @@ async function request(method, url, body) {
   const json = await res.json().catch(() => ({}))
 
   if (!res.ok) {
-    throw new Error(json.message || json.detail || `Lỗi ${res.status}`)
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : ''
+    throw new Error(json.message || json.detail || errors || `Lỗi ${res.status}`)
   }
 
   return json
@@ -100,7 +101,8 @@ export async function downloadOfficialInvoicePdf(orderId) {
   const res = await authFetch(`/orders/${orderId}/invoice-pdf`, { method: 'GET' })
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
-    throw new Error(json.message || `Lỗi ${res.status}`)
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : ''
+    throw new Error(json.message || errors || `Lỗi ${res.status}`)
   }
   const blob = await res.blob()
   const url = window.URL.createObjectURL(blob)

@@ -12,7 +12,8 @@ async function request(method, url, body) {
   const json = await res.json().catch(() => ({}))
 
   if (!res.ok) {
-    throw new Error(json.message || json.detail || `Lỗi ${res.status}`)
+    const errors = json.errors && typeof json.errors === 'object' ? Object.values(json.errors).flat().join(' ') : ''
+    throw new Error(json.message || json.detail || errors || `Lỗi ${res.status}`)
   }
 
   return json
