@@ -70,6 +70,9 @@ export default function Products() {
         pageSize:   PAGE_SIZE,
         categoryId: selectedCategoryId ?? undefined,
         search:     searchText || undefined,
+        sortBy:     sortBy !== 'featured' ? sortBy : undefined,
+        minPrice:   minPrice || undefined,
+        maxPrice:   maxPrice || undefined,
       })
       setProducts(data.items ?? [])
       setTotalCount(data.totalCount ?? 0)
@@ -79,7 +82,7 @@ export default function Products() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, selectedCategoryId, searchText])
+  }, [currentPage, selectedCategoryId, searchText, sortBy, minPrice, maxPrice])
 
   useEffect(() => {
     fetchProducts()
@@ -115,26 +118,8 @@ export default function Products() {
     setCurrentPage(1)
   }
 
-  // Client-side sort & price filtering
-  const displayedProducts = [...products].sort((a, b) => {
-    switch (sortBy) {
-      case 'price-low':
-        return a.standardListedPrice - b.standardListedPrice
-      case 'price-high':
-        return b.standardListedPrice - a.standardListedPrice
-      case 'name':
-        return a.name.localeCompare(b.name)
-      default:
-        return 0
-    }
-  }).filter((p) => {
-    const price = p.standardListedPrice ?? 0
-    const min = minPrice ? Number(minPrice) : null
-    const max = maxPrice ? Number(maxPrice) : null
-    if (min !== null && price < min) return false
-    if (max !== null && price > max) return false
-    return true
-  })
+  // Sort & lọc giá đã thực hiện ở backend (page hiện tại luôn là kết quả cuối cùng)
+  const displayedProducts = products
 
   return (
     <div className="min-h-screen bg-white">
@@ -206,7 +191,10 @@ export default function Products() {
                 {/* Sort */}
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value)
+                    setCurrentPage(1)
+                  }}
                   className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
                 >
                   <option value="featured">Mặc định</option>
