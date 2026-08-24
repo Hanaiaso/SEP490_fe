@@ -27,14 +27,16 @@ async function request(method, url, body) {
 
 /**
  * Lấy danh sách sản phẩm có phân trang, lọc và tìm kiếm.
- * @param {{ page?, pageSize?, categoryId?, search? }} params
+ * @param {{ page?, pageSize?, categoryId?, search?, sortBy?, minPrice?, maxPrice? }} params
  * @returns {Promise<{ items, totalCount, page, pageSize, totalPages }>}
  */
-export async function getProducts({ page = 1, pageSize = 6, categoryId, search, sortBy } = {}) {
+export async function getProducts({ page = 1, pageSize = 6, categoryId, search, sortBy, minPrice, maxPrice } = {}) {
   const params = new URLSearchParams({ page, pageSize })
-  if (categoryId) params.set('categoryId', categoryId)
-  if (search)     params.set('search', search)
-  if (sortBy)     params.set('sortBy', sortBy)
+  if (categoryId)          params.set('categoryId', categoryId)
+  if (search)               params.set('search', search)
+  if (sortBy)               params.set('sortBy', sortBy)
+  if (minPrice !== undefined && minPrice !== null && minPrice !== '') params.set('minPrice', minPrice)
+  if (maxPrice !== undefined && maxPrice !== null && maxPrice !== '') params.set('maxPrice', maxPrice)
   return request('GET', `/products?${params.toString()}`)
 }
 
