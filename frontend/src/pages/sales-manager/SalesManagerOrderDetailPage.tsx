@@ -139,6 +139,10 @@ export default function SalesManagerOrderDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  const [showCodRejectModal, setShowCodRejectModal] = useState(false);
+  const [codRejectReason, setCodRejectReason] = useState('');
+  const [isRejectingCod, setIsRejectingCod] = useState(false);
+
   const [showDirectCancelModal, setShowDirectCancelModal] = useState(false);
   const [directCancelReason, setDirectCancelReason] = useState('');
   const [showDirectConfirmModal, setShowDirectConfirmModal] = useState(false);
@@ -203,6 +207,33 @@ export default function SalesManagerOrderDetailPage() {
       alert(getErrorMessage(err, 'Lỗi không xác định.'));
     } finally {
       setIsConfirming(false);
+    }
+  };
+
+  const handleRejectCodOrder = async (reason: string) => {
+    if (!order) return;
+    setIsRejectingCod(true);
+    try {
+      const response = await authFetch(`/orders/sales/${order.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(getErrorMessage(err, 'Lỗi khi từ chối đơn hàng.'));
+      }
+
+      alert('Đã từ chối đơn hàng thành công!');
+      const res = await authFetch(`/orders/sales/${id}`);
+      const data = await res.json();
+      setOrder(data);
+      setTimeLeft(null);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Lỗi không xác định.'));
+    } finally {
+      setIsRejectingCod(false);
     }
   };
 
@@ -451,7 +482,9 @@ export default function SalesManagerOrderDetailPage() {
                   </div>
                 )}
                 <button
-                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  onClick={() => setShowCodRejectModal(true)}
+                  disabled={isRejectingCod || timeLeft === 0}
+                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <XCircle className="w-3.5 h-3.5 text-red-500" />
                   Từ chối
@@ -907,6 +940,44 @@ export default function SalesManagerOrderDetailPage() {
                   }
                   setShowRejectModal(false);
                   handleProcessCancelRequest(false, rejectReason);
+                }}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCodRejectModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold text-gray-900">Từ chối đơn hàng COD</h3>
+            <p className="mb-4 text-sm text-gray-500">Vui lòng nhập lý do từ chối đơn hàng này. Đơn sẽ chuyển sang trạng thái Đã hủy và tồn kho đã giữ chỗ sẽ được giải phóng.</p>
+            <textarea
+              className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              rows={3}
+              placeholder="Nhập lý do từ chối..."
+              value={codRejectReason}
+              onChange={(e) => setCodRejectReason(e.target.value)}
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCodRejectModal(false)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  if (!codRejectReason.trim()) {
+                    alert('Vui lòng nhập lý do');
+                    return;
+                  }
+                  setShowCodRejectModal(false);
+                  handleRejectCodOrder(codRejectReason);
+                  setCodRejectReason('');
                 }}
                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >

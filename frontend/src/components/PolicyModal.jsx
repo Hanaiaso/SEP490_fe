@@ -96,7 +96,7 @@ export default function PolicyModal({ isOpen, type = 'privacy', onClose }) {
                   </h4>
                   <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 text-xs space-y-1">
                     <p className="font-semibold text-gray-900">CÔNG TY TNHH SẢN XUẤT & THƯƠNG MẠI BAO BÌ VIỆT TIẾN</p>
-                    <p>📍 Địa chỉ: Thôn Lê Lợi, Xã Nam Đông Hưng, Tỉnh Hưng Yên</p>
+                    <p>📍 Địa chỉ: Số 5, Đường Lê Lợi, TP. Thái Bình</p>
                     <p>📞 Hotline: 0398 996 177 | ✉️ Email: lienhe@viettien.store</p>
                   </div>
                 </div>

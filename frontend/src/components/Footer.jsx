@@ -63,7 +63,7 @@ export default function Footer() {
               <ul className="space-y-3 text-sm text-gray-400">
                 <li className="flex items-start gap-3">
                   <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
-                  <span>Thôn Lê Lợi, Xã Nam Đông Hưng, Tỉnh Hưng Yên</span>
+                  <span>Số 5, Đường Lê Lợi, TP. Thái Bình</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-5 w-5 shrink-0 text-emerald-400" />
