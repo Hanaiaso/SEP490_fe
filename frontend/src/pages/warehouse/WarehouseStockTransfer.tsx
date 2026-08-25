@@ -121,6 +121,20 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
   
   const handleCreate = async () => {
     if (!formData.sourceWarehouseId || !formData.targetWarehouseId) return alert('Vui lòng chọn kho nguồn và kho đích!');
+
+    const invalidQtyItem = items.find(i => i.productId && i.quantity <= 0);
+    if (invalidQtyItem) return alert(`Dòng "${invalidQtyItem.productName || invalidQtyItem.productId}" có số lượng không hợp lệ, vui lòng sửa lại hoặc xoá dòng.`);
+
+    const overStockItem = items.find(i => {
+      if (!i.productId || i.quantity <= 0) return false;
+      const inv = inventory.find(x => x.productId === i.productId);
+      return inv && i.quantity > inv.onHandQuantity;
+    });
+    if (overStockItem) {
+      const inv = inventory.find(x => x.productId === overStockItem.productId);
+      return alert(`Số lượng chuyển của "${overStockItem.productName || overStockItem.productId}" (${overStockItem.quantity}) vượt quá tồn kho hiện có (${inv?.onHandQuantity ?? 0}).`);
+    }
+
     try {
       const payload = {
         sourceWarehouseId: formData.sourceWarehouseId,
@@ -132,7 +146,7 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
         items: items.filter(i => i.productId && i.quantity > 0).map(i => ({ productId: i.productId, quantity: i.quantity }))
       };
       if (payload.items.length === 0) return alert('Vui lòng thêm ít nhất 1 sản phẩm với số lượng hợp lệ!');
-      
+
       const { createStockTransfer } = await import('../../services/warehouseService.js');
       await createStockTransfer(payload);
       alert('Tạo lệnh chuyển kho thành công!');
@@ -148,7 +162,7 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
           <label className="text-gray-700 font-semibold flex items-center gap-1 text-xs">
             Kho nguồn <span className="text-red-500 font-bold ml-0.5">*</span>
           </label>
-          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.sourceWarehouseId} onChange={e => setFormData({...formData, sourceWarehouseId: e.target.value})}>
+          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.sourceWarehouseId} onChange={e => setFormData(fd => ({ ...fd, sourceWarehouseId: e.target.value, targetWarehouseId: fd.targetWarehouseId === e.target.value ? '' : fd.targetWarehouseId }))}>
             <option value="">-- Chọn Kho nguồn --</option>
             {warehouses.filter(w => w.id !== formData.targetWarehouseId).map(w => (
               <option key={w.id} value={w.id}>{w.name}</option>
@@ -159,7 +173,7 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
           <label className="text-gray-700 font-semibold flex items-center gap-1 text-xs">
             Kho đích <span className="text-red-500 font-bold ml-0.5">*</span>
           </label>
-          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.targetWarehouseId} onChange={e => setFormData({...formData, targetWarehouseId: e.target.value})}>
+          <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" value={formData.targetWarehouseId} onChange={e => setFormData(fd => ({ ...fd, targetWarehouseId: e.target.value, sourceWarehouseId: fd.sourceWarehouseId === e.target.value ? '' : fd.sourceWarehouseId }))}>
             <option value="">-- Chọn Kho đích --</option>
             {warehouses.filter(w => w.id !== formData.sourceWarehouseId).map(w => (
               <option key={w.id} value={w.id}>{w.name}</option>
@@ -204,18 +218,21 @@ function CreateForm({ onClose, onCreated, warehouses, staffUsers, initialData }:
             <tbody className="divide-y divide-gray-100 bg-white">
               {items.map((item, idx) => {
                 const selectedInv = inventory.find(inv => inv.productId === item.productId);
+                const usedElsewhere = new Set(items.filter((_, x) => x !== idx).map(i => i.productId).filter(Boolean));
+                const rowOptions = inventory.filter(inv => inv.productId === item.productId || !(inv.productId && usedElsewhere.has(inv.productId)));
+                const overStock = !!(selectedInv && item.quantity > selectedInv.onHandQuantity);
                 return (
                   <tr key={idx} className="hover:bg-gray-50/50">
                     <td className="px-3 py-3">
                       <select className="w-full h-10 text-sm border border-gray-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value={item.productId} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, productId: e.target.value, productName: inventory.find(inv=>inv.productId === e.target.value)?.productName || '' } : i))}>
                         <option value="">-- Chọn sản phẩm --</option>
-                        {inventory.map(inv => (
+                        {rowOptions.map(inv => (
                           <option key={inv.productId} value={inv.productId}>{inv.productName || inv.productId}</option>
                         ))}
                       </select>
                     </td>
                     <td className="px-3 py-3 text-center font-semibold text-gray-700">{selectedInv ? selectedInv.onHandQuantity : '—'}</td>
-                    <td className="px-3 py-3 text-center"><Input type="number" className="h-9 text-sm text-center w-28 mx-auto border-gray-300 rounded-lg" value={item.quantity} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, quantity: +e.target.value } : i))} max={selectedInv ? selectedInv.onHandQuantity : undefined} /></td>
+                    <td className="px-3 py-3 text-center"><Input type="number" min="0" className="h-9 text-sm text-center w-28 mx-auto border-gray-300 rounded-lg" style={overStock ? { borderColor: ERROR, color: ERROR } : undefined} value={item.quantity} onChange={e => setItems(p => p.map((i, x) => x === idx ? { ...i, quantity: +e.target.value } : i))} max={selectedInv ? selectedInv.onHandQuantity : undefined} /></td>
                     <td className="px-3 py-3 text-center"><button className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors" onClick={() => setItems(p => p.filter((_, x) => x !== idx))}><X className="w-5 h-5" /></button></td>
                   </tr>
                 )
