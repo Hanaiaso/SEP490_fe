@@ -4,7 +4,8 @@ import { Button } from '../../components/sales-ui/button';
 import { Search, Download, RefreshCw, ArrowUpFromLine, ArrowDownToLine, Layers, Eye, FileText, CheckCircle, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getGoodsIssues } from '../../services/warehouseService';
-import type { GoodsIssue } from '../../types/warehouse';
+import { getAllGoodsReceipts } from '../../services/purchaseOrderService.js';
+import type { GoodsIssue, GoodsReceipt } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 
@@ -19,8 +20,6 @@ interface HistoryLine {
 interface HistoryItem {
   id: string;
   realId: string;
-  // 'receive' được UI hỗ trợ (bộ lọc + badge) nhưng fetchHistory hiện chỉ gọi getGoodsIssues
-  // (phiếu XUẤT), chưa có nguồn dữ liệu nhập kho NVL nào gắn vào type này.
   type: 'issue' | 'reversal' | 'receive';
   warehouse: string;
   department: string;
@@ -47,9 +46,12 @@ export default function WarehouseMaterialHistory() {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const res: GoodsIssue[] = await getGoodsIssues('ProductionMaterial');
+      const [issuesRes, receiptsRes] = await Promise.all([
+        getGoodsIssues('ProductionMaterial') as Promise<GoodsIssue[]>,
+        getAllGoodsReceipts('Posted') as Promise<GoodsReceipt[]>
+      ]);
 
-      const mapped: HistoryItem[] = (res || []).map((gi) => {
+      const issueItems: HistoryItem[] = (issuesRes || []).map((gi) => {
         const isReversal = gi.isReversal || gi.status?.toLowerCase() === 'reversed';
         const typeStr = isReversal ? 'reversal' : 'issue';
 
@@ -79,7 +81,38 @@ export default function WarehouseMaterialHistory() {
         };
       });
 
-      setHistoryItems(mapped);
+      // Nhập kho NVL không có nghiệp vụ riêng — nó là phần Đạt (accepted) của các dòng NVL trong
+      // phiếu nhập hàng NCC (Goods Receipt) đã Posted. Chỉ những phiếu có ít nhất 1 dòng NVL mới
+      // xuất hiện ở đây; dòng Sản phẩm trong cùng phiếu bị bỏ qua vì không thuộc phạm vi trang này.
+      const receiveItems: HistoryItem[] = (receiptsRes || [])
+        .map((gr) => ({ ...gr, materialLines: (gr.items || []).filter((i) => i.itemType === 'Material') }))
+        .filter((gr) => gr.materialLines.length > 0)
+        .map((gr) => ({
+          id: gr.code || gr.id,
+          realId: gr.id,
+          type: 'receive' as const,
+          warehouse: 'Kho chính',
+          department: `Nhập từ PO ${gr.purchaseOrderCode}`,
+          recipient: gr.receivedByUserName || 'Chưa ghi nhận',
+          paperDoc: gr.code || '—',
+          user: gr.receivedByUserName || 'Hệ thống',
+          createdAt: gr.receivedDate ? new Date(gr.receivedDate).toLocaleString('vi-VN') : 'N/A',
+          issueDate: gr.receivedDate ? new Date(gr.receivedDate).toLocaleString('vi-VN') : 'Chưa đăng sổ',
+          status: gr.status,
+          imageProofUrl: gr.imageProofUrl,
+          usagePurpose: 'Nhập kho nguyên vật liệu từ nhà cung cấp',
+          itemsCount: gr.materialLines.length,
+          totalQty: gr.materialLines.reduce((acc, curr) => acc + (curr.acceptedQuantity || 0), 0),
+          lines: gr.materialLines.map((i) => ({
+            sku: i.itemSku || '-',
+            materialName: i.itemName || 'Nguyên vật liệu',
+            unit: 'Cái',
+            quantity: i.acceptedQuantity,
+            note: i.note
+          }))
+        }));
+
+      setHistoryItems([...issueItems, ...receiveItems]);
     } catch (err: unknown) {
       console.error('Lỗi khi tải lịch sử xuất nhập NVL:', err);
     } finally {
@@ -291,9 +324,11 @@ export default function WarehouseMaterialHistory() {
               <DialogTitle className="text-sm font-bold flex items-center justify-between border-b pb-3">
                 <span>Chi tiết nhật ký xuất nhập — {selectedDetail.id}</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                  selectedDetail.type === 'issue' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                  selectedDetail.type === 'issue' ? 'bg-amber-100 text-amber-800' :
+                  selectedDetail.type === 'receive' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                 }`}>
-                  {selectedDetail.type === 'issue' ? 'Xuất kho sản xuất' : 'Reversal đảo chứng từ'}
+                  {selectedDetail.type === 'issue' ? 'Xuất kho sản xuất' :
+                    selectedDetail.type === 'receive' ? 'Nhập kho nguyên liệu' : 'Reversal đảo chứng từ'}
                 </span>
               </DialogTitle>
             </DialogHeader>

@@ -36,7 +36,7 @@ interface FulfillmentOrder {
   priority: 'urgent' | 'high' | 'normal';
   delivery: string; allocatedQty: number; reservedQty: number;
   pickStatus: string; packStatus: string; consolidation: string; handover: string;
-  orderDate: string; allocatedWarehouse: string; orderProgress: number; finalPayment: number;
+  orderDate: string; confirmedAtRaw: string; allocatedWarehouse: string; orderProgress: number; finalPayment: number;
   status: 'waiting' | 'picking' | 'packing' | 'ready' | 'transferred' | 'cancelled';
   products: { sku: string; name: string; physicalStock: number; orderedQty: number }[];
   timeline: { time: string; event: string; user: string }[];
@@ -94,6 +94,7 @@ export default function WarehouseFulfillmentOrders() {
         consolidation: 'Chưa',
         handover: 'Chưa',
         orderDate: new Date(d.confirmedAt || Date.now()).toLocaleDateString('vi-VN'),
+        confirmedAtRaw: d.confirmedAt,
         allocatedWarehouse: d.allocatedWarehouse || 'Kho mặc định',
         orderProgress: d.orderProgress || 0,
         finalPayment: d.finalPayment || 0,
@@ -118,7 +119,11 @@ export default function WarehouseFulfillmentOrders() {
     const ms = !q || o.id.toLowerCase().includes(q) || o.soNo.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q);
     const mst = statusFilter === 'all' || o.status === statusFilter;
     const mp  = priorityFilter === 'all' || o.priority === priorityFilter;
-    return ms && mst && mp;
+    const mw = !warehouseFilter || o.allocatedWarehouse === warehouseFilter;
+    const confirmed = o.confirmedAtRaw ? new Date(o.confirmedAtRaw) : null;
+    const mdf = !dateFrom || (confirmed !== null && confirmed >= new Date(dateFrom));
+    const mdt = !dateTo || (confirmed !== null && confirmed <= new Date(`${dateTo}T23:59:59.999`));
+    return ms && mst && mp && mw && mdf && mdt;
   });
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);

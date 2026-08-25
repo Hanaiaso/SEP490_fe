@@ -38,6 +38,7 @@ interface PickTask {
   id: string; orderId?: string; fulfillmentId: string; warehouse: string; picker: string; orderCode: string;
   priority: 'urgent' | 'high' | 'normal';
   totalItems: number; pickedItems: number; packingStatus: string;
+  createdAt: string;
   startedTime: string; completedTime: string;
   status: 'waiting' | 'picking' | 'picked' | 'packing' | 'completed' | 'cancelled';
   boxCount: number; weight: string; packingNotes: string; orderProgress: number; finalPayment: number;
@@ -101,6 +102,7 @@ export default function WarehousePickPacking() {
           totalItems: tRequested,
           pickedItems: tPacked,
           packingStatus: 'Chưa bắt đầu',
+          createdAt: d.createdAt,
           startedTime: '—',
           completedTime: '—',
           status: d.status.toLowerCase() === 'pending' ? 'waiting' : d.status.toLowerCase() === 'picking' ? 'picking' : d.status.toLowerCase() === 'completed' ? 'completed' : 'picking',
@@ -145,7 +147,11 @@ export default function WarehousePickPacking() {
     const q = search.toLowerCase();
     const ms = !q || t.id.toLowerCase().includes(q) || t.fulfillmentId.toLowerCase().includes(q) || t.picker.toLowerCase().includes(q);
     const mst = statusFilter === 'all' || t.status === statusFilter;
-    return ms && mst;
+    const mw = !warehouseFilter || t.warehouse === warehouseFilter;
+    const created = t.createdAt ? new Date(t.createdAt) : null;
+    const mdf = !dateFrom || (created !== null && created >= new Date(dateFrom));
+    const mdt = !dateTo || (created !== null && created <= new Date(`${dateTo}T23:59:59.999`));
+    return ms && mst && mw && mdf && mdt;
   });
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);

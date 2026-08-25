@@ -230,6 +230,7 @@ export interface PickTask {
   warehouseName: string;
   warehouseCode: string;
   status: string;
+  createdAt: string;
   items: WarehouseOrderItem[];
 }
 

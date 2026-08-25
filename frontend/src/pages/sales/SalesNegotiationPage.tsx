@@ -33,6 +33,7 @@ export default function SalesNegotiationPage() {
   const [newPrices, setNewPrices] = useState<Record<string, string>>({});
   const [salesNote, setSalesNote] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [search, setSearch] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
   // Chỉ join phòng chat khi báo giá đã được CHÍNH Sale này "Nhận xử lý" (salesStaffId === user.id) —
@@ -130,6 +131,10 @@ export default function SalesNegotiationPage() {
   const totalProposed = latestVersion ? latestVersion.proposedTotal : totalOriginal;
   const discount = totalOriginal - totalProposed;
 
+  const filteredQuotations = quotationsList.filter(q =>
+    !search.trim() || (q.customerName || '').toLowerCase().includes(search.trim().toLowerCase())
+  );
+
   return (
     <div className="flex h-full flex-col bg-[#F5F7FA]">
       <div className="flex h-11 flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-5">
@@ -149,15 +154,15 @@ export default function SalesNegotiationPage() {
               {quotationsList.length}
             </span>
           </div>
-          <Input className="h-7 text-xs bg-gray-50" placeholder="Tìm kiếm..." />
+          <Input className="h-7 text-xs bg-gray-50" placeholder="Tìm kiếm..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex-1 overflow-y-auto">
-          {quotationsList.length === 0 ? (
+          {filteredQuotations.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-xs text-gray-400">
-              Không có báo giá nào
+              {quotationsList.length === 0 ? 'Không có báo giá nào' : 'Không tìm thấy báo giá phù hợp'}
             </div>
           ) : (
-            quotationsList.map(q => {
+            filteredQuotations.map(q => {
               const cfg = STATUS_CONFIG[q.status];
               const isActive = active?.id === q.id;
               return (
