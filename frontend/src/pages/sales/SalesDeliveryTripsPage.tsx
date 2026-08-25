@@ -1,10 +1,10 @@
 import { getErrorMessage } from '../../lib/errors';
 import { authFetch } from '../../services/httpClient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Truck, Plus, Play, ArrowRight, X, Package, Clock, AlertTriangle } from 'lucide-react';
+import { Truck, Plus, Play, ArrowRight, X, Package, Clock, AlertTriangle, Ban } from 'lucide-react';
 import { getVehicles } from '../../services/vehicleService.js';
 import {
-  getDeliveryTrips, createDeliveryTrip, startLoadingTrip, addOrdersToTrip, removeOrderFromTrip, startTrip,
+  getDeliveryTrips, createDeliveryTrip, startLoadingTrip, addOrdersToTrip, removeOrderFromTrip, startTrip, cancelTrip,
 } from '../../services/deliveryTripService.js';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import WeightBar from '../../components/delivery/WeightBar';
@@ -69,6 +69,7 @@ export default function SalesDeliveryTripsPage() {
   const [addOrderIds, setAddOrderIds] = useState<string[]>([]);
 
   const [confirmDepartTripId, setConfirmDepartTripId] = useState<string | null>(null);
+  const [confirmCancelTripId, setConfirmCancelTripId] = useState<string | null>(null);
 
   const fetchTrips = useCallback(async () => {
     setLoading(true);
@@ -124,6 +125,10 @@ export default function SalesDeliveryTripsPage() {
 
   const handleStartLoading = async () => {
     if (!loadingModalTripId) return;
+    const now = new Date();
+    if (plannedDeparture && new Date(plannedDeparture) < now) return alert('Giờ xuất phát dự kiến không được ở trong quá khứ.');
+    if (plannedArrival && new Date(plannedArrival) < now) return alert('Giờ đến dự kiến không được ở trong quá khứ.');
+    if (plannedDeparture && plannedArrival && new Date(plannedArrival) < new Date(plannedDeparture)) return alert('Giờ đến dự kiến không được trước giờ xuất phát dự kiến.');
     try {
       await startLoadingTrip(loadingModalTripId, {
         plannedDepartureAt: plannedDeparture || undefined,
@@ -134,6 +139,20 @@ export default function SalesDeliveryTripsPage() {
       fetchTrips();
     } catch (e: unknown) {
       alert('Lỗi: ' + getErrorMessage(e));
+    }
+  };
+
+  const handleCancelTrip = async () => {
+    if (!confirmCancelTripId) return;
+    try {
+      await cancelTrip(confirmCancelTripId);
+      alert('Đã hủy chuyến giao hàng. Các đơn trong chuyến có thể xếp sang chuyến/xe khác.');
+      setConfirmCancelTripId(null);
+      fetchTrips();
+      fetchUnscheduledOrders();
+    } catch (e: unknown) {
+      alert('Lỗi: ' + getErrorMessage(e));
+      setConfirmCancelTripId(null);
     }
   };
 
@@ -174,6 +193,7 @@ export default function SalesDeliveryTripsPage() {
   };
 
   const departingTrip = trips.find((t) => t.id === confirmDepartTripId);
+  const cancelingTrip = trips.find((t) => t.id === confirmCancelTripId);
 
   return (
     <div className="flex flex-col min-h-full bg-gray-50">
@@ -269,12 +289,20 @@ export default function SalesDeliveryTripsPage() {
                       <Plus className="w-3.5 h-3.5" /> Thêm đơn
                     </button>
                     <button
-                      className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded bg-blue-600 hover:bg-blue-700 ml-auto"
+                      className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded bg-blue-600 hover:bg-blue-700"
                       onClick={() => setConfirmDepartTripId(trip.id)}
                     >
                       <Play className="w-3.5 h-3.5" /> Xuất phát
                     </button>
                   </>
+                )}
+                {(trip.status === 'Scheduled' || trip.status === 'Loading') && (
+                  <button
+                    className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-red-600 rounded border border-red-200 hover:bg-red-50 ml-auto"
+                    onClick={() => setConfirmCancelTripId(trip.id)}
+                  >
+                    <Ban className="w-3.5 h-3.5" /> Hủy chuyến
+                  </button>
                 )}
               </div>
             </div>
@@ -376,11 +404,11 @@ export default function SalesDeliveryTripsPage() {
               <p className="text-xs text-gray-500">Nhập giờ xuất phát / đến dự kiến (tuỳ chọn) — sẽ hiển thị cho khách hàng.</p>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Giờ xuất phát dự kiến</label>
-                <input type="datetime-local" className="border rounded px-3 py-2 text-sm" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
+                <input type="datetime-local" min={formatDateTimeLocal(new Date().toISOString())} className="border rounded px-3 py-2 text-sm" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Giờ đến dự kiến</label>
-                <input type="datetime-local" className="border rounded px-3 py-2 text-sm" value={plannedArrival} onChange={(e) => setPlannedArrival(e.target.value)} />
+                <input type="datetime-local" min={plannedDeparture || formatDateTimeLocal(new Date().toISOString())} className="border rounded px-3 py-2 text-sm" value={plannedArrival} onChange={(e) => setPlannedArrival(e.target.value)} />
               </div>
               <div className="flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setLoadingModalTripId(null)} className="px-4 py-2 border rounded text-sm bg-gray-50 hover:bg-gray-100 font-medium">Hủy</button>
@@ -433,6 +461,16 @@ export default function SalesDeliveryTripsPage() {
         cancelText="Hủy"
         onConfirm={handleDepart}
         onCancel={() => setConfirmDepartTripId(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmCancelTripId}
+        title="Xác nhận hủy chuyến"
+        message={cancelingTrip ? `Hủy chuyến Xe ${cancelingTrip.vehicleNumber} · Ca ${cancelingTrip.shift} với ${cancelingTrip.orderIds.length} đơn hàng? Toàn bộ đơn trong chuyến sẽ được nhả về danh sách chờ để xếp sang chuyến/xe khác.` : ''}
+        confirmText="Hủy chuyến"
+        cancelText="Đóng"
+        onConfirm={handleCancelTrip}
+        onCancel={() => setConfirmCancelTripId(null)}
       />
     </div>
   );

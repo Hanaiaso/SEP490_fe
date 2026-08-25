@@ -71,6 +71,7 @@ export default function WarehouseQuarantine() {
   const [dispatchLoading, setDispatchLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [dispatchQty, setDispatchQty] = useState<number | ''>('');
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -93,17 +94,18 @@ export default function WarehouseQuarantine() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const dispatch = async (id: string, action: 'available' | 'damaged', notes?: string) => {
+  const dispatch = async (id: string, action: 'available' | 'damaged', notes?: string, quantity?: number) => {
     setDispatchLoading(id);
     try {
       const res = await api(`/api/warehouse-management/quarantine/${id}/dispatch`, {
         method: 'POST',
-        body: JSON.stringify({ action, notes: notes || '' }),
+        body: JSON.stringify({ action, notes: notes || '', ...(quantity ? { quantity } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       showToast(data.message || 'Xét duyệt thành công!');
       setDetail(null);
+      setDispatchQty('');
       await fetchItems();
     } catch (err: unknown) {
       showToast(getErrorMessage(err, 'Có lỗi xảy ra.'), 'error');
@@ -237,7 +239,7 @@ export default function WarehouseQuarantine() {
                   <td className="px-3 py-2.5 text-center"><Badge status={d.status} /></td>
                   <td className="px-3 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={() => setDetail(d)}>
+                      <button className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onClick={() => { setDetail(d); setDispatchQty(d.quantity); }}>
                         <Eye className="w-3.5 h-3.5" />
                       </button>
                       {d.status === 'Waiting' && (
@@ -314,28 +316,46 @@ export default function WarehouseQuarantine() {
                 </div>
               </div>
 
-              {/* Action buttons (chỉ hiện nếu Waiting) */}
+              {/* Action buttons (chỉ hiện nếu Waiting) — hỗ trợ xử lý từng phần khi trong lô có cả
+                  hàng đạt lẫn hàng hỏng (vd 5 cái, chỉ 1 hỏng): nhập số lượng nhỏ hơn tổng để tách
+                  đúng phần đó ra, phần còn lại vẫn ở Chờ kiểm định để duyệt tiếp theo kết quả khác. */}
               {detail.status === 'Waiting' && (
-                <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs gap-1.5"
-                    style={{ backgroundColor: SUCCESS }}
-                    onClick={() => dispatch(detail.id, 'available')}
-                    disabled={dispatchLoading === detail.id}
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" /> Chuyển Khả dụng
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs gap-1.5"
-                    style={{ backgroundColor: WARNING }}
-                    onClick={() => dispatch(detail.id, 'damaged')}
-                    disabled={dispatchLoading === detail.id}
-                  >
-                    <Archive className="w-3.5 h-3.5" /> Chuyển Hư hỏng
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
+                <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <label className="text-gray-500 whitespace-nowrap">Số lượng xử lý (còn lại {detail.quantity}):</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={detail.quantity}
+                      className="w-20 h-7 text-xs border border-gray-300 rounded px-2"
+                      value={dispatchQty}
+                      onChange={(e) => setDispatchQty(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                    {dispatchQty !== '' && dispatchQty < detail.quantity && (
+                      <span className="text-[11px]" style={{ color: WARNING }}>Còn lại {detail.quantity - dispatchQty} sẽ giữ Chờ kiểm định</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      style={{ backgroundColor: SUCCESS }}
+                      onClick={() => dispatch(detail.id, 'available', undefined, dispatchQty === '' ? undefined : dispatchQty)}
+                      disabled={dispatchLoading === detail.id || dispatchQty === '' || dispatchQty < 1 || dispatchQty > detail.quantity}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" /> Chuyển Khả dụng
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      style={{ backgroundColor: WARNING }}
+                      onClick={() => dispatch(detail.id, 'damaged', undefined, dispatchQty === '' ? undefined : dispatchQty)}
+                      disabled={dispatchLoading === detail.id || dispatchQty === '' || dispatchQty < 1 || dispatchQty > detail.quantity}
+                    >
+                      <Archive className="w-3.5 h-3.5" /> Chuyển Hư hỏng
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs ml-auto" onClick={() => setDetail(null)}>Đóng</Button>
+                  </div>
                 </div>
               )}
               {detail.status !== 'Waiting' && (

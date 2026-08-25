@@ -46,6 +46,11 @@ export async function startTrip(id) {
   return fetchWithToken('POST', `/delivery/trips/${id}/start`);
 }
 
+/** Hủy cả chuyến (chưa xuất phát) — nhả toàn bộ đơn về NotScheduled để xếp sang chuyến/xe khác. */
+export async function cancelTrip(id) {
+  return fetchWithToken('POST', `/delivery/trips/${id}/cancel`);
+}
+
 /**
  * Số việc chờ xử lý cho từng mục con "Giao hàng" ở sidebar Sales (badge) — cho Sale thấy trực
  * quan chỗ nào có việc cần làm mà không phải mở từng trang.
