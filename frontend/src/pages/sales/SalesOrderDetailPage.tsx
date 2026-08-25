@@ -302,6 +302,11 @@ export default function SalesOrderDetailPage() {
   const deliveryMeta = DELIVERY_STATUS[order.deliveryStatus || ''] || { label: order.deliveryStatus || '--', color: '#6B7280', bg: '#F3F4F6' };
 
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+  // order.totalAmount là tổng tiền TRƯỚC chiết khấu đàm phán (dùng cho khối "Thanh toán": Tạm tính -
+  // Chiết khấu + VAT = Tổng thanh toán). Khối "Chi tiết sản phẩm" hiển thị priceSnapshot/lineTotal đã
+  // là giá SAU đàm phán per-line, nên phải tự cộng lineTotal — dùng lại order.totalAmount ở đây sẽ ra
+  // số lớn hơn tổng các dòng đang hiển thị, gây hiểu nhầm là dữ liệu sai lệch.
+  const totalLineAmount = order.items.reduce((s, i) => s + i.lineTotal, 0);
   const failedDeliveryCount = order.failedDeliveryCount ?? 0;
   const amountPaid = order.amountPaid ?? 0;
 
@@ -816,7 +821,7 @@ export default function SalesOrderDetailPage() {
                   <div className="text-right">
                     <span className="text-xs text-slate-400 mr-2">Tổng tiền hàng:</span>
                     <span className="text-lg font-extrabold tabular-nums" style={{ color: PRIMARY }}>
-                      {formatPrice(order.totalAmount)} ₫
+                      {formatPrice(totalLineAmount)} ₫
                     </span>
                   </div>
                 </div>
