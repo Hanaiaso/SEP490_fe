@@ -15,6 +15,7 @@ const completePickTask = vi.fn()
 const updateItemPickProgress = vi.fn()
 const completePacking = vi.fn()
 const acceptPickTask = vi.fn()
+const getWarehouses = vi.fn()
 
 vi.mock('../../../services/warehouseService.js', () => ({
   getPickTasks: (...args: unknown[]) => getPickTasks(...args),
@@ -23,6 +24,7 @@ vi.mock('../../../services/warehouseService.js', () => ({
   updateItemPickProgress: (...args: unknown[]) => updateItemPickProgress(...args),
   completePacking: (...args: unknown[]) => completePacking(...args),
   acceptPickTask: (...args: unknown[]) => acceptPickTask(...args),
+  getWarehouses: (...args: unknown[]) => getWarehouses(...args),
 }))
 
 const TASK_LIST = [
@@ -86,6 +88,7 @@ describe('WarehousePickPacking · bằng chứng đóng gói bắt buộc + xác
     completePickTask.mockResolvedValue({})
     updateItemPickProgress.mockResolvedValue({})
     completePacking.mockResolvedValue({})
+    getWarehouses.mockResolvedValue([{ id: 'wh-1', name: 'Kho Hà Nội', code: 'WH-HN', locations: [] }])
     vi.spyOn(window, 'alert').mockImplementation(() => {})
   })
 

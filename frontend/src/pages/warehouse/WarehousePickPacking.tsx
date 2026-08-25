@@ -6,7 +6,7 @@ import { Search, Eye, Download, RefreshCw, Play, CheckCircle, Upload, Package, S
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import CameraCapture from '../../components/ui/CameraCapture';
-import type { PickTask as ApiPickTask, WarehouseOrderDetail } from '../../types/warehouse';
+import type { PickTask as ApiPickTask, WarehouseOrderDetail, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -74,6 +74,7 @@ export default function WarehousePickPacking() {
   const [detail, setDetail] = useState<PickTask | null>(null);
   const [tasks, setTasks] = useState<PickTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   const [uploadingTask, setUploadingTask] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -134,6 +135,10 @@ export default function WarehousePickPacking() {
 
   React.useEffect(() => {
     fetchTasks();
+    (async () => {
+      const { getWarehouses } = await import('../../services/warehouseService.js');
+      getWarehouses().then((res: Warehouse[]) => setWarehouses(res || [])).catch(() => {});
+    })();
   }, []);
 
   // Reset form đóng gói mỗi khi mở lại 1 tác vụ khác — tránh mang nhầm số liệu/ảnh của tác vụ trước.
@@ -149,7 +154,7 @@ export default function WarehousePickPacking() {
     const mst = statusFilter === 'all' || t.status === statusFilter;
     const mw = !warehouseFilter || t.warehouse === warehouseFilter;
     const created = t.createdAt ? new Date(t.createdAt) : null;
-    const mdf = !dateFrom || (created !== null && created >= new Date(dateFrom));
+    const mdf = !dateFrom || (created !== null && created >= new Date(`${dateFrom}T00:00:00`));
     const mdt = !dateTo || (created !== null && created <= new Date(`${dateTo}T23:59:59.999`));
     return ms && mst && mw && mdf && mdt;
   });
@@ -282,9 +287,7 @@ export default function WarehousePickPacking() {
           </select>
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
             <option value="">Tất cả kho</option>
-            <option>Kho Hà Nội</option>
-            <option>Kho HCM</option>
-            <option>Kho Đà Nẵng</option>
+            {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
           </select>
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="Từ ngày" />
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateTo} onChange={e => setDateTo(e.target.value)} title="Đến ngày" />
