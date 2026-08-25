@@ -218,6 +218,19 @@ export default function SalesDeliveryTripsPage() {
         />
       </div>
 
+      {unscheduledOrders.length > 0 && (
+        <button
+          type="button"
+          onClick={() => { setNewTripDate(todayStr); setIsCreateOpen(true); }}
+          className="mx-4 mt-3 flex items-center gap-2 px-3 py-2 rounded border border-amber-200 bg-amber-50 hover:bg-amber-100 text-left transition-colors"
+        >
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span className="text-xs text-amber-800">
+            <strong className="font-semibold">{unscheduledOrders.length} đơn hàng</strong> đang chờ xếp lịch xe giao — bấm để xếp chuyến ngay.
+          </span>
+        </button>
+      )}
+
       <div className="p-4 flex flex-col gap-3 flex-1">
         {loading ? (
           <div className="text-center py-10 text-xs text-gray-500">Đang tải dữ liệu...</div>

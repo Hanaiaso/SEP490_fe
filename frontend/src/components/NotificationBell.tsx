@@ -26,8 +26,10 @@ function getNotifStyle(type?: string) {
     return { icon: Truck, bg: 'bg-cyan-50', color: 'text-cyan-600' };
   if (type.includes('Customer') || type.includes('Sales'))
     return { icon: Users, bg: 'bg-indigo-50', color: 'text-indigo-600' };
-  if (type.includes('Quotation') || type.includes('PO'))
+  if (type.includes('Quotation') || type.includes('PO') || type.includes('Vat'))
     return { icon: FileText, bg: 'bg-orange-50', color: 'text-orange-600' };
+  if (type.includes('Return') || type.includes('Pickup'))
+    return { icon: Truck, bg: 'bg-cyan-50', color: 'text-cyan-600' };
   if (type.includes('Cancel') || type.includes('Error'))
     return { icon: X, bg: 'bg-red-50', color: 'text-red-500' };
   return { icon: Bell, bg: 'bg-slate-100', color: 'text-slate-500' };
