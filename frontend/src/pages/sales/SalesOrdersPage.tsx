@@ -179,9 +179,13 @@ export default function SalesOrdersPage() {
   const [page, setPage] = useState(1);
 
   const [orderToConfirm, setOrderToConfirm] = useState<string | null>(null);
+  const [orderToReject, setOrderToReject] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
-  const handleCancelOrder = () => {
-    alert('Tính năng hủy đơn chưa được triển khai.');
+  const handleCancelOrder = (orderId: string) => {
+    setOrderToReject(orderId);
+    setRejectReason('');
   };
 
   const fetchDashboard = useCallback(async () => {
@@ -257,6 +261,36 @@ export default function SalesOrdersPage() {
       alert(err instanceof Error ? err.message : 'Lỗi không xác định.');
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const executeRejectOrder = async () => {
+    if (!orderToReject || !rejectReason.trim()) return;
+
+    setRejectingId(orderToReject);
+    const orderId = orderToReject;
+    const reason = rejectReason.trim();
+    setOrderToReject(null);
+
+    try {
+      const response = await authFetch(`/orders/sales/${orderId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Lỗi khi từ chối đơn hàng.');
+      }
+
+      alert('Đã từ chối đơn hàng thành công!');
+      fetchDashboard();
+      fetchOrdersList();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Lỗi không xác định.');
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -491,11 +525,16 @@ export default function SalesOrdersPage() {
                               Chi tiết
                             </button>
                             <button
-                              onClick={() => handleCancelOrder()}
-                              className="inline-flex items-center gap-1 rounded bg-red-100 border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-200"
+                              onClick={() => handleCancelOrder(order.id)}
+                              disabled={rejectingId === order.id}
+                              className="inline-flex items-center gap-1 rounded bg-red-100 border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-200 disabled:opacity-50"
                               title="Hủy đơn hàng"
                             >
-                              <XCircle className="h-3 w-3" />
+                              {rejectingId === order.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <XCircle className="h-3 w-3" />
+                              )}
                               Hủy
                             </button>
                           </div>
@@ -550,6 +589,42 @@ export default function SalesOrdersPage() {
         onConfirm={executeConfirmOrder}
         onCancel={() => setOrderToConfirm(null)}
       />
+
+      {orderToReject && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold text-gray-900">Hủy đơn hàng</h3>
+            <p className="mb-4 text-sm text-gray-500">Vui lòng nhập lý do từ chối đơn hàng này. Đơn sẽ chuyển sang trạng thái Đã hủy và tồn kho đã giữ chỗ sẽ được giải phóng.</p>
+            <textarea
+              className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              rows={3}
+              placeholder="Nhập lý do từ chối..."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setOrderToReject(null)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Đóng
+              </button>
+              <button
+                onClick={() => {
+                  if (!rejectReason.trim()) {
+                    alert('Vui lòng nhập lý do');
+                    return;
+                  }
+                  executeRejectOrder();
+                }}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
