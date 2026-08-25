@@ -171,7 +171,7 @@ export default function CEOPurchaseOrderDetailPage({ poId, onBack }: CEOPurchase
           <>
             <Button size="sm" style={{ backgroundColor: PRIMARY }} onClick={() => handleAction(issuePurchaseOrder)}>Phát hành (Issue)</Button>
             <Button size="sm" variant="outline" onClick={() => setShowEditModal(true)}><Pencil className="w-3.5 h-3.5 mr-1.5" /> Sửa PO</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleAction(cancelPurchaseOrder, 'Bạn chắc chắn muốn hủy?')}>Hủy PO</Button>
+            <Button size="sm" style={{ backgroundColor: '#DC2626' }} onClick={() => handleAction(cancelPurchaseOrder, 'Bạn chắc chắn muốn hủy?')}>Hủy PO</Button>
           </>
         )}
         {po.status === 'Issued' && (
