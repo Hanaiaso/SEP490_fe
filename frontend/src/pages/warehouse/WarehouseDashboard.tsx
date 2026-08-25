@@ -373,12 +373,12 @@ function WarehouseDrillDownModal({
                 ))}
 
                 {metric === 'lowStock' && items.map((m: any, i: number) => {
-                  const pct = m.threshold > 0 ? Math.round((m.onHand / m.threshold) * 100) : 0;
+                  const pct = m.threshold > 0 ? Math.round((m.availableQuantity / m.threshold) * 100) : 0;
                   return (
-                    <tr key={m.name || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
-                      <td className="px-3 py-2 font-bold text-gray-800">{m.name || m.productName}</td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: pct < 50 ? ERROR : WARNING }}>{(m.onHand || m.currentStock || 0).toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right font-medium text-gray-600 tabular-nums">{(m.threshold || m.minStockLevel || 0).toLocaleString()}</td>
+                    <tr key={m.itemId || i} className="hover:bg-blue-50/30" style={{ backgroundColor: i % 2 === 1 ? '#FAFAFA' : '#FFFFFF' }}>
+                      <td className="px-3 py-2 font-bold text-gray-800">{m.itemName}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: pct < 50 ? ERROR : WARNING }}>{(m.availableQuantity || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-medium text-gray-600 tabular-nums">{(m.threshold || 0).toLocaleString()}</td>
                       <td className="px-3 py-2 text-center text-gray-500">{m.unit || 'cái'}</td>
                       <td className="px-3 py-2 text-center font-bold" style={{ color: pct < 50 ? ERROR : WARNING }}>{pct}%</td>
                       <td className="px-3 py-2 text-center">
