@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../componen
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import CameraCapture from '../../components/ui/CameraCapture';
 import { getPurchaseOrders, getPurchaseOrderById, createGoodsReceipt, uploadGoodsReceiptProof, postGoodsReceipt } from '../../services/purchaseOrderService.js';
+import { getWarehouses } from '../../services/warehouseService.js';
 import { useEffect } from 'react';
-import type { PurchaseOrder as ApiPurchaseOrder, PurchaseOrderListItem } from '../../types/warehouse';
+import type { PurchaseOrder as ApiPurchaseOrder, PurchaseOrderListItem, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -97,6 +98,7 @@ export default function WarehousePurchaseOrders() {
 
   const [DATA, setDATA] = useState<PurchaseOrder[]>([]);
   const [, setLoading] = useState(true);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   // Receiving Modal State
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
@@ -142,6 +144,7 @@ export default function WarehousePurchaseOrders() {
 
   useEffect(() => {
     loadData();
+    getWarehouses().then((res: Warehouse[]) => setWarehouses(res || [])).catch(() => {});
   }, []);
 
   const openReceiveModal = async (poId: string) => {
@@ -212,7 +215,7 @@ export default function WarehousePurchaseOrders() {
     const mst = statusFilter === 'all' || mapStatus(d.status) === statusFilter;
     const mw = warehouseFilter === 'all' || d.warehouse === warehouseFilter;
     const issued = d.issuedAtRaw ? new Date(d.issuedAtRaw) : null;
-    const mdf = !dateFrom || (issued !== null && issued >= new Date(dateFrom));
+    const mdf = !dateFrom || (issued !== null && issued >= new Date(`${dateFrom}T00:00:00`));
     const mdt = !dateTo || (issued !== null && issued <= new Date(`${dateTo}T23:59:59.999`));
     return ms && mst && mw && mdf && mdt;
   });
@@ -247,9 +250,7 @@ export default function WarehousePurchaseOrders() {
           </select>
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
             <option value="all">Tất cả kho</option>
-            <option>Kho Hà Nội</option>
-            <option>Kho HCM</option>
-            <option>Kho Đà Nẵng</option>
+            {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
           </select>
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateTo} onChange={e => setDateTo(e.target.value)} />

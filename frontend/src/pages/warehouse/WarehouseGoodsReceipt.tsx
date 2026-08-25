@@ -5,7 +5,8 @@ import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, Printer, CheckCircle, Save, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getAllGoodsReceipts, updateGoodsReceipt, postGoodsReceipt, getPurchaseOrders } from '../../services/purchaseOrderService.js';
-import type { GoodsReceipt as ApiGoodsReceipt, PurchaseOrderListItem } from '../../types/warehouse';
+import { getWarehouses } from '../../services/warehouseService.js';
+import type { GoodsReceipt as ApiGoodsReceipt, PurchaseOrderListItem, Warehouse } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -62,6 +63,7 @@ export default function WarehouseGoodsReceipt() {
   const [editItems, setEditItems] = useState<ReceiptItem[]>([]);
   const [DATA, setDATA] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loadingAction, setLoadingAction] = useState(false);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -121,13 +123,16 @@ export default function WarehouseGoodsReceipt() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    getWarehouses().then((res: Warehouse[]) => setWarehouses(res || [])).catch(() => {});
+  }, []);
 
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
     const ms = !q || d.id.toLowerCase().includes(q) || d.poNo.toLowerCase().includes(q) || (d.poCode ?? '').toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || (d.code && d.code.toLowerCase().includes(q));
     const received = d.receivingDate ? new Date(d.receivingDate) : null;
-    const mdf = !dateFrom || (received !== null && received >= new Date(dateFrom));
+    const mdf = !dateFrom || (received !== null && received >= new Date(`${dateFrom}T00:00:00`));
     const mdt = !dateTo || (received !== null && received <= new Date(`${dateTo}T23:59:59.999`));
     return ms && (statusFilter === 'all' || mapStatus(d.status) === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter) && mdf && mdt;
   });
@@ -382,7 +387,7 @@ export default function WarehouseGoodsReceipt() {
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 cursor-pointer" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="all">Tất cả trạng thái</option>{Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 cursor-pointer" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 cursor-pointer" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 cursor-pointer" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="all">Tất cả kho</option><option value="Kho Hà Nội">Kho Hà Nội</option><option value="Kho HCM">Kho HCM</option><option value="Kho Đà Nẵng">Kho Đà Nẵng</option></select>
+          <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 cursor-pointer" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="all">Tất cả kho</option>{warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}</select>
         </div>
       </div>
       <div className="flex-1 overflow-auto bg-gray-50 p-4">

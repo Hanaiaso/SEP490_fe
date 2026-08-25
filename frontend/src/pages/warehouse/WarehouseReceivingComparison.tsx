@@ -4,8 +4,9 @@ import type { ChangeEvent } from 'react';
 import { Eye, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
 import { getPurchaseOrders, getPurchaseOrderById, getGoodsReceipts } from '../../services/purchaseOrderService.js';
+import { getWarehouses } from '../../services/warehouseService.js';
 import { useEffect } from 'react';
-import type { PurchaseOrder, PurchaseOrderListItem, GoodsReceipt } from '../../types/warehouse';
+import type { PurchaseOrder, PurchaseOrderListItem, GoodsReceipt, Warehouse } from '../../types/warehouse';
 
 const WARNING = '#D97706';
 const ERROR   = '#DC2626';
@@ -25,6 +26,7 @@ export default function WarehouseReceivingComparison() {
   const [dateTo, setDateTo] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
 
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [poList, setPoList] = useState<PurchaseOrderListItem[]>([]);
   const [selectedPoId, setSelectedPoId] = useState<string>('');
   const [, setPoDetail] = useState<PurchaseOrder | null>(null);
@@ -60,7 +62,7 @@ export default function WarehouseReceivingComparison() {
         .filter((r) => r.status === 'Posted')
         .filter((r) => {
           const received = r.receivedDate ? new Date(r.receivedDate) : null;
-          const afterFrom = !dateFrom || (received !== null && received >= new Date(dateFrom));
+          const afterFrom = !dateFrom || (received !== null && received >= new Date(`${dateFrom}T00:00:00`));
           const beforeTo = !dateTo || (received !== null && received <= new Date(`${dateTo}T23:59:59.999`));
           return afterFrom && beforeTo;
         })
@@ -102,7 +104,10 @@ export default function WarehouseReceivingComparison() {
     }
   };
 
-  useEffect(() => { loadPOs(); }, []);
+  useEffect(() => {
+    loadPOs();
+    getWarehouses().then((res: Warehouse[]) => setWarehouses(res || [])).catch(() => {});
+  }, []);
 
   // Đổi khoảng ngày sau khi đã chọn PO thì phải tính lại đối chiếu — nếu không, filter ngày chỉ có
   // tác dụng ở lần chọn PO tiếp theo chứ không áp dụng ngay cho PO đang xem.
@@ -150,9 +155,7 @@ export default function WarehouseReceivingComparison() {
           <input type="date" className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={dateTo} onChange={e => setDateTo(e.target.value)} />
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
             <option value="all">Tất cả kho</option>
-            <option value="Kho Hà Nội">Kho Hà Nội</option>
-            <option value="Kho HCM">Kho HCM</option>
-            <option value="Kho Đà Nẵng">Kho Đà Nẵng</option>
+            {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
           </select>
         </div>
       </div>
