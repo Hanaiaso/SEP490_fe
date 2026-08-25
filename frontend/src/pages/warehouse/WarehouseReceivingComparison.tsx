@@ -58,6 +58,12 @@ export default function WarehouseReceivingComparison() {
       const receipts: GoodsReceipt[] = await getGoodsReceipts(id);
       const postedReceiptItems = receipts
         .filter((r) => r.status === 'Posted')
+        .filter((r) => {
+          const received = r.receivedDate ? new Date(r.receivedDate) : null;
+          const afterFrom = !dateFrom || (received !== null && received >= new Date(dateFrom));
+          const beforeTo = !dateTo || (received !== null && received <= new Date(`${dateTo}T23:59:59.999`));
+          return afterFrom && beforeTo;
+        })
         .flatMap((r) => r.items);
 
       const mapped: ComparisonItem[] = data.items.map((i) => {
@@ -98,6 +104,13 @@ export default function WarehouseReceivingComparison() {
 
   useEffect(() => { loadPOs(); }, []);
 
+  // Đổi khoảng ngày sau khi đã chọn PO thì phải tính lại đối chiếu — nếu không, filter ngày chỉ có
+  // tác dụng ở lần chọn PO tiếp theo chứ không áp dụng ngay cho PO đang xem.
+  useEffect(() => {
+    if (selectedPoId) loadPoDetails(selectedPoId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]);
+
   const handleSelectPo = (e: ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setSelectedPoId(id);
@@ -126,7 +139,7 @@ export default function WarehouseReceivingComparison() {
         <div className="flex items-center gap-2 mb-3">
           <select className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600 font-medium min-w-[200px]" value={selectedPoId} onChange={handleSelectPo}>
             <option value="">-- Chọn PO đang có sai lệch --</option>
-            {poList.map(po => (
+            {poList.filter(po => warehouseFilter === 'all' || po.warehouseName === warehouseFilter).map(po => (
               <option key={po.id} value={po.id}>{po.code} - {po.supplierName}</option>
             ))}
           </select>

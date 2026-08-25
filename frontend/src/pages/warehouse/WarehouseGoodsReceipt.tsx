@@ -4,8 +4,8 @@ import { Button } from '../../components/sales-ui/button';
 import { Input } from '../../components/sales-ui/input';
 import { Search, Eye, RefreshCw, Download, Printer, CheckCircle, Save, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/sales-ui/dialog';
-import { getAllGoodsReceipts, updateGoodsReceipt, postGoodsReceipt } from '../../services/purchaseOrderService.js';
-import type { GoodsReceipt as ApiGoodsReceipt } from '../../types/warehouse';
+import { getAllGoodsReceipts, updateGoodsReceipt, postGoodsReceipt, getPurchaseOrders } from '../../services/purchaseOrderService.js';
+import type { GoodsReceipt as ApiGoodsReceipt, PurchaseOrderListItem } from '../../types/warehouse';
 
 const PRIMARY = '#1F3B64';
 const SUCCESS = '#16A34A';
@@ -77,14 +77,18 @@ export default function WarehouseGoodsReceipt() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const receipts: ApiGoodsReceipt[] = await getAllGoodsReceipts('');
+      const [receipts, pos]: [ApiGoodsReceipt[], PurchaseOrderListItem[]] = await Promise.all([
+        getAllGoodsReceipts(''),
+        getPurchaseOrders('')
+      ]);
+      const poWarehouseMap = new Map(pos.map((p) => [p.id, p.warehouseName]));
       const mapped: GoodsReceipt[] = receipts.map((r) => ({
         id: r.id,
         code: r.code,
         poNo: r.purchaseOrderId,
         poCode: r.purchaseOrderCode,
         supplier: 'NCC (Từ PO)',
-        warehouse: 'Kho Hệ Thống',
+        warehouse: poWarehouseMap.get(r.purchaseOrderId) || 'Không xác định',
         receivingDate: r.receivedDate,
         receiver: r.receivedByUserName,
         status: r.status,
@@ -122,7 +126,10 @@ export default function WarehouseGoodsReceipt() {
   const filtered = DATA.filter(d => {
     const q = search.toLowerCase();
     const ms = !q || d.id.toLowerCase().includes(q) || d.poNo.toLowerCase().includes(q) || (d.poCode ?? '').toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || (d.code && d.code.toLowerCase().includes(q));
-    return ms && (statusFilter === 'all' || mapStatus(d.status) === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter);
+    const received = d.receivingDate ? new Date(d.receivingDate) : null;
+    const mdf = !dateFrom || (received !== null && received >= new Date(dateFrom));
+    const mdt = !dateTo || (received !== null && received <= new Date(`${dateTo}T23:59:59.999`));
+    return ms && (statusFilter === 'all' || mapStatus(d.status) === statusFilter) && (warehouseFilter === 'all' || d.warehouse === warehouseFilter) && mdf && mdt;
   });
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);

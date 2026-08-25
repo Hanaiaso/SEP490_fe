@@ -62,7 +62,7 @@ interface ReceiptDraftItem {
 }
 interface PurchaseOrder {
   id: string; code: string; supplier: string; supplierCode: string; warehouse: string;
-  createdBy: string; issuedDate: string; expectedArrival: string;
+  createdBy: string; issuedDate: string; issuedAtRaw?: string; expectedArrival: string;
   itemCount: number; expectedQty: number; receivingProgress: number;
   status: string;
   priority: 'urgent' | 'normal';
@@ -121,6 +121,7 @@ export default function WarehousePurchaseOrders() {
           warehouse: p.warehouseName || 'Kho Hệ thống',
           createdBy: 'Hệ thống',
           issuedDate: formatDate(p.issuedAt),
+          issuedAtRaw: p.issuedAt,
           expectedArrival: formatDate(p.expectedDeliveryDate),
           itemCount: p.totalExpectedQuantity,
           expectedQty: p.totalExpectedQuantity,
@@ -210,7 +211,10 @@ export default function WarehousePurchaseOrders() {
     const ms = !q || d.id.toLowerCase().includes(q) || d.supplier.toLowerCase().includes(q) || d.supplierCode.toLowerCase().includes(q);
     const mst = statusFilter === 'all' || mapStatus(d.status) === statusFilter;
     const mw = warehouseFilter === 'all' || d.warehouse === warehouseFilter;
-    return ms && mst && mw;
+    const issued = d.issuedAtRaw ? new Date(d.issuedAtRaw) : null;
+    const mdf = !dateFrom || (issued !== null && issued >= new Date(dateFrom));
+    const mdt = !dateTo || (issued !== null && issued <= new Date(`${dateTo}T23:59:59.999`));
+    return ms && mst && mw && mdf && mdt;
   });
 
   const toggleSelect = (id: string) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);

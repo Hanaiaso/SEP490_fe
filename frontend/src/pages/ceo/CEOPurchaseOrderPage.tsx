@@ -18,6 +18,7 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [excessAlerts, setExcessAlerts] = useState<ExcessStockAlert[]>([]);
 
   const loadData = useCallback(async () => {
@@ -54,6 +55,8 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
     'Cancelled': { label: 'Đã hủy', style: 'bg-rose-100 text-rose-800' }
   };
 
+  const filteredPos = pos.filter(p => !search.trim() || p.code.toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <div className="flex flex-col gap-[20px] p-[24px]">
       <div className="flex justify-between items-center">
@@ -80,7 +83,7 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
       <div className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex items-center gap-2 border rounded px-3 py-1.5 flex-1 max-w-[300px]">
           <Search className="w-4 h-4 text-gray-400" />
-          <input className="outline-none text-sm w-full" placeholder="Tìm theo mã PO..." />
+          <input className="outline-none text-sm w-full" placeholder="Tìm theo mã PO..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <select
           className="border rounded px-3 py-1.5 text-sm outline-none"
@@ -115,9 +118,9 @@ export default function CEOPurchaseOrderPage({ setActiveTab, setSelectPOId }: CE
           <tbody>
             {loading ? (
               <tr><td colSpan={7} className="text-center py-4 text-sm text-gray-500">Đang tải...</td></tr>
-            ) : pos.length === 0 ? (
+            ) : filteredPos.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-4 text-sm text-gray-500">Không có dữ liệu</td></tr>
-            ) : pos.map(p => (
+            ) : filteredPos.map(p => (
               <tr key={p.id} className="border-b border-[#f5f7fa] hover:bg-[#f5f7fa]">
                 <td className="px-[16px] py-[12px] text-[12px] font-medium text-[#1f3b64]">{p.code}</td>
                 <td className="px-[16px] py-[12px] text-[12px] text-[#1f3b64]">{p.supplierName}</td>

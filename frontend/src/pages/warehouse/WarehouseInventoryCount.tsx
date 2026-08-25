@@ -103,6 +103,7 @@ export default function WarehouseInventoryCount() {
       if (maxQty) params.maxQty = maxQty;
       if (fromDate) params.fromDate = fromDate;
       if (toDate) params.toDate = toDate;
+      if (itemTypeFilter !== 'all') params.itemType = itemTypeFilter;
 
       const res: PaginatedList<InventoryItem> = await getWarehouseInventory(warehouseId, params);
       setItems(res.items || []);
@@ -113,14 +114,14 @@ export default function WarehouseInventoryCount() {
     } finally {
       setLoading(false);
     }
-  }, [warehouseId, page, search, minQty, maxQty, fromDate, toDate]);
+  }, [warehouseId, page, search, minQty, maxQty, fromDate, toDate, itemTypeFilter]);
 
   useEffect(() => {
     if (warehouseId) {
       fetchInventory();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouseId, page]);
+  }, [warehouseId, page, itemTypeFilter]);
 
   const handleSearch = () => {
     fetchInventory(true);
@@ -236,13 +237,6 @@ export default function WarehouseInventoryCount() {
     }
   };
 
-  const filteredItems = items.filter(item => {
-    if (itemTypeFilter === 'all') return true;
-    if (itemTypeFilter === 'Material') return item.itemType === 'Material' || item.materialId != null;
-    if (itemTypeFilter === 'Product') return item.itemType === 'Product' || (item.productId != null && item.materialId == null);
-    return true;
-  });
-
   return (
     <div className="flex flex-col h-full">
       {/* ── Fixed Header ── */}
@@ -312,7 +306,7 @@ export default function WarehouseInventoryCount() {
           <select
             className="h-7 text-xs border border-gray-200 rounded px-2 bg-white text-gray-600"
             value={itemTypeFilter}
-            onChange={e => setItemTypeFilter(e.target.value)}
+            onChange={e => { setItemTypeFilter(e.target.value); setPage(1); }}
           >
             <option value="all">Tất cả loại (SP & NVL)</option>
             <option value="Product">Chỉ Sản phẩm</option>
@@ -368,7 +362,7 @@ export default function WarehouseInventoryCount() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredItems.length === 0 ? (
+              ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
@@ -381,7 +375,7 @@ export default function WarehouseInventoryCount() {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, i) => {
+                items.map((item, i) => {
                   const isMaterial = item.itemType === 'Material' || item.materialId != null;
                   return (
                     <tr key={item.id} className={`hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
@@ -424,7 +418,7 @@ export default function WarehouseInventoryCount() {
 
           {/* Footer */}
           <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-            <span className="text-xs text-gray-500">Hiển thị {filteredItems.length} / {totalCount} bản ghi</span>
+            <span className="text-xs text-gray-500">Hiển thị {items.length} / {totalCount} bản ghi</span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-6 text-[10px] px-2">Trang trước</Button>
               <span className="text-xs text-gray-600 font-medium px-2">Trang {page} / {totalPages}</span>
