@@ -29,7 +29,6 @@ import WarehouseGoodsHistory from './WarehouseGoodsHistory';
 import WarehouseLowStock from './WarehouseLowStock';
 import WarehouseSlowMoving from './WarehouseSlowMoving';
 import WarehouseReport from './WarehouseReport';
-import WarehouseAuditLog from './WarehouseAuditLog';
 import NotificationsPage from '../NotificationsPage';
 import WarehouseFulfillmentOrders from './WarehouseFulfillmentOrders';
 import WarehousePickPacking from './WarehousePickPacking';
@@ -124,7 +123,6 @@ const buildNavItems = (role: string | undefined, counts: WarehouseSidebarCounts)
       { id: 'inv-report', label: 'Báo cáo tồn kho', icon: <FileBarChart className="w-3.5 h-3.5" />, path: '/warehouse/inventory/report' },
     ],
   },
-  { id: 'audit-log', label: 'Nhật ký thao tác', icon: <History className="w-4 h-4" />, path: '/warehouse/audit-log' },
   { id: 'notifications', label: 'Thông báo', icon: <Bell className="w-4 h-4" />, path: '/warehouse/notifications' },
 ];
 
@@ -318,7 +316,6 @@ export default function WarehousePortal() {
               <Route path="inventory/low-stock" element={<WarehouseLowStock />} />
               <Route path="inventory/slow-moving" element={<WarehouseSlowMoving />} />
               <Route path="inventory/report" element={<WarehouseReport />} />
-              <Route path="audit-log" element={<WarehouseAuditLog />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="*" element={<WarehouseDashboard />} />
             </Routes>
