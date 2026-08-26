@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Lock, MapPin, Package, RefreshCw, Truck, User, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { getVehicles } from '../../services/vehicleService.js';
+import { getWarehouseShifts } from '../../services/warehouseService.js';
 import WeightBar from '../../components/delivery/WeightBar';
 import type { DeliveryOrderListItem, PendingPickup } from '../../types/delivery';
 import type { Vehicle as FleetVehicle } from '../../types/admin';
@@ -33,7 +34,12 @@ type VehicleSlot = {
   orders: DeliveryOrder[];
 };
 
-const SHIFTS = [
+type ShiftTab = { key: string; label: string };
+
+// Chỉ dùng khi chưa tải được danh sách ca thật từ /warehouse-shifts (vd lỗi mạng) — không phải
+// nguồn dữ liệu chính, để tên/giờ ca luôn khớp với cấu hình Admin vừa sửa (BUGFIX: trước đây hardcode
+// cứng tên + khung giờ nên Sale xếp lịch xe không thấy được thay đổi Admin vừa lưu).
+const FALLBACK_SHIFTS: ShiftTab[] = [
   { key: 'Sáng', label: 'Ca sáng (6:00 - 14:00)' },
   { key: 'Trưa', label: 'Ca trưa (14:00 - 22:00)' },
   { key: 'Chiều', label: 'Ca chiều (22:00 - 6:00)' },
@@ -95,6 +101,7 @@ export default function SalesDeliveryArrangementPage() {
     return today.toISOString().split('T')[0];
   });
   const [fleetVehicles, setFleetVehicles] = useState<FleetVehicle[]>([]);
+  const [shifts, setShifts] = useState<ShiftTab[]>(FALLBACK_SHIFTS);
   const [vehicles, setVehicles] = useState<VehicleSlot[]>([]);
   const [available, setAvailable] = useState<DeliveryOrder[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'transfer' | 'pickup'>('all');
@@ -112,13 +119,13 @@ export default function SalesDeliveryArrangementPage() {
 
     // Ngày hôm nay -> Kiểm tra giờ hiện tại (GMT+7)
     const currentHour = new Date().getHours();
-    const shiftKey = SHIFTS[activeShift].key;
+    const shiftKey = shifts[activeShift]?.key;
     if (shiftKey === 'Sáng' && currentHour >= 10) return false;
     if (shiftKey === 'Trưa' && currentHour >= 14) return false;
     if (shiftKey === 'Chiều' && currentHour >= 22) return false;
 
     return true;
-  }, [selectedDate, activeShift]);
+  }, [selectedDate, activeShift, shifts]);
 
   // Xe thật từ Vehicles (id = VehicleNumber, khớp payload BE) — lọc xe đang hoạt động, sắp theo số xe.
   const VEHICLES_META = useCallback((): VehicleSlot[] =>
@@ -131,6 +138,21 @@ export default function SalesDeliveryArrangementPage() {
   useEffect(() => {
     getVehicles().then(setFleetVehicles).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    getWarehouseShifts()
+      .then((data: { name: string; startTime: string; endTime: string }[]) => {
+        if (data && data.length > 0) {
+          setShifts(data.map((s) => ({ key: s.name, label: `${s.name} (${s.startTime} - ${s.endTime})` })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Ca đang chọn có thể lệch khỏi mảng nếu Admin xoá bớt ca sau khi trang đã tải -> quay về ca đầu.
+  useEffect(() => {
+    if (activeShift >= shifts.length) setActiveShift(0);
+  }, [shifts, activeShift]);
 
   const fetchOrders = useCallback(async () => {
     if (fleetVehicles.length === 0) return;
@@ -170,7 +192,7 @@ export default function SalesDeliveryArrangementPage() {
 
           if (o.deliveryStatus === 'Scheduled' && o.vehicleId) {
             const orderDateStr = o.scheduledDeliveryDate ? o.scheduledDeliveryDate.split('T')[0] : '';
-            if (orderDateStr === selectedDate && o.shift === SHIFTS[activeShift].key) {
+            if (orderDateStr === selectedDate && o.shift === shifts[activeShift]?.key) {
               const v = newVehicles.find((v) => v.id === o.vehicleId);
               if (v) v.orders.push(mapped);
             } else {
@@ -205,7 +227,7 @@ export default function SalesDeliveryArrangementPage() {
 
           if (p.pickupStatus === 'Scheduled' && p.pickupVehicleId) {
             const reqDateStr = p.scheduledPickupDate ? p.scheduledPickupDate.split('T')[0] : '';
-            if (reqDateStr === selectedDate && p.pickupShift === SHIFTS[activeShift].key) {
+            if (reqDateStr === selectedDate && p.pickupShift === shifts[activeShift]?.key) {
               const v = newVehicles.find((v) => v.id === p.pickupVehicleId);
               if (v) v.orders.push(mapped);
             }
@@ -222,7 +244,7 @@ export default function SalesDeliveryArrangementPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, activeShift, toast, VEHICLES_META, fleetVehicles]);
+  }, [selectedDate, activeShift, toast, VEHICLES_META, fleetVehicles, shifts]);
 
   // Reload danh sách khi đổi Ngày giao hoặc Ca giao
   useEffect(() => {
@@ -286,7 +308,7 @@ export default function SalesDeliveryArrangementPage() {
     }
 
     setSaving(true);
-    const shiftKey = SHIFTS[activeShift].key;
+    const shiftKey = shifts[activeShift].key;
     const promises: Promise<void>[] = [];
 
     for (const v of vehicles) {
@@ -403,7 +425,7 @@ export default function SalesDeliveryArrangementPage() {
 
         {/* Shift tabs */}
         <div className="mt-3 flex gap-0 overflow-auto">
-          {SHIFTS.map((shift, index) => (
+          {shifts.map((shift, index) => (
             <button
               key={shift.key}
               onClick={() => setActiveShift(index)}
@@ -609,7 +631,7 @@ export default function SalesDeliveryArrangementPage() {
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                         vehicle.orders.length > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-400'
                       }`}>
-                        {SHIFTS[activeShift].key}
+                        {shifts[activeShift].key}
                       </span>
                     </div>
                     <div className="mt-2">

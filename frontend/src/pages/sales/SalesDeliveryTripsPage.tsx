@@ -3,6 +3,7 @@ import { authFetch } from '../../services/httpClient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Truck, Plus, Play, ArrowRight, X, Package, Clock, AlertTriangle, Ban } from 'lucide-react';
 import { getVehicles } from '../../services/vehicleService.js';
+import { getWarehouseShifts } from '../../services/warehouseService.js';
 import {
   getDeliveryTrips, createDeliveryTrip, startLoadingTrip, addOrdersToTrip, removeOrderFromTrip, startTrip, cancelTrip,
 } from '../../services/deliveryTripService.js';
@@ -25,7 +26,16 @@ const STATUS_CFG: Record<string, { label: string; bg: string }> = {
   Cancelled: { label: 'Đã hủy', bg: '#DC2626' },
 };
 
-const SHIFTS = ['Sáng', 'Trưa', 'Chiều'];
+type WorkShift = { id: string; name: string; startTime: string; endTime: string };
+
+// Chỉ dùng khi chưa tải được danh sách ca thật từ /warehouse-shifts (vd lỗi mạng) — không phải
+// nguồn dữ liệu chính, để tên/giờ ca luôn khớp với cấu hình Admin vừa sửa (BUGFIX: trước đây hardcode
+// cứng 'Sáng'/'Trưa'/'Chiều' nên Sale xếp lịch xe không thấy được thay đổi Admin vừa lưu).
+const FALLBACK_SHIFTS: WorkShift[] = [
+  { id: 'fallback-sang', name: 'Sáng', startTime: '', endTime: '' },
+  { id: 'fallback-trua', name: 'Trưa', startTime: '', endTime: '' },
+  { id: 'fallback-chieu', name: 'Chiều', startTime: '', endTime: '' },
+];
 
 function api(path: string, opts?: RequestInit) {
   return authFetch(path, {
@@ -51,12 +61,13 @@ export default function SalesDeliveryTripsPage() {
   const [trips, setTrips] = useState<DeliveryTrip[]>([]);
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [shifts, setShifts] = useState<WorkShift[]>(FALLBACK_SHIFTS);
   const [unscheduledOrders, setUnscheduledOrders] = useState<DeliveryOrderListItem[]>([]);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newVehicleId, setNewVehicleId] = useState('');
-  const [newShift, setNewShift] = useState(SHIFTS[0]);
+  const [newShift, setNewShift] = useState(FALLBACK_SHIFTS[0].name);
   const [newOrderIds, setNewOrderIds] = useState<string[]>([]);
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [newTripDate, setNewTripDate] = useState(todayStr);
@@ -97,6 +108,16 @@ export default function SalesDeliveryTripsPage() {
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
   useEffect(() => { getVehicles().then(setVehicles).catch(() => {}); fetchUnscheduledOrders(); }, [fetchUnscheduledOrders]);
+  useEffect(() => {
+    getWarehouseShifts()
+      .then((data: WorkShift[]) => {
+        if (data && data.length > 0) {
+          setShifts(data);
+          setNewShift((prev) => (data.some((s) => s.name === prev) ? prev : data[0].name));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const newOrdersWeight = useMemo(
     () => unscheduledOrders.filter((o) => newOrderIds.includes(o.id)).reduce((sum, o) => sum + (o.totalPackedWeightKg ?? 0), 0),
@@ -345,7 +366,9 @@ export default function SalesDeliveryTripsPage() {
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700">Ca *</label>
                   <select className="border rounded px-3 py-2 text-sm" value={newShift} onChange={(e) => setNewShift(e.target.value)}>
-                    {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {shifts.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.startTime && s.endTime ? ` (${s.startTime} - ${s.endTime})` : ''}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">

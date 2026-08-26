@@ -835,7 +835,7 @@ export default function SalesOrderDetailPage() {
                   <Hash className="w-4 h-4 text-blue-600" />
                 </div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Mã đơn</p>
-                <p className="text-sm font-bold text-slate-900 mt-0.5">{order.orderCode}</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5 break-all">{order.orderCode}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm text-center">
